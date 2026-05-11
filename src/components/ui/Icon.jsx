@@ -1,0 +1,42 @@
+export default function Icon({ n, size = 16, color = "currentColor", sw = 1.6 }) {
+  const s = { width: size, height: size, display: "inline-flex", flexShrink: 0, verticalAlign: "middle" };
+  const p = { fill: "none", stroke: color, strokeWidth: sw, strokeLinecap: "round", strokeLinejoin: "round" };
+  const map = {
+    dashboard: <svg style={s} viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5" {...p}/><rect x="14" y="3" width="7" height="7" rx="1.5" {...p}/><rect x="3" y="14" width="7" height="7" rx="1.5" {...p}/><rect x="14" y="14" width="7" height="7" rx="1.5" {...p}/></svg>,
+    building: <svg style={s} viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6" {...p}/></svg>,
+    checklist: <svg style={s} viewBox="0 0 24 24"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" {...p}/></svg>,
+    excavator: <svg style={s} viewBox="0 0 24 24"><path d="M2 17l4-9 4 6 3-4 5 7H2z" {...p}/><circle cx="18" cy="9" r="3" {...p}/></svg>,
+    people: <svg style={s} viewBox="0 0 24 24"><circle cx="9" cy="7" r="4" {...p}/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2M16 3.13a4 4 0 010 7.75M21 21v-2a4 4 0 00-3-3.87" {...p}/></svg>,
+    cube: <svg style={s} viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8zM3 8l9 5 9-5M12 13v8" {...p}/></svg>,
+    warehouse: <svg style={s} viewBox="0 0 24 24"><path d="M22 19V9L12 3 2 9v10h20zM12 15v7M9 14h6" {...p}/></svg>,
+    link: <svg style={s} viewBox="0 0 24 24"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" {...p}/></svg>,
+    barchart: <svg style={s} viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6" {...p}/></svg>,
+    key: <svg style={s} viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="5.5" {...p}/><path d="M21 2l-9.6 9.6M15.5 7.5l3 3" {...p}/></svg>,
+    logout: <svg style={s} viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" {...p}/></svg>,
+    plus: <svg style={s} viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" {...p}/></svg>,
+    edit: <svg style={s} viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" {...p}/></svg>,
+    trash: <svg style={s} viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6" {...p}/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6M10 11v6M14 11v6M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" {...p}/></svg>,
+    x: <svg style={s} viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" {...p}/></svg>,
+    alert: <svg style={s} viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" {...p}/></svg>,
+    pin: <svg style={s} viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" {...p}/><circle cx="12" cy="10" r="3" {...p}/></svg>,
+    cal: <svg style={s} viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" {...p}/><path d="M16 2v4M8 2v4M3 10h18" {...p}/></svg>,
+    money: <svg style={s} viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23" {...p}/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" {...p}/></svg>,
+    user: <svg style={s} viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" {...p}/><circle cx="12" cy="7" r="4" {...p}/></svg>,
+    upload: <svg style={s} viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" {...p}/></svg>,
+    check: <svg style={s} viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" {...p}/></svg>,
+    eye: <svg style={s} viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" {...p}/><circle cx="12" cy="12" r="3" {...p}/></svg>,
+    eyeoff: <svg style={s} viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19M1 1l22 22" {...p}/></svg>,
+    clock: <svg style={s} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" {...p}/><polyline points="12 6 12 12 16 14" {...p}/></svg>,
+    file: <svg style={s} viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" {...p}/><polyline points="14 2 14 8 20 8" {...p}/></svg>,
+    shield: <svg style={s} viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" {...p}/></svg>,
+    arrow: <svg style={s} viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" {...p}/></svg>,
+    book: <svg style={s} viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20M4 4.5A2.5 2.5 0 016.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15z" {...p}/></svg>,
+    bell: <svg style={s} viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" {...p}/></svg>,
+    trending: <svg style={s} viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" {...p}/><polyline points="17 6 23 6 23 12" {...p}/></svg>,
+    sun: <svg style={s} viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" {...p}/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" {...p}/></svg>,
+    cloud: <svg style={s} viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z" {...p}/></svg>,
+    rain: <svg style={s} viewBox="0 0 24 24"><line x1="16" y1="13" x2="16" y2="21" {...p}/><line x1="8" y1="13" x2="8" y2="21" {...p}/><line x1="12" y1="15" x2="12" y2="23" {...p}/><path d="M20 16.58A5 5 0 0018 7h-1.26A8 8 0 104 15.25" {...p}/></svg>,
+    users: <svg style={s} viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" {...p}/><circle cx="9" cy="7" r="4" {...p}/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" {...p}/></svg>,
+  };
+  return map[n] || <svg style={s} viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" {...p}/></svg>;
+}

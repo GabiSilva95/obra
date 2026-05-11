@@ -1,0 +1,222 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Tenant {
+  id          String   @id @default(cuid())
+  razaoSocial String
+  cnpj        String   @unique
+  email       String   @unique
+  plano       String   @default("starter")
+  createdAt   DateTime @default(now())
+
+  users        User[]
+  obras        Obra[]
+  tiposEtapa   TipoEtapa[]
+  maquinas     Maquina[]
+  funcionarios Funcionario[]
+  insumos      Insumo[]
+}
+
+model User {
+  id         Int      @id @default(autoincrement())
+  tenantId   String
+  nome       String
+  email      String
+  senha      String
+  role       String   @default("user")
+  ativo      Boolean  @default(true)
+  permissoes String[] @default([])
+  createdAt  DateTime @default(now())
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  obrasAcesso ObraAcesso[]
+
+  @@unique([tenantId, email])
+}
+
+model ObraAcesso {
+  userId Int
+  obraId Int
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  obra Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
+
+  @@id([userId, obraId])
+}
+
+model Obra {
+  id          Int      @id @default(autoincrement())
+  tenantId    String
+  nome        String
+  local       String
+  responsavel String?
+  inicio      String
+  previsaoFim String
+  orcamento   Float    @default(0)
+  status      String   @default("Planejada")
+  descricao   String?
+  createdAt   DateTime @default(now())
+
+  tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  etapas          EtapaObra[]
+  estoques        Estoque[]
+  alocacoes       Alocacao[]
+  funcionarioObra FuncionarioObra[]
+  acessos         ObraAcesso[]
+  diario          DiarioObra[]
+  receitas        Receita[]
+  ordensCompra    OrdemCompra[]
+}
+
+model TipoEtapa {
+  id          Int     @id @default(autoincrement())
+  tenantId    String
+  nome        String
+  icon        String?
+  tempoPadrao Int?
+
+  tenant Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  etapas EtapaObra[]
+}
+
+model EtapaObra {
+  id          Int     @id @default(autoincrement())
+  obraId      Int
+  tipoEtapaId Int
+  dataInicioP String
+  dataFimP    String
+  dataInicioR String?
+  dataFimR    String?
+  status      String  @default("Pendente")
+  progresso   Int     @default(0)
+  orcamento   Float   @default(0)
+
+  obra      Obra      @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  tipoEtapa TipoEtapa @relation(fields: [tipoEtapaId], references: [id])
+}
+
+model Maquina {
+  id        Int     @id @default(autoincrement())
+  tenantId  String
+  nome      String
+  tipo      String?
+  modelo    String?
+  custoHora Float   @default(0)
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  alocacoes Alocacao[]
+}
+
+model Funcionario {
+  id         Int     @id @default(autoincrement())
+  tenantId   String
+  nome       String
+  cargo      String?
+  salarioDia Float   @default(0)
+  telefone   String?
+  cpf        String?
+  ativo      Boolean @default(true)
+
+  tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  funcionarioObra FuncionarioObra[]
+}
+
+model FuncionarioObra {
+  id            Int @id @default(autoincrement())
+  funcionarioId Int
+  obraId        Int
+  dias          Int @default(0)
+
+  funcionario Funcionario @relation(fields: [funcionarioId], references: [id], onDelete: Cascade)
+  obra        Obra        @relation(fields: [obraId], references: [id], onDelete: Cascade)
+}
+
+model Insumo {
+  id         Int     @id @default(autoincrement())
+  tenantId   String
+  nome       String
+  unidade    String
+  custoUnit  Float   @default(0)
+  categoria  String?
+  fornecedor String?
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  estoques     Estoque[]
+  alocacoes    Alocacao[]
+  ordensCompra OrdemCompra[]
+}
+
+model Estoque {
+  id             Int      @id @default(autoincrement())
+  obraId         Int
+  insumoId       Int
+  quantEntrada   Float    @default(0)
+  quantUtilizado Float    @default(0)
+  dataMov        String
+  origem         String?
+  createdAt      DateTime @default(now())
+
+  obra   Obra   @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  insumo Insumo @relation(fields: [insumoId], references: [id], onDelete: Cascade)
+}
+
+model Alocacao {
+  id         Int     @id @default(autoincrement())
+  obraId     Int
+  tipo       String
+  maquinaId  Int?
+  insumoId   Int?
+  quantidade Float   @default(0)
+  data       String
+  obs        String?
+
+  obra    Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  maquina Maquina? @relation(fields: [maquinaId], references: [id])
+  insumo  Insumo?  @relation(fields: [insumoId], references: [id])
+}
+
+model DiarioObra {
+  id           Int      @id @default(autoincrement())
+  obraId       Int
+  data         String
+  clima        String?
+  descricao    String
+  trabalhadores Int     @default(0)
+  obs          String?
+  createdAt    DateTime @default(now())
+
+  obra Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
+}
+
+model Receita {
+  id        Int    @id @default(autoincrement())
+  obraId    Int
+  descricao String
+  valor     Float  @default(0)
+  data      String
+  tipo      String @default("Contrato")
+
+  obra Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
+}
+
+model OrdemCompra {
+  id         Int     @id @default(autoincrement())
+  obraId     Int
+  insumoId   Int?
+  descricao  String
+  quantidade Float   @default(0)
+  valorUnit  Float   @default(0)
+  fornecedor String?
+  status     String  @default("Pendente")
+  data       String
+  obs        String?
+
+  obra   Obra    @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  insumo Insumo? @relation(fields: [insumoId], references: [id])
+}

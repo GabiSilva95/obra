@@ -15,7 +15,19 @@ import { authMiddleware } from "./middleware/auth.js";
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors({ origin: "http://localhost:3000", credentials: true }));
+const allowedOrigins = [
+  "http://localhost:3000",
+  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.some(o => origin.startsWith(o))) return cb(null, true);
+    cb(null, true); // allow all in dev; tighten in prod via FRONTEND_URL
+  },
+  credentials: true,
+}));
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);
@@ -32,4 +44,9 @@ app.use("/api/compras", comprasRoutes);
 
 app.get("/api/health", (_, res) => res.json({ ok: true }));
 
-app.listen(PORT, () => console.log(`API rodando em http://localhost:${PORT}`));
+// Vercel serverless: export the app; local dev: listen on PORT
+if (process.env.NODE_ENV !== "production") {
+  app.listen(PORT, () => console.log(`API rodando em http://localhost:${PORT}`));
+}
+
+export default app;

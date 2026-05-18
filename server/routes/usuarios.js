@@ -33,6 +33,10 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   if (req.user.role !== "tenant_admin") return res.status(403).json({ error: "Sem permissão." });
   const id = parseInt(req.params.id);
+  // Verifica que o usuário pertence ao tenant antes de atualizar
+  const existing = await prisma.user.findFirst({ where: { id, tenantId: req.user.tenantId } });
+  if (!existing) return res.status(404).json({ error: "Usuário não encontrado." });
+
   const { nome, email, senha, permissoes, obrasAcesso, ativo } = req.body;
   const data = { nome, email, permissoes: permissoes || [], ativo: ativo ?? true };
   if (senha) data.senha = await bcrypt.hash(senha, 10);
@@ -49,6 +53,10 @@ router.put("/:id", async (req, res) => {
 router.patch("/:id/ativo", async (req, res) => {
   if (req.user.role !== "tenant_admin") return res.status(403).json({ error: "Sem permissão." });
   const id = parseInt(req.params.id);
+  // Verifica que o usuário pertence ao tenant antes de alterar
+  const existing = await prisma.user.findFirst({ where: { id, tenantId: req.user.tenantId } });
+  if (!existing) return res.status(404).json({ error: "Usuário não encontrado." });
+
   const user = await prisma.user.update({ where: { id }, data: { ativo: req.body.ativo } });
   res.json({ ...user, senha: undefined });
 });

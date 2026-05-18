@@ -40,9 +40,24 @@ router.delete("/:id", async (req, res) => {
   res.json({ ok: true });
 });
 
+// Helper: verifica que a obra pertence ao tenant
+async function findObraDoTenant(obraId, tenantId) {
+  return prisma.obra.findFirst({ where: { id: obraId, tenantId } });
+}
+
+// Helper: verifica que a etapa pertence a uma obra do tenant
+async function findEtapaDoTenant(etapaId, obraId, tenantId) {
+  return prisma.etapaObra.findFirst({
+    where: { id: etapaId, obraId },
+    include: { obra: { select: { tenantId: true } } },
+  }).then(e => (e?.obra?.tenantId === tenantId ? e : null));
+}
+
 // Etapas
 router.get("/:id/etapas", async (req, res) => {
   const obraId = parseInt(req.params.id);
+  const obra = await findObraDoTenant(obraId, req.user.tenantId);
+  if (!obra) return res.status(404).json({ error: "Obra não encontrada." });
   const etapas = await prisma.etapaObra.findMany({
     where: { obraId },
     include: { tipoEtapa: true },
@@ -53,6 +68,8 @@ router.get("/:id/etapas", async (req, res) => {
 
 router.post("/:id/etapas", async (req, res) => {
   const obraId = parseInt(req.params.id);
+  const obra = await findObraDoTenant(obraId, req.user.tenantId);
+  if (!obra) return res.status(404).json({ error: "Obra não encontrada." });
   const { tipoEtapaId, dataInicioP, dataFimP, dataInicioR, dataFimR, status, progresso } = req.body;
   const etapa = await prisma.etapaObra.create({
     data: { obraId, tipoEtapaId: parseInt(tipoEtapaId), dataInicioP, dataFimP, dataInicioR: dataInicioR || null, dataFimR: dataFimR || null, status: status || "Pendente", progresso: parseInt(progresso) || 0 },
@@ -62,18 +79,25 @@ router.post("/:id/etapas", async (req, res) => {
 });
 
 router.put("/:id/etapas/:etapaId", async (req, res) => {
-  const id = parseInt(req.params.etapaId);
-  const { tipoEtapaId, dataInicioP, dataFimP, dataInicioR, dataFimR, status, progresso } = req.body;
+  const obraId = parseInt(req.params.id);
+  const etapaId = parseInt(req.params.etapaId);
+  const existing = await findEtapaDoTenant(etapaId, obraId, req.user.tenantId);
+  if (!existing) return res.status(404).json({ error: "Etapa não encontrada." });
+  const { tipoEtapaId, dataInicioP, dataFimP, dataInicioR, dataFimR, status, progresso, orcamento } = req.body;
   const updated = await prisma.etapaObra.update({
-    where: { id },
-    data: { tipoEtapaId: parseInt(tipoEtapaId), dataInicioP, dataFimP, dataInicioR: dataInicioR || null, dataFimR: dataFimR || null, status, progresso: parseInt(progresso) || 0 },
+    where: { id: etapaId },
+    data: { tipoEtapaId: parseInt(tipoEtapaId), dataInicioP, dataFimP, dataInicioR: dataInicioR || null, dataFimR: dataFimR || null, status, progresso: parseInt(progresso) || 0, orcamento: orcamento != null ? parseFloat(orcamento) : undefined },
     include: { tipoEtapa: true },
   });
   res.json(updated);
 });
 
 router.delete("/:id/etapas/:etapaId", async (req, res) => {
-  await prisma.etapaObra.delete({ where: { id: parseInt(req.params.etapaId) } });
+  const obraId = parseInt(req.params.id);
+  const etapaId = parseInt(req.params.etapaId);
+  const existing = await findEtapaDoTenant(etapaId, obraId, req.user.tenantId);
+  if (!existing) return res.status(404).json({ error: "Etapa não encontrada." });
+  await prisma.etapaObra.delete({ where: { id: etapaId } });
   res.json({ ok: true });
 });
 

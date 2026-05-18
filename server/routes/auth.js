@@ -33,20 +33,26 @@ router.post("/login", async (req, res) => {
   const { email, senha } = req.body;
   if (!email || !senha) return res.status(400).json({ error: "E-mail e senha obrigatórios." });
 
-  const user = await prisma.user.findFirst({
-    where: { email },
+  // Busca todos os usuários ativos com esse e-mail (pode haver um por tenant)
+  // e encontra aquele cuja senha bate — evita retornar usuário do tenant errado
+  const candidates = await prisma.user.findMany({
+    where: { email, ativo: true },
     include: { tenant: true },
   });
-  if (!user || !user.ativo) return res.status(401).json({ error: "Credenciais inválidas." });
 
-  const ok = await bcrypt.compare(senha, user.senha);
-  if (!ok) return res.status(401).json({ error: "Credenciais inválidas." });
+  let matchedUser = null;
+  for (const candidate of candidates) {
+    const ok = await bcrypt.compare(senha, candidate.senha);
+    if (ok) { matchedUser = candidate; break; }
+  }
 
-  const token = jwt.sign({ userId: user.id, tenantId: user.tenantId, role: user.role }, process.env.JWT_SECRET, { expiresIn: "7d" });
+  if (!matchedUser) return res.status(401).json({ error: "Credenciais inválidas." });
+
+  const token = jwt.sign({ userId: matchedUser.id, tenantId: matchedUser.tenantId, role: matchedUser.role }, process.env.JWT_SECRET, { expiresIn: "7d" });
   res.json({
     token,
-    user: { id: user.id, nome: user.nome, email: user.email, role: user.role, permissoes: user.permissoes },
-    tenant: user.tenant,
+    user: { id: matchedUser.id, nome: matchedUser.nome, email: matchedUser.email, role: matchedUser.role, permissoes: matchedUser.permissoes },
+    tenant: matchedUser.tenant,
   });
 });
 

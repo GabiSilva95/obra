@@ -4,3 +4,5 @@ dist
 .env.local
 
 /src/generated/prisma
+.vercel
+.claude

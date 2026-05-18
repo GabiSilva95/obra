@@ -1,5 +1,6 @@
 import { Router } from "express";
 import prisma from "../db.js";
+import { checkPlanLimit } from "../middleware/planLimit.js";
 
 const router = Router();
 
@@ -20,7 +21,7 @@ router.get("/maquinas", async (req, res) => {
   res.json(items);
 });
 
-router.post("/maquinas", async (req, res) => {
+router.post("/maquinas", checkPlanLimit("maquinas"), async (req, res) => {
   const { nome, tipo, modelo, custoHora } = req.body;
   const item = await prisma.maquina.create({ data: { tenantId: req.user.tenantId, nome, tipo, modelo, custoHora: parseFloat(custoHora) || 0 } });
   res.status(201).json(item);
@@ -54,7 +55,7 @@ router.get("/funcionarios", async (req, res) => {
   res.json(items);
 });
 
-router.post("/funcionarios", async (req, res) => {
+router.post("/funcionarios", checkPlanLimit("funcionarios"), async (req, res) => {
   const { nome, cargo, salarioDia, telefone, cpf } = req.body;
   const item = await prisma.funcionario.create({ data: { tenantId: req.user.tenantId, nome, cargo, salarioDia: parseFloat(salarioDia) || 0, telefone, cpf } });
   res.status(201).json(item);
@@ -111,7 +112,7 @@ router.get("/insumos", async (req, res) => {
   res.json(items);
 });
 
-router.post("/insumos", async (req, res) => {
+router.post("/insumos", checkPlanLimit("insumos"), async (req, res) => {
   const { nome, unidade, custoUnit, categoria, fornecedor } = req.body;
   const item = await prisma.insumo.create({ data: { tenantId: req.user.tenantId, nome, unidade, custoUnit: parseFloat(custoUnit) || 0, categoria, fornecedor } });
   res.status(201).json(item);

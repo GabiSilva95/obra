@@ -10,6 +10,7 @@ import usuariosRoutes from "./routes/usuarios.js";
 import diarioRoutes from "./routes/diario.js";
 import receitasRoutes from "./routes/receitas.js";
 import comprasRoutes from "./routes/compras.js";
+import planoRoutes from "./routes/plano.js";
 import { authMiddleware } from "./middleware/auth.js";
 
 const app = express();
@@ -41,6 +42,7 @@ app.use("/api/usuarios", usuariosRoutes);
 app.use("/api/diario", diarioRoutes);
 app.use("/api/receitas", receitasRoutes);
 app.use("/api/compras", comprasRoutes);
+app.use("/api/plano", planoRoutes);
 
 app.get("/api/health", (_, res) => res.json({ ok: true }));
 

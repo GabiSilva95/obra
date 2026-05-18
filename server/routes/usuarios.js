@@ -1,6 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import prisma from "../db.js";
+import { checkPlanLimit } from "../middleware/planLimit.js";
 
 const router = Router();
 
@@ -13,7 +14,7 @@ router.get("/", async (req, res) => {
   res.json(users.map(u => ({ ...u, senha: undefined })));
 });
 
-router.post("/", async (req, res) => {
+router.post("/", checkPlanLimit("usuarios"), async (req, res) => {
   if (req.user.role !== "tenant_admin") return res.status(403).json({ error: "Sem permissão." });
   const { nome, email, senha, permissoes, obrasAcesso } = req.body;
   const hash = await bcrypt.hash(senha, 10);

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import prisma from "../db.js";
+import { checkPlanLimit } from "../middleware/planLimit.js";
 
 const router = Router();
 
@@ -12,7 +13,7 @@ router.get("/", async (req, res) => {
   res.json(obras);
 });
 
-router.post("/", async (req, res) => {
+router.post("/", checkPlanLimit("obras"), async (req, res) => {
   const { nome, local, responsavel, inicio, previsaoFim, orcamento, status, descricao } = req.body;
   const obra = await prisma.obra.create({
     data: { tenantId: req.user.tenantId, nome, local, responsavel, inicio, previsaoFim, orcamento: parseFloat(orcamento) || 0, status: status || "Planejada", descricao },

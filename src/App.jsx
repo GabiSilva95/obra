@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { C, F, FONT_URL } from "./constants/tokens";
 import createApi from "./utils/api.js";
 import Sidebar from "./components/Sidebar";
+import PlanoBanner from "./components/PlanoBanner";
 import BottomNav from "./components/BottomNav";
 import Notificacoes from "./components/Notificacoes";
 import Login from "./pages/Login";
@@ -126,6 +127,7 @@ function AppShell({ session, setSession }) {
         <BottomNav user={user} className="app-bottomnav" />
         <main style={{ flex: 1, overflowY: "auto", minHeight: "100vh" }}>
           <TopBar user={user} data={data} onLogout={doLogout} />
+          <PlanoBanner api={api} />
           <div className="page-inner" style={styleInner}>
             {!data ? loading : (
               <Routes>

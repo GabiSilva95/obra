@@ -21,7 +21,7 @@ export default function Login({ onLogin, onRegistro }) {
       });
       const data = await res.json();
       if (!res.ok) { setErr(data.error || "Credenciais inválidas."); setLoading(false); return; }
-      onLogin(data.token, data.user, data.tenant);
+      onLogin(data.token, data.user, data.tenant, data.refreshToken);
     } catch {
       setErr("Erro de conexão com o servidor.");
       setLoading(false);

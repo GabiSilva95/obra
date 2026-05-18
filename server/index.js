@@ -11,7 +11,10 @@ import diarioRoutes from "./routes/diario.js";
 import receitasRoutes from "./routes/receitas.js";
 import comprasRoutes from "./routes/compras.js";
 import planoRoutes from "./routes/plano.js";
+import auditoriaRoutes from "./routes/auditoria.js";
 import { authMiddleware } from "./middleware/auth.js";
+import { authLimiter, apiLimiter } from "./middleware/rateLimiter.js";
+import { auditLogger } from "./middleware/auditLogger.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -31,18 +34,27 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Rate limiting global + específico para auth
+app.use("/api", apiLimiter);
+app.use("/api/auth/login",    authLimiter);
+app.use("/api/auth/registro", authLimiter);
+
 app.use("/api/auth", authRoutes);
 
+// Autenticação + audit log para todas as rotas protegidas
 app.use(authMiddleware);
-app.use("/api/obras", obrasRoutes);
-app.use("/api/cadastros", cadastrosRoutes);
-app.use("/api/estoque", estoqueRoutes);
-app.use("/api/alocacao", alocacaoRoutes);
-app.use("/api/usuarios", usuariosRoutes);
-app.use("/api/diario", diarioRoutes);
-app.use("/api/receitas", receitasRoutes);
-app.use("/api/compras", comprasRoutes);
-app.use("/api/plano", planoRoutes);
+app.use(auditLogger);
+
+app.use("/api/obras",      obrasRoutes);
+app.use("/api/cadastros",  cadastrosRoutes);
+app.use("/api/estoque",    estoqueRoutes);
+app.use("/api/alocacao",   alocacaoRoutes);
+app.use("/api/usuarios",   usuariosRoutes);
+app.use("/api/diario",     diarioRoutes);
+app.use("/api/receitas",   receitasRoutes);
+app.use("/api/compras",    comprasRoutes);
+app.use("/api/plano",      planoRoutes);
+app.use("/api/auditoria",  auditoriaRoutes);
 
 app.get("/api/health", (_, res) => res.json({ ok: true }));
 

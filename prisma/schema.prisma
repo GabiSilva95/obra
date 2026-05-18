@@ -21,12 +21,14 @@ model Tenant {
   maquinas     Maquina[]
   funcionarios Funcionario[]
   insumos      Insumo[]
-  etapasObra   EtapaObra[]
-  estoques     Estoque[]
-  alocacoes    Alocacao[]
-  diarios      DiarioObra[]
-  receitas     Receita[]
-  ordensCompra OrdemCompra[]
+  etapasObra     EtapaObra[]
+  estoques       Estoque[]
+  alocacoes      Alocacao[]
+  diarios        DiarioObra[]
+  receitas       Receita[]
+  ordensCompra   OrdemCompra[]
+  refreshTokens  RefreshToken[]
+  auditLogs      AuditLog[]
 }
 
 model User {
@@ -40,8 +42,9 @@ model User {
   permissoes String[] @default([])
   createdAt  DateTime @default(now())
 
-  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  obrasAcesso ObraAcesso[]
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  obrasAcesso   ObraAcesso[]
+  refreshTokens RefreshToken[]
 
   @@unique([tenantId, email])
 }
@@ -236,6 +239,39 @@ model Receita {
 
   @@index([tenantId])
   @@index([obraId])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    Int
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  revogado  Boolean  @default(false)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tenantId])
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  tenantId  String
+  userId    Int?
+  metodo    String
+  rota      String
+  status    Int
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([createdAt])
 }
 
 model OrdemCompra {

@@ -162,14 +162,28 @@ export default function App() {
   });
   const navigate = useNavigate();
 
-  const doLogin = (token, user, tenant) => {
-    const s = { token, user, tenant };
+  const doLogin = (token, user, tenant, refreshToken) => {
+    const s = { token, user, tenant, refreshToken };
     setSession(s);
     localStorage.setItem("session", JSON.stringify(s));
     navigate("/app/dashboard");
   };
 
   const doLogout = () => {
+    // Revoga refresh token no backend (best-effort, não bloqueia o logout)
+    const raw = localStorage.getItem("session");
+    if (raw) {
+      try {
+        const { refreshToken } = JSON.parse(raw);
+        if (refreshToken) {
+          fetch("/api/auth/logout", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refreshToken }),
+          }).catch(() => {});
+        }
+      } catch {}
+    }
     setSession(null);
     localStorage.removeItem("session");
     navigate("/");

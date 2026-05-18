@@ -45,12 +45,9 @@ async function findObraDoTenant(obraId, tenantId) {
   return prisma.obra.findFirst({ where: { id: obraId, tenantId } });
 }
 
-// Helper: verifica que a etapa pertence a uma obra do tenant
+// Helper: verifica que a etapa pertence ao tenant e à obra
 async function findEtapaDoTenant(etapaId, obraId, tenantId) {
-  return prisma.etapaObra.findFirst({
-    where: { id: etapaId, obraId },
-    include: { obra: { select: { tenantId: true } } },
-  }).then(e => (e?.obra?.tenantId === tenantId ? e : null));
+  return prisma.etapaObra.findFirst({ where: { id: etapaId, obraId, tenantId } });
 }
 
 // Etapas
@@ -72,7 +69,7 @@ router.post("/:id/etapas", async (req, res) => {
   if (!obra) return res.status(404).json({ error: "Obra não encontrada." });
   const { tipoEtapaId, dataInicioP, dataFimP, dataInicioR, dataFimR, status, progresso } = req.body;
   const etapa = await prisma.etapaObra.create({
-    data: { obraId, tipoEtapaId: parseInt(tipoEtapaId), dataInicioP, dataFimP, dataInicioR: dataInicioR || null, dataFimR: dataFimR || null, status: status || "Pendente", progresso: parseInt(progresso) || 0 },
+    data: { tenantId: req.user.tenantId, obraId, tipoEtapaId: parseInt(tipoEtapaId), dataInicioP, dataFimP, dataInicioR: dataInicioR || null, dataFimR: dataFimR || null, status: status || "Pendente", progresso: parseInt(progresso) || 0 },
     include: { tipoEtapa: true },
   });
   res.status(201).json(etapa);

@@ -19,6 +19,9 @@ import { auditLogger } from "./middleware/auditLogger.js";
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Necessário para o rate-limiter detectar o IP correto atrás do proxy da Vercel
+app.set("trust proxy", 1);
+
 const allowedOrigins = [
   "http://localhost:3000",
   process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,

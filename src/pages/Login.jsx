@@ -19,11 +19,17 @@ export default function Login({ onLogin, onRegistro }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, senha }),
       });
-      const data = await res.json();
-      if (!res.ok) { setErr(data.error || "Credenciais inválidas."); setLoading(false); return; }
+      let data;
+      try { data = await res.json(); } catch { data = {}; }
+      if (!res.ok) {
+        if (res.status === 429) { setErr("Muitas tentativas. Aguarde alguns minutos."); }
+        else { setErr(data.error || "Credenciais inválidas."); }
+        setLoading(false);
+        return;
+      }
       onLogin(data.token, data.user, data.tenant, data.refreshToken);
     } catch {
-      setErr("Erro de conexão com o servidor.");
+      setErr("Não foi possível conectar ao servidor. Tente novamente.");
       setLoading(false);
     }
   };

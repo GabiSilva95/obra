@@ -3,7 +3,9 @@ import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { C, F, FONT_URL } from "./constants/tokens";
 import createApi from "./utils/api.js";
 import Sidebar from "./components/Sidebar";
-import PlanoBanner from "./components/PlanoBanner";
+import AvisoModal from "./components/AvisoModal";
+import { onLimiteAtingido, LABELS_RECURSO, ACAO_RECURSO } from "./utils/planoLimite";
+import { avisar } from "./utils/aviso";
 import BottomNav from "./components/BottomNav";
 import Notificacoes from "./components/Notificacoes";
 import Login from "./pages/Login";
@@ -21,7 +23,7 @@ import Financeiro from "./pages/Financeiro";
 import Compras from "./pages/Compras";
 
 function normalizeData(raw) {
-  const { obras, maquinas, funcionarios, insumos, estoques, alocacoes, tiposEtapa, users, diario, receitas, compras } = raw;
+  const { obras, maquinas, funcionarios, insumos, estoques, alocacoes, tiposEtapa, users, diario, receitas, compras, categoriasMaquina, tiposObra, consumos, apontamentos, despesas } = raw;
   const etapasObra = obras.flatMap(o => (o.etapas || []).map(e => ({ ...e, obraId: o.id })));
   const funcionarioObra = funcionarios.flatMap(f => (f.funcionarioObra || []));
   const normalizedAlocacoes = alocacoes.map(a => ({ ...a, referenciaId: a.maquinaId || a.insumoId }));
@@ -40,6 +42,11 @@ function normalizeData(raw) {
     diario: diario || [],
     receitas: receitas || [],
     compras: compras || [],
+    categoriasMaquina: categoriasMaquina || [],
+    tiposObra: tiposObra || [],
+    consumos: consumos || [],
+    apontamentos: apontamentos || [],
+    despesas: despesas || [],
   };
 }
 
@@ -65,7 +72,7 @@ function AppShell({ session, setSession }) {
 
   const loadData = useCallback(async () => {
     try {
-      const [obras, maquinas, funcionarios, insumos, estoques, alocacoes, tiposEtapa, users, diario, receitas, compras] = await Promise.all([
+      const [obras, maquinas, funcionarios, insumos, estoques, alocacoes, tiposEtapa, users, diario, receitas, compras, categoriasMaquina, tiposObra, consumos, apontamentos, despesas] = await Promise.all([
         api.get("/obras"),
         api.get("/cadastros/maquinas"),
         api.get("/cadastros/funcionarios"),
@@ -77,8 +84,15 @@ function AppShell({ session, setSession }) {
         api.get("/diario"),
         api.get("/receitas"),
         api.get("/compras"),
+        // Endpoints adicionados na Etapa 3 — fallback [] para compatibilidade
+        // com servidores ainda não atualizados (local sem restart ou pré-deploy)
+        api.get("/cadastros/categorias-maquina").catch(() => []),
+        api.get("/cadastros/tipos-obra").catch(() => []),
+        api.get("/estoque/consumos").catch(() => []),
+        api.get("/apontamentos").catch(() => []),
+        api.get("/despesas").catch(() => []),
       ]);
-      setData(normalizeData({ obras, maquinas, funcionarios, insumos, estoques, alocacoes, tiposEtapa, users, diario, receitas, compras }));
+      setData(normalizeData({ obras, maquinas, funcionarios, insumos, estoques, alocacoes, tiposEtapa, users, diario, receitas, compras, categoriasMaquina, tiposObra, consumos, apontamentos, despesas }));
     } catch (e) {
       setLoadErr(e.message);
     }
@@ -86,10 +100,27 @@ function AppShell({ session, setSession }) {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+
   const doLogout = () => { setSession(null); navigate("/"); };
 
   const user = session.user;
   const tenant = session.tenant;
+
+  // Limite de plano vira o mesmo pop-up central, com atalho para os planos
+  useEffect(() => onLimiteAtingido(info => {
+    const label = LABELS_RECURSO[info.recurso] || "registros";
+    const acao  = ACAO_RECURSO[info.recurso];
+    const planoNome = /plano\s+(\S+?)\s+atingido/i.exec(info.error || "")?.[1] || tenant?.plano;
+    avisar({
+      tipo: "alerta",
+      titulo: "Limite do plano atingido",
+      mensagem: info.limite != null
+        ? `Seu plano ${planoNome} permite ${info.limite} ${label} e você já tem ${info.atual}.`
+          + (acao ? ` Para ${acao}, faça upgrade.` : "")
+        : (info.error || "Faça upgrade do plano para continuar."),
+      acao: { rotulo: "Ver planos", onClick: () => navigate("/planos") },
+    });
+  }), [tenant?.plano]); // eslint-disable-line
   const isAdmin = user.role === "tenant_admin";
   const has = p => isAdmin || (user.permissoes || []).includes(p);
 
@@ -127,7 +158,6 @@ function AppShell({ session, setSession }) {
         <BottomNav user={user} className="app-bottomnav" />
         <main style={{ flex: 1, overflowY: "auto", minHeight: "100vh" }}>
           <TopBar user={user} data={data} onLogout={doLogout} />
-          <PlanoBanner api={api} />
           <div className="page-inner" style={styleInner}>
             {!data ? loading : (
               <Routes>
@@ -190,6 +220,8 @@ export default function App() {
   };
 
   return (
+    <>
+    <AvisoModal />
     <Routes>
       <Route path="/"        element={<PlanosPage onEscolher={id => navigate("/registro", { state: { planoId: id } })} onLogin={() => navigate("/login")} />} />
       <Route path="/login"   element={<Login onLogin={doLogin} onRegistro={() => navigate("/planos")} />} />
@@ -198,5 +230,6 @@ export default function App() {
       <Route path="/app/*"   element={session ? <AppShell session={session} setSession={setSession} /> : <Navigate to="/login" replace />} />
       <Route path="*"        element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   );
 }

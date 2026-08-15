@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { C, F } from "../constants/tokens";
-import { fmt, calcProg, calcIns, calcMaq, calcMO, isAtrasada } from "../utils/helpers";
+import { fmt, calcProg, calcIns, calcMaq, calcMO, calcDesp, isAtrasada } from "../utils/helpers";
 import { exportCsv, exportPdf } from "../utils/export";
 import { Icon, Badge, Bar, Card, Hdr, DSel, Btn } from "../components/ui";
 
@@ -62,10 +62,11 @@ export default function Relatorios({ data }) {
   const handleExportCsv = () => {
     const rows = filt.map(obra => {
       const prog = calcProg(obra.id, etapasObra);
-      const cIns = calcIns(obra.id, estoques, insumos);
+      const cIns = calcIns(obra.id, data.consumos, insumos);
       const cMaq = calcMaq(obra.id, alocacoes, maquinas);
-      const cMO = calcMO(obra.id, funcionarioObra, funcionarios);
-      const cT = cIns + cMaq + cMO;
+      const cMO = calcMO(obra.id, data.apontamentos, funcionarios, funcionarioObra);
+      const cDesp = calcDesp(obra.id, data.despesas);
+      const cT = cIns + cMaq + cMO + cDesp;
       const rec = receitas.filter(r => r.obraId === obra.id).reduce((s, r) => s + r.valor, 0);
       return [obra.nome, obra.status, obra.local, `${prog}%`, cT.toFixed(2), obra.orcamento, rec.toFixed(2), (rec - cT).toFixed(2)];
     });
@@ -75,10 +76,11 @@ export default function Relatorios({ data }) {
   const handleExportPdf = () => {
     const rows = filt.map(obra => {
       const prog = calcProg(obra.id, etapasObra);
-      const cIns = calcIns(obra.id, estoques, insumos);
+      const cIns = calcIns(obra.id, data.consumos, insumos);
       const cMaq = calcMaq(obra.id, alocacoes, maquinas);
-      const cMO = calcMO(obra.id, funcionarioObra, funcionarios);
-      const cT = cIns + cMaq + cMO;
+      const cMO = calcMO(obra.id, data.apontamentos, funcionarios, funcionarioObra);
+      const cDesp = calcDesp(obra.id, data.despesas);
+      const cT = cIns + cMaq + cMO + cDesp;
       const rec = receitas.filter(r => r.obraId === obra.id).reduce((s, r) => s + r.valor, 0);
       return `<tr><td>${obra.nome}</td><td>${obra.status}</td><td>${prog}%</td><td>${fmt(cT)}</td><td>${fmt(obra.orcamento)}</td><td>${fmt(rec)}</td><td style="color:${rec - cT >= 0 ? "green" : "red"}">${fmt(rec - cT)}</td></tr>`;
     }).join("");
@@ -141,10 +143,11 @@ export default function Relatorios({ data }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {filt.map(obra => {
             const prog = calcProg(obra.id, etapasObra);
-            const cIns = calcIns(obra.id, estoques, insumos);
+            const cIns = calcIns(obra.id, data.consumos, insumos);
             const cMaq = calcMaq(obra.id, alocacoes, maquinas);
-            const cMO = calcMO(obra.id, funcionarioObra, funcionarios);
-            const cT = cIns + cMaq + cMO;
+            const cMO = calcMO(obra.id, data.apontamentos, funcionarios, funcionarioObra);
+      const cDesp = calcDesp(obra.id, data.despesas);
+            const cT = cIns + cMaq + cMO + cDesp;
             const estD = estoques.filter(e => e.obraId === obra.id).reduce((s, e) => { const i = insumos.find(x => x.id === e.insumoId); return s + (i ? i.custoUnit * (e.quantEntrada - e.quantUtilizado) : 0); }, 0);
             const pOrc = Math.min(100, Math.round(cT / (obra.orcamento || 1) * 100));
             const ets = etapasObra.filter(e => e.obraId === obra.id).sort((a, b) => new Date(a.dataInicioP) - new Date(b.dataInicioP));

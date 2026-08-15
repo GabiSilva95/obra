@@ -3,6 +3,8 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { randomBytes } from "crypto";
 import prisma from "../db.js";
+import { normalizarPlano } from "../config/planos.js";
+import { popularDadosReferencia } from "../config/dadosReferencia.js";
 
 const router = Router();
 
@@ -39,11 +41,20 @@ router.post("/registro", async (req, res) => {
   const hash   = await bcrypt.hash(senha, 10);
   const tenant = await prisma.tenant.create({
     data: {
-      razaoSocial, cnpj, email, plano: plano || "starter",
+      razaoSocial, cnpj, email, plano: normalizarPlano(plano || "starter"),
       users: { create: { nome, email, senha: hash, role: "tenant_admin" } },
     },
     include: { users: true },
   });
+
+  // A conta precisa nascer utilizável: sem tipos de etapa, categorias e insumos
+  // o usuário não consegue criar a primeira obra. Falha aqui não invalida o
+  // cadastro — o tenant já existe e as listas podem ser recriadas depois.
+  try {
+    await popularDadosReferencia(prisma, tenant.id);
+  } catch (e) {
+    console.error(`[registro] falha ao popular dados de referência do tenant ${tenant.id}:`, e);
+  }
 
   const user         = tenant.users[0];
   const accessToken  = makeAccessToken(user);

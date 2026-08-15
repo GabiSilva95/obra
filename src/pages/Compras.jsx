@@ -2,13 +2,14 @@ import { useState } from "react";
 import { C, F } from "../constants/tokens";
 import { fmt, validate } from "../utils/helpers";
 import { exportCsv } from "../utils/export";
-import { Icon, Badge, Card, Modal, Inp, Btn, Hdr, DSel } from "../components/ui";
+import { Icon, Badge, Card, Modal, Inp, Btn, Hdr, DSel, MoneyInp } from "../components/ui";
+import { avisarErro, avisarSucesso, confirmar } from "../utils/aviso";
 
 const STATUS_LIST = ["Pendente", "Aprovada", "Entregue", "Cancelada"];
 const STATUS_COLORS = { Pendente: "yellow", Aprovada: "blue", Entregue: "green", Cancelada: "red" };
 
 export default function Compras({ data, setData, api, canWrite }) {
-  const { obras, insumos, compras = [] } = data;
+  const { obras, insumos, compras = [], etapasObra = [], tiposEtapa = [] } = data;
   const [obraFiltro, setObraFiltro] = useState("");
   const [statusFiltro, setStatusFiltro] = useState("");
   const [modal, setModal] = useState(false);
@@ -31,29 +32,46 @@ export default function Compras({ data, setData, api, canWrite }) {
     if (!ok) { setErros(e); return; }
     try {
       if (form.id) {
-        const updated = await api.put(`/compras/${form.id}`, form);
-        setData(d => ({ ...d, compras: d.compras.map(x => x.id === form.id ? updated : x) }));
+        const { estoqueGerado, ...updated } = await api.put(`/compras/${form.id}`, form);
+        setData(d => ({
+          ...d,
+          compras:  d.compras.map(x => x.id === form.id ? updated : x),
+          estoques: estoqueGerado ? [...d.estoques, estoqueGerado] : d.estoques,
+        }));
       } else {
         const nova = await api.post("/compras", form);
         setData(d => ({ ...d, compras: [nova, ...(d.compras || [])] }));
       }
       setErros({}); setModal(false);
-    } catch (err) { alert(err.message); }
+    } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
   };
 
   const setStatus = async (id, status) => {
     try {
-      await api.patch(`/compras/${id}/status`, { status });
-      setData(d => ({ ...d, compras: d.compras.map(x => x.id === id ? { ...x, status } : x) }));
-    } catch (err) { alert(err.message); }
+      // "Entregue" gera a entrada de estoque no backend; estoqueGerado vem
+      // preenchido só na primeira vez (reentregar a mesma ordem não duplica).
+      const { estoqueGerado } = await api.patch(`/compras/${id}/status`, { status });
+      setData(d => ({
+        ...d,
+        compras:  d.compras.map(x => x.id === id ? { ...x, status } : x),
+        estoques: estoqueGerado ? [...d.estoques, estoqueGerado] : d.estoques,
+      }));
+      if (estoqueGerado) {
+        const ins = insumos.find(i => i.id === estoqueGerado.insumoId);
+        avisarSucesso(
+          `${estoqueGerado.quantEntrada} ${ins?.unidade || ""} de ${ins?.nome || "insumo"} deram entrada no estoque da obra.`,
+          "Entrada registrada"
+        );
+      }
+    } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
   };
 
   const del = async id => {
-    if (!confirm("Remover ordem de compra?")) return;
+    if (!(await confirmar({ mensagem: "Remover ordem de compra?", confirmarRotulo: "Remover", perigo: true }))) return;
     try {
       await api.del(`/compras/${id}`);
       setData(d => ({ ...d, compras: d.compras.filter(x => x.id !== id) }));
-    } catch (err) { alert(err.message); }
+    } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
   };
 
   const handleExport = () => {
@@ -184,9 +202,19 @@ export default function Compras({ data, setData, api, canWrite }) {
                 {insumos.map(i => <option key={i.id} value={i.id}>{i.nome} ({i.unidade})</option>)}
               </select>
             </div>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.dim, textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 6, ...F }}>Etapa (opcional)</div>
+              <select value={form.etapaId || ""} onChange={e => setForm(f => ({ ...f, etapaId: e.target.value ? parseInt(e.target.value) : null }))} style={{ width: "100%", background: "rgba(255,255,255,.04)", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px", fontSize: 12, color: C.text, outline: "none", ...F }}>
+                <option value="">Sem etapa</option>
+                {etapasObra.filter(e => e.obraId === parseInt(form.obraId || 0)).map(et => {
+                  const tp = tiposEtapa.find(t => t.id === et.tipoEtapaId);
+                  return <option key={et.id} value={et.id}>{tp?.nome || `Etapa ${et.id}`}</option>;
+                })}
+              </select>
+            </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
               <Inp label="Quantidade" type="number" value={form.quantidade || ""} onChange={e => setForm(f => ({ ...f, quantidade: e.target.value }))} />
-              <Inp label="Valor Unitário (R$)" type="number" value={form.valorUnit || ""} onChange={e => setForm(f => ({ ...f, valorUnit: e.target.value }))} />
+              <MoneyInp label="Valor Unitário" value={form.valorUnit ?? ""} onChange={e => setForm(f => ({ ...f, valorUnit: e.target.value }))} />
               <div>
                 <div style={{ fontSize: 10, fontWeight: 700, color: C.dim, textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 6, ...F }}>Status</div>
                 <select value={form.status || "Pendente"} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} style={{ width: "100%", background: "rgba(255,255,255,.04)", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px", fontSize: 12, color: C.text, outline: "none", ...F }}>

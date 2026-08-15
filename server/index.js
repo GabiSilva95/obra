@@ -12,12 +12,15 @@ import receitasRoutes from "./routes/receitas.js";
 import comprasRoutes from "./routes/compras.js";
 import planoRoutes from "./routes/plano.js";
 import auditoriaRoutes from "./routes/auditoria.js";
+import apontamentosRoutes from "./routes/apontamentos.js";
+import despesasRoutes from "./routes/despesas.js";
 import { authMiddleware } from "./middleware/auth.js";
 import { authLimiter, apiLimiter } from "./middleware/rateLimiter.js";
 import { auditLogger } from "./middleware/auditLogger.js";
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+// 3002 por padrão: a 3001 costuma estar ocupada por outras apps locais
+const PORT = process.env.PORT || 3002;
 
 // Necessário para o rate-limiter detectar o IP correto atrás do proxy da Vercel
 app.set("trust proxy", 1);
@@ -35,7 +38,8 @@ app.use(cors({
   },
   credentials: true,
 }));
-app.use(express.json());
+// 6 MB cobre o base64 de um anexo de 3 MB (~4 MB) com folga para o resto
+app.use(express.json({ limit: "6mb" }));
 
 // Rate limiting global + específico para auth
 app.use("/api", apiLimiter);
@@ -58,8 +62,20 @@ app.use("/api/receitas",   receitasRoutes);
 app.use("/api/compras",    comprasRoutes);
 app.use("/api/plano",      planoRoutes);
 app.use("/api/auditoria",  auditoriaRoutes);
+app.use("/api/apontamentos", apontamentosRoutes);
+app.use("/api/despesas",     despesasRoutes);
 
 app.get("/api/health", (_, res) => res.json({ ok: true }));
+
+// ─── Error handler global ─────────────────────────────────────────────────────
+// Captura erros não tratados nos route handlers e retorna JSON em vez de
+// text/plain (que causa "Unexpected end of JSON input" no frontend).
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  console.error(`[${req.method} ${req.originalUrl}]`, err);
+  const status = err.status || err.statusCode || 500;
+  res.status(status).json({ error: err.message || "Erro interno do servidor." });
+});
 
 // Vercel serverless: export the app; local dev: listen on PORT
 if (process.env.NODE_ENV !== "production") {

@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { C, F } from "../constants/tokens";
-import { isAtrasada, calcIns, calcMaq, calcMO, fmt } from "../utils/helpers";
+import { isAtrasada, calcCustoObra, fmt } from "../utils/helpers";
 import Icon from "./ui/Icon";
 
 function calcNotifs(data) {
@@ -18,7 +18,7 @@ function calcNotifs(data) {
 
   // Orçamento >90%
   obras.forEach(o => {
-    const cT = calcIns(o.id, estoques, insumos) + calcMaq(o.id, alocacoes, maquinas) + calcMO(o.id, funcionarioObra, funcionarios);
+    const cT = calcCustoObra(o.id, data);
     const pct = o.orcamento > 0 ? (cT / o.orcamento) * 100 : 0;
     if (pct >= 90) {
       notifs.push({ id: `orc-${o.id}`, tipo: pct >= 100 ? "danger" : "warning", icone: "barchart", titulo: pct >= 100 ? "Orçamento estourado" : "Orçamento crítico", msg: `"${o.nome}" — ${Math.round(pct)}% utilizado (${fmt(cT)} de ${fmt(o.orcamento)})`, link: "/app/relatorios" });

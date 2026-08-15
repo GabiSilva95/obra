@@ -2,6 +2,7 @@ import { useState } from "react";
 import { C, F } from "../constants/tokens";
 import { validate } from "../utils/helpers";
 import { Icon, Card, Modal, Inp, Btn } from "../components/ui";
+import { avisarErro, confirmar } from "../utils/aviso";
 
 export default function TiposEtapa({ data, setData, api, canWrite }) {
   const tipos = data.tiposEtapa;
@@ -21,15 +22,15 @@ export default function TiposEtapa({ data, setData, api, canWrite }) {
         setData(d => ({ ...d, tiposEtapa: [...d.tiposEtapa, novo] }));
       }
       setErros({}); setModal(false);
-    } catch (err) { alert(err.message); }
+    } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
   };
 
   const del = async id => {
-    if (!confirm("Remover tipo? Etapas já lançadas com este tipo não serão afetadas.")) return;
+    if (!(await confirmar({ mensagem: "Remover tipo? Etapas já lançadas com este tipo não serão afetadas.", confirmarRotulo: "Remover", perigo: true }))) return;
     try {
       await api.del(`/cadastros/tipos-etapa/${id}`);
       setData(d => ({ ...d, tiposEtapa: d.tiposEtapa.filter(x => x.id !== id) }));
-    } catch (err) { alert(err.message); }
+    } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
   };
 
   return (

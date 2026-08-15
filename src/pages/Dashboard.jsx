@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { C, F } from "../constants/tokens";
-import { fmt, calcProg, calcIns, calcMaq, calcMO, isAtrasada } from "../utils/helpers";
+import { fmt, calcProg, calcCustoObra, isAtrasada } from "../utils/helpers";
 import { Icon, Badge, Bar, Card, Hdr, DSel } from "../components/ui";
 
 export default function Dashboard({ data, userId, isMaster }) {
-  const { obras, maquinas, funcionarios, insumos, estoques, alocacoes, funcionarioObra, etapasObra, users, tiposEtapa } = data;
+  const { obras, insumos, estoques, etapasObra, users, tiposEtapa } = data;
   const [filtro, setFiltro] = useState("all");
   const user = users.find(u => u.id === userId);
   const acess = isMaster ? obras : obras.filter(o => (user?.obrasAcesso || []).includes(o.id));
@@ -13,7 +13,7 @@ export default function Dashboard({ data, userId, isMaster }) {
   const kpis = [
     { l: "Obras Ativas", v: filt.filter(o => o.status === "Em andamento").length, i: "building", col: C.orange, acc: true },
     { l: "Etapas Atrasadas", v: totAtras, i: "alert", col: totAtras > 0 ? C.red : C.green, warn: totAtras > 0 },
-    { l: "Custo Total", v: fmt(filt.reduce((s, o) => s + calcIns(o.id, estoques, insumos) + calcMaq(o.id, alocacoes, maquinas) + calcMO(o.id, funcionarioObra, funcionarios), 0)), i: "money", col: C.blue },
+    { l: "Custo Total", v: fmt(filt.reduce((s, o) => s + calcCustoObra(o.id, data), 0)), i: "money", col: C.blue },
     { l: "Estoque Disponível", v: fmt(filt.reduce((s, o) => s + estoques.filter(e => e.obraId === o.id).reduce((ss, e) => { const i = insumos.find(x => x.id === e.insumoId); return ss + (i ? i.custoUnit * (e.quantEntrada - e.quantUtilizado) : 0); }, 0), 0)), i: "warehouse", col: "#a78bfa" },
   ];
 
@@ -55,7 +55,7 @@ export default function Dashboard({ data, userId, isMaster }) {
           const prog = calcProg(obra.id, etapasObra);
           const atrs = et.filter(e => isAtrasada(e));
           const ea = et.find(e => e.progresso > 0 && e.progresso < 100);
-          const cT = calcIns(obra.id, estoques, insumos) + calcMaq(obra.id, alocacoes, maquinas) + calcMO(obra.id, funcionarioObra, funcionarios);
+          const cT = calcCustoObra(obra.id, data);
           const pOrc = Math.min(100, Math.round(cT / (obra.orcamento || 1) * 100));
           const sc = { Concluída: "green", "Em andamento": "orange", Pausada: "yellow" };
           return (

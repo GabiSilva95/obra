@@ -1,41 +1,52 @@
 /**
  * Limites por plano. Use Infinity para recursos ilimitados.
  *
- * Recursos controlados:
- *   obras        — número de obras ativas
- *   funcionarios — funcionários cadastrados
- *   usuarios     — usuários da conta (excluindo o admin)
- *   maquinas     — equipamentos cadastrados
- *   insumos      — insumos no catálogo
+ * Somente dois recursos são limitados, conforme a oferta comercial em
+ * src/constants/data.js:
+ *   obras    — número de obras cadastradas
+ *   usuarios — usuários da conta
+ *
+ * Máquinas, insumos e funcionários são ilimitados em todos os planos: nunca
+ * fizeram parte da oferta e não devem bloquear cadastro.
  */
 export const PLANOS = {
   starter: {
     label: "Starter",
-    obras:        3,
-    funcionarios: 10,
-    usuarios:     2,
-    maquinas:     5,
-    insumos:      20,
+    obras:    5,
+    usuarios: 2,
   },
   pro: {
-    label: "Pro",
-    obras:        20,
-    funcionarios: 50,
-    usuarios:     10,
-    maquinas:     30,
-    insumos:      150,
+    label: "Business",
+    obras:    15,
+    usuarios: 5,
   },
   enterprise: {
-    label: "Enterprise",
-    obras:        Infinity,
-    funcionarios: Infinity,
-    usuarios:     Infinity,
-    maquinas:     Infinity,
-    insumos:      Infinity,
+    label: "Professional",
+    obras:    Infinity,
+    usuarios: Infinity,
   },
 };
 
-/** Retorna os limites do plano, caindo em starter se desconhecido. */
+/** Recursos efetivamente controlados. O que não estiver aqui é ilimitado. */
+export const RECURSOS_LIMITADOS = ["obras", "usuarios"];
+
+/**
+ * Aliases entre os IDs usados pelo frontend/registro e as chaves internas.
+ * Frontend usa: "starter" | "business" | "professional"
+ * Backend usa:  "starter" | "pro"      | "enterprise"
+ */
+const ALIASES = {
+  business:     "pro",
+  professional: "enterprise",
+};
+
+/** Retorna os limites do plano, normalizando aliases. Fallback: starter. */
 export function getLimites(plano) {
-  return PLANOS[plano] ?? PLANOS.starter;
+  const normalizado = ALIASES[plano] ?? plano;
+  return PLANOS[normalizado] ?? PLANOS.starter;
+}
+
+/** Normaliza o ID do plano para a chave interna (resolve aliases). */
+export function normalizarPlano(plano) {
+  return ALIASES[plano] ?? (PLANOS[plano] ? plano : "starter");
 }

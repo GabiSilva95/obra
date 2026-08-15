@@ -1,17 +1,25 @@
 import { useState } from "react";
 import { C, F } from "../constants/tokens";
-import { isAtrasada, calcProg, validate } from "../utils/helpers";
-import { Icon, Badge, Bar, Card, Modal, Inp, Sel, Txta, Btn, Hdr, Fld } from "../components/ui";
+import { isAtrasada, calcProg, validate, fmt, calcCustoEtapa } from "../utils/helpers";
+import { Icon, Badge, Bar, Card, Modal, Inp, Sel, Txta, Btn, Hdr, Fld, MoneyInp } from "../components/ui";
+import { avisarErro, confirmar } from "../utils/aviso";
+import AnexosObra from "../components/AnexosObra";
 
 export default function Obras({ data, setData, api, canWrite }) {
-  const { obras, etapasObra, tiposEtapa } = data;
-  const [modal, setModal] = useState(null);
-  const [etModal, setEtModal] = useState(false);
-  const [form, setForm] = useState({});
-  const [etForm, setEtForm] = useState({});
+  const { obras, etapasObra, tiposEtapa, tiposObra = [] } = data;
+  const [modal, setModal]       = useState(null);
+  const [etModal, setEtModal]   = useState(false);
+  const [form, setForm]         = useState({});
+  const [etForm, setEtForm]     = useState({});
   const [etObraId, setEtObraId] = useState(null);
-  const [erros, setErros] = useState({});
-  const [etErros, setEtErros] = useState({});
+  const [anexObra, setAnexObra] = useState(null);   // obra com anexos abertos
+  const [erros, setErros]       = useState({});
+  const [etErros, setEtErros]   = useState({});
+
+  // Preview das etapas do tipo selecionado (só na criação)
+  const tipoSelecionado = modal === "new" && form.tipoObraId
+    ? tiposObra.find(t => t.id === parseInt(form.tipoObraId))
+    : null;
 
   const saveObra = async () => {
     const { ok, erros: e } = validate(form, {
@@ -25,14 +33,25 @@ export default function Obras({ data, setData, api, canWrite }) {
     try {
       if (modal === "new") {
         const nova = await api.post("/obras", form);
-        setData(d => ({ ...d, obras: [...d.obras, nova] }));
+        // O backend retorna obra com etapas e tipoObra embutidos
+        const { etapas: novasEtapas = [], acessos: _, ...obraLimpa } = nova;
+        setData(d => ({
+          ...d,
+          obras:     [...d.obras, obraLimpa],
+          etapasObra: [
+            ...d.etapasObra,
+            ...novasEtapas.map(e => ({ ...e, obraId: nova.id })),
+          ],
+        }));
       } else {
         const atualizada = await api.put(`/obras/${form.id}`, form);
-        setData(d => ({ ...d, obras: d.obras.map(o => o.id === form.id ? atualizada : o) }));
+        const { etapas: _, acessos: _a, ...obraLimpa } = atualizada;
+        setData(d => ({ ...d, obras: d.obras.map(o => o.id === form.id ? obraLimpa : o) }));
       }
       setErros({}); setModal(null);
-    } catch (err) { alert(err.message); }
+    } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
   };
+
   const saveEt = async () => {
     const { ok, erros: e } = validate(etForm, {
       tipoEtapaId: { required: true, label: "Tipo de Etapa" },
@@ -49,22 +68,25 @@ export default function Obras({ data, setData, api, canWrite }) {
         setData(d => ({ ...d, etapasObra: [...d.etapasObra, { ...nova, obraId: etObraId }] }));
       }
       setEtErros({}); setEtModal(false);
-    } catch (err) { alert(err.message); }
+    } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
   };
+
   const delEt = async id => {
-    if (!confirm("Remover etapa?")) return;
+    if (!(await confirmar({ mensagem: "Remover etapa?", confirmarRotulo: "Remover", perigo: true }))) return;
     try {
       await api.del(`/obras/${etObraId}/etapas/${id}`);
       setData(d => ({ ...d, etapasObra: d.etapasObra.filter(e => e.id !== id) }));
-    } catch (err) { alert(err.message); }
+    } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
   };
+
   const delObra = async id => {
-    if (!confirm("Remover obra?")) return;
+    if (!(await confirmar({ mensagem: "Remover obra?", confirmarRotulo: "Remover", perigo: true }))) return;
     try {
       await api.del(`/obras/${id}`);
       setData(d => ({ ...d, obras: d.obras.filter(o => o.id !== id), etapasObra: d.etapasObra.filter(e => e.obraId !== id) }));
-    } catch (err) { alert(err.message); }
+    } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
   };
+
   const sc = { Planejada: "default", "Em andamento": "orange", Pausada: "yellow", Concluída: "green" };
 
   return (
@@ -72,7 +94,7 @@ export default function Obras({ data, setData, api, canWrite }) {
       <Hdr title="Obras" action={canWrite && <Btn onClick={() => { setForm({ status: "Planejada" }); setModal("new"); }}><Icon n="plus" size={13} />Nova Obra</Btn>} />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(290px,1fr))", gap: 12 }}>
         {obras.map(o => {
-          const et = etapasObra.filter(e => e.obraId === o.id);
+          const et   = etapasObra.filter(e => e.obraId === o.id);
           const prog = calcProg(o.id, etapasObra);
           const atrs = et.filter(e => isAtrasada(e)).length;
           return (
@@ -81,6 +103,12 @@ export default function Obras({ data, setData, api, canWrite }) {
                 <div style={{ fontWeight: 700, fontSize: 13, color: C.text, ...F, letterSpacing: "-0.02em", paddingRight: 8 }}>{o.nome}</div>
                 <Badge v={sc[o.status] || "default"} dot>{o.status}</Badge>
               </div>
+              {/* Tipo de obra */}
+              {o.tipoObra && (
+                <div style={{ fontSize: 10, color: C.orange, marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
+                  <Icon n="building" size={9} color={C.orange} />{o.tipoObra.nome}
+                </div>
+              )}
               <div style={{ fontSize: 11, color: C.muted, display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}><Icon n="pin" size={10} color={C.dim} />{o.local}</div>
               <div style={{ fontSize: 11, color: C.muted, display: "flex", alignItems: "center", gap: 4, marginBottom: 12 }}><Icon n="user" size={10} color={C.dim} />{o.responsavel}</div>
               <div style={{ marginBottom: 8 }}>
@@ -93,9 +121,10 @@ export default function Obras({ data, setData, api, canWrite }) {
               </div>
               <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
                 <Btn v="outline" onClick={() => setEtObraId(o.id)} sx={{ fontSize: 11, padding: "5px 11px" }}><Icon n="checklist" size={12} />Etapas ({et.length})</Btn>
+                <Btn v="outline" onClick={() => setAnexObra(o)} sx={{ fontSize: 11, padding: "5px 11px" }}><Icon n="file" size={12} />Anexos</Btn>
                 {canWrite && (
                   <>
-                    <Btn v="secondary" onClick={() => { setForm({ ...o }); setModal("edit"); }} sx={{ fontSize: 11, padding: "5px 11px" }}><Icon n="edit" size={12} />Editar</Btn>
+                    <Btn v="secondary" onClick={() => { setForm({ ...o, tipoObraId: o.tipoObraId || "" }); setModal("edit"); }} sx={{ fontSize: 11, padding: "5px 11px" }}><Icon n="edit" size={12} />Editar</Btn>
                     <Btn v="danger" onClick={() => delObra(o.id)} sx={{ fontSize: 11, padding: "5px 11px" }}><Icon n="trash" size={12} /></Btn>
                   </>
                 )}
@@ -105,6 +134,7 @@ export default function Obras({ data, setData, api, canWrite }) {
         })}
       </div>
 
+      {/* ── Modal Nova / Editar Obra ────────────────────────────────────────── */}
       {modal && (
         <Modal title={modal === "new" ? "Nova Obra" : "Editar Obra"} onClose={() => { setModal(null); setErros({}); }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -115,10 +145,39 @@ export default function Obras({ data, setData, api, canWrite }) {
               <Inp label="Início" type="date" error={erros.inicio} value={form.inicio || ""} onChange={e => setForm(f => ({ ...f, inicio: e.target.value }))} />
               <Inp label="Previsão de Fim" type="date" error={erros.previsaoFim} value={form.previsaoFim || ""} onChange={e => setForm(f => ({ ...f, previsaoFim: e.target.value }))} />
             </div>
-            <Inp label="Orçamento (R$)" type="number" error={erros.orcamento} value={form.orcamento || ""} onChange={e => setForm(f => ({ ...f, orcamento: parseFloat(e.target.value) }))} />
+            <MoneyInp label="Orçamento" error={erros.orcamento} value={form.orcamento ?? ""} onChange={e => setForm(f => ({ ...f, orcamento: e.target.value }))} />
             <Sel label="Status" value={form.status || "Planejada"} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
               {["Planejada", "Em andamento", "Pausada", "Concluída"].map(s => <option key={s}>{s}</option>)}
             </Sel>
+
+            {/* Tipo de Obra */}
+            <Sel
+              label={modal === "new" ? "Tipo de Obra (opcional — cria etapas automaticamente)" : "Tipo de Obra"}
+              value={form.tipoObraId || ""}
+              onChange={e => setForm(f => ({ ...f, tipoObraId: e.target.value ? parseInt(e.target.value) : null }))}>
+              <option value="">Sem tipo (etapas manuais)</option>
+              {tiposObra.filter(t => t.ativo !== false).map(t => (
+                <option key={t.id} value={t.id}>{t.nome}{t.etapas?.length ? ` (${t.etapas.length} etapas)` : ""}</option>
+              ))}
+            </Sel>
+
+            {/* Preview das etapas que serão auto-criadas */}
+            {tipoSelecionado && (tipoSelecionado.etapas || []).length > 0 && (
+              <div style={{ background: C.orangeDim, border: "1px solid rgba(249,115,22,.2)", borderRadius: 10, padding: "11px 14px" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.orange, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                  <Icon n="checklist" size={12} color={C.orange} />
+                  {tipoSelecionado.etapas.length} etapas serão criadas automaticamente
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                  {tipoSelecionado.etapas.map(e => (
+                    <span key={e.id} style={{ fontSize: 10, color: C.muted, background: "rgba(255,255,255,.05)", border: `1px solid ${C.borderLight}`, borderRadius: 5, padding: "2px 8px" }}>
+                      {e.tipoEtapa?.nome}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <Txta label="Descrição" rows={3} value={form.descricao || ""} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} />
             <div style={{ display: "flex", gap: 9, justifyContent: "flex-end" }}>
               <Btn v="secondary" onClick={() => { setModal(null); setErros({}); }}>Cancelar</Btn>
@@ -128,9 +187,14 @@ export default function Obras({ data, setData, api, canWrite }) {
         </Modal>
       )}
 
+      {anexObra && (
+        <AnexosObra obra={anexObra} api={api} canWrite={canWrite} onClose={() => setAnexObra(null)} />
+      )}
+
+      {/* ── Modal Etapas da Obra ────────────────────────────────────────────── */}
       {etObraId !== null && (() => {
         const obra = obras.find(o => o.id === etObraId);
-        const ets = etapasObra.filter(e => e.obraId === etObraId).sort((a, b) => new Date(a.dataInicioP) - new Date(b.dataInicioP));
+        const ets  = etapasObra.filter(e => e.obraId === etObraId).sort((a, b) => new Date(a.dataInicioP) - new Date(b.dataInicioP));
         const smap = { Concluída: "green", "Em andamento": "orange", Atrasada: "red", Pendente: "default", Pausada: "yellow" };
         return (
           <Modal title={`Etapas — ${obra?.nome}`} onClose={() => setEtObraId(null)} wide>
@@ -167,6 +231,38 @@ export default function Obras({ data, setData, api, canWrite }) {
                       <div style={{ flex: 1 }}><Bar val={e.progresso} color={at ? C.red : e.progresso === 100 ? C.green : C.orange} /></div>
                       <span style={{ fontSize: 11, color: C.muted, width: 26, textAlign: "right" }}>{e.progresso}%</span>
                     </div>
+                    {(() => {
+                      // Custo realizado da etapa: lançamentos apropriados a ela
+                      const c = calcCustoEtapa(e.id, data);
+                      if (!c.total && !e.orcamento) return null;
+                      const pct = e.orcamento > 0 ? Math.round(c.total / e.orcamento * 100) : null;
+                      const estourou = pct != null && pct > 100;
+                      return (
+                        <div style={{ marginTop: 9, paddingTop: 9, borderTop: `1px solid ${C.borderLight}` }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 5 }}>
+                            <span style={{ fontSize: 10, color: C.muted }}>
+                              Realizado <b style={{ color: estourou ? C.red : C.text, ...F }}>{fmt(c.total)}</b>
+                              {e.orcamento > 0 && <span style={{ color: C.dim }}> de {fmt(e.orcamento)}</span>}
+                            </span>
+                            {pct != null && (
+                              <span style={{ fontSize: 10, fontWeight: 700, color: estourou ? C.red : pct > 80 ? C.yellow : C.green, ...F }}>{pct}%</span>
+                            )}
+                          </div>
+                          {e.orcamento > 0 && <Bar val={Math.min(100, pct)} color={estourou ? C.red : pct > 80 ? C.yellow : C.green} />}
+                          {c.total > 0 && (
+                            <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginTop: 5 }}>
+                              {[["Insumos", c.ins, C.orange], ["Máquina", c.maq, "#60a5fa"], ["Mão de obra", c.mo, "#a78bfa"], ["Despesas", c.desp, "#f472b6"]]
+                                .filter(([, v]) => v > 0)
+                                .map(([l, v, col]) => (
+                                  <span key={l} style={{ fontSize: 10, color: C.dim }}>
+                                    <span style={{ color: col, fontWeight: 700 }}>●</span> {l}: {fmt(v)}
+                                  </span>
+                                ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })}
@@ -176,6 +272,7 @@ export default function Obras({ data, setData, api, canWrite }) {
         );
       })()}
 
+      {/* ── Modal Adicionar / Editar Etapa ──────────────────────────────────── */}
       {etModal && (
         <Modal title={etForm.id ? "Editar Etapa" : "Adicionar Etapa"} onClose={() => { setEtModal(false); setEtErros({}); }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -194,6 +291,8 @@ export default function Obras({ data, setData, api, canWrite }) {
             <Sel label="Status" value={etForm.status || "Pendente"} onChange={e => setEtForm(f => ({ ...f, status: e.target.value }))}>
               {["Pendente", "Em andamento", "Concluída", "Atrasada", "Pausada"].map(s => <option key={s}>{s}</option>)}
             </Sel>
+            <MoneyInp label="Orçamento da Etapa"
+              value={etForm.orcamento ?? ""} onChange={e => setEtForm(f => ({ ...f, orcamento: e.target.value }))} />
             <Fld label={`Progresso: ${etForm.progresso || 0}%`}>
               <input type="range" min="0" max="100" value={etForm.progresso || 0} onChange={e => setEtForm(f => ({ ...f, progresso: parseInt(e.target.value) }))} style={{ width: "100%", accentColor: C.orange }} />
             </Fld>

@@ -23,6 +23,7 @@ export default function Login({ onLogin, onRegistro }) {
       try { data = await res.json(); } catch { data = {}; }
       if (!res.ok) {
         if (res.status === 429) { setErr("Muitas tentativas. Aguarde alguns minutos."); }
+        else if (res.status >= 500 || res.status === 502 || res.status === 503) { setErr("Servidor indisponível. Tente novamente em instantes."); }
         else { setErr(data.error || "Credenciais inválidas."); }
         setLoading(false);
         return;

@@ -1,3 +1,5 @@
+import { emitirLimiteAtingido } from "./planoLimite.js";
+
 const BASE = "/api";
 
 // ─── Refresh silencioso ───────────────────────────────────────────────────────
@@ -66,8 +68,21 @@ function createApi(token) {
       }
     }
 
-    const data = await res.json();
-    if (!res.ok) throw Object.assign(new Error(data.error || "Erro na requisição"), { status: res.status, data });
+    // Tenta parsear o JSON; se a resposta estiver vazia ou não for JSON válido,
+    // usa objeto vazio como fallback (evita "Unexpected end of JSON input").
+    let data;
+    try { data = await res.json(); } catch { data = {}; }
+
+    if (!res.ok) {
+      const erro = Object.assign(new Error(data.error || `Erro ${res.status}`), { status: res.status, data });
+      // Limite de plano: o aviso vira pop-up, então a tela não deve alertar
+      // de novo. O flag `limitePlano` sinaliza isso a quem trata o erro.
+      if (res.status === 403 && data.upgrade) {
+        erro.limitePlano = true;
+        emitirLimiteAtingido(data);
+      }
+      throw erro;
+    }
     return data;
   };
 

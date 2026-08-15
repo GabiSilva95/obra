@@ -3,6 +3,8 @@ import { C, F } from "../constants/tokens";
 import { PLANOS } from "../constants/data";
 import { validate } from "../utils/helpers";
 import { Icon, Badge, Bar, Card, Modal, Inp, Btn, Hdr } from "../components/ui";
+import { avisarErro } from "../utils/aviso";
+import { emitirLimiteAtingido } from "../utils/planoLimite";
 
 const ALL_PERMS = [
   { id: "obras", l: "Obras" }, { id: "maquinas", l: "Máquinas" }, { id: "cadastros", l: "Cadastros" },
@@ -37,7 +39,7 @@ export default function Usuarios({ data, setData, api, tenant, setTenant }) {
         setData(d => ({ ...d, users: [...d.users, { ...novo, obrasAcesso: form.obrasAcesso || [] }] }));
       }
       setErros({}); setModal(false);
-    } catch (err) { alert(err.message); }
+    } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
   };
   const togP = p => { const pp = form.permissoes || []; setForm(f => ({ ...f, permissoes: pp.includes(p) ? pp.filter(x => x !== p) : [...pp, p] })); };
   const togO = id => { const oa = form.obrasAcesso || []; setForm(f => ({ ...f, obrasAcesso: oa.includes(id) ? oa.filter(x => x !== id) : [...oa, id] })); };
@@ -46,7 +48,7 @@ export default function Usuarios({ data, setData, api, tenant, setTenant }) {
     try {
       await api.patch(`/usuarios/${u.id}/ativo`, { ativo: !u.ativo });
       setData(d => ({ ...d, users: d.users.map(x => x.id === u.id ? { ...x, ativo: !x.ativo } : x) }));
-    } catch (err) { alert(err.message); }
+    } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
   };
 
   return (
@@ -57,7 +59,7 @@ export default function Usuarios({ data, setData, api, tenant, setTenant }) {
         action={
           <div style={{ display: "flex", gap: 9 }}>
             <Btn v="outline" onClick={() => setPlanoModal(true)} sx={{ fontSize: 11, padding: "6px 13px" }}><Icon n="shield" size={12} />Alterar Plano</Btn>
-            <Btn onClick={() => { if (limiteAtingido) { alert(`Limite de ${plano.usuarios} usuários atingido. Faça upgrade do plano.`); return; } setForm({ permissoes: [], obrasAcesso: [] }); setModal(true); }} sx={{ opacity: limiteAtingido ? .5 : 1 }}><Icon n="plus" size={13} />Novo Usuário</Btn>
+            <Btn onClick={() => { if (limiteAtingido) { emitirLimiteAtingido({ recurso: "usuarios", limite: plano.usuarios, atual: ativos }); return; } setForm({ permissoes: [], obrasAcesso: [] }); setModal(true); }} sx={{ opacity: limiteAtingido ? .5 : 1 }}><Icon n="plus" size={13} />Novo Usuário</Btn>
           </div>
         }
       />

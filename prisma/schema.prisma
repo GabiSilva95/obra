@@ -7,6 +7,8 @@ datasource db {
   provider = "postgresql"
 }
 
+// ─── Tenant ───────────────────────────────────────────────────────────────────
+
 model Tenant {
   id          String   @id @default(cuid())
   razaoSocial String
@@ -15,21 +17,31 @@ model Tenant {
   plano       String   @default("starter")
   createdAt   DateTime @default(now())
 
-  users        User[]
-  obras        Obra[]
-  tiposEtapa   TipoEtapa[]
-  maquinas     Maquina[]
-  funcionarios Funcionario[]
-  insumos      Insumo[]
-  etapasObra     EtapaObra[]
-  estoques       Estoque[]
-  alocacoes      Alocacao[]
-  diarios        DiarioObra[]
-  receitas       Receita[]
-  ordensCompra   OrdemCompra[]
-  refreshTokens  RefreshToken[]
-  auditLogs      AuditLog[]
+  users             User[]
+  obras             Obra[]
+  tiposEtapa        TipoEtapa[]
+  maquinas          Maquina[]
+  funcionarios      Funcionario[]
+  insumos           Insumo[]
+  etapasObra        EtapaObra[]
+  estoques          Estoque[]
+  alocacoes         Alocacao[]
+  diarios           DiarioObra[]
+  receitas          Receita[]
+  ordensCompra      OrdemCompra[]
+  refreshTokens     RefreshToken[]
+  auditLogs         AuditLog[]
+  // Novos (Melhorias 1 e 2)
+  categoriasMaquina CategoriaMaquina[]
+  tiposObra         TipoObra[]
+  // Novos (Prioridades 4 a 8)
+  consumos          ConsumoInsumo[]
+  apontamentos      ApontamentoMO[]
+  despesas          Despesa[]
+  anexos            Anexo[]
 }
+
+// ─── Usuários e Acessos ───────────────────────────────────────────────────────
 
 model User {
   id         Int      @id @default(autoincrement())
@@ -59,6 +71,8 @@ model ObraAcesso {
   @@id([userId, obraId])
 }
 
+// ─── Obras ────────────────────────────────────────────────────────────────────
+
 model Obra {
   id          Int      @id @default(autoincrement())
   tenantId    String
@@ -71,8 +85,11 @@ model Obra {
   status      String   @default("Planejada")
   descricao   String?
   createdAt   DateTime @default(now())
+  // Melhoria 2: tipo de obra (nullable para compatibilidade com obras existentes)
+  tipoObraId  Int?
 
   tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tipoObra        TipoObra?         @relation(fields: [tipoObraId], references: [id], onDelete: SetNull)
   etapas          EtapaObra[]
   estoques        Estoque[]
   alocacoes       Alocacao[]
@@ -81,9 +98,43 @@ model Obra {
   diario          DiarioObra[]
   receitas        Receita[]
   ordensCompra    OrdemCompra[]
+  consumos        ConsumoInsumo[]
+  apontamentos    ApontamentoMO[]
+  despesas        Despesa[]
+  anexos          Anexo[]
 
   @@index([tenantId])
+  @@index([tipoObraId])
 }
+
+// ─── Anexos da Obra ──────────────────────────────────────────────────────────
+
+/// Arquivos anexados a uma obra: projetos, plantas, orçamentos, fotos.
+///
+/// O conteúdo é guardado no próprio banco (bytea) porque o projeto não tem
+/// storage de objetos configurado. Isso limita o tamanho por arquivo — ver
+/// LIMITE_ANEXO em server/routes/anexos.js. Migrar para storage externo
+/// depois exige trocar apenas `dados` por uma URL.
+model Anexo {
+  id        Int      @id @default(autoincrement())
+  tenantId  String
+  obraId    Int
+  nome      String
+  mimeType  String
+  tamanho   Int
+  dados     Bytes
+  descricao String?
+  userId    Int?
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  obra   Obra   @relation(fields: [obraId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([obraId])
+}
+
+// ─── Tipos de Etapa ───────────────────────────────────────────────────────────
 
 model TipoEtapa {
   id          Int     @id @default(autoincrement())
@@ -91,9 +142,14 @@ model TipoEtapa {
   nome        String
   icon        String?
   tempoPadrao Int?
+  // Melhoria 3: ordem para exibição na biblioteca padrão
+  ordem       Int?
 
-  tenant Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  etapas EtapaObra[]
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  etapas         EtapaObra[]
+  tiposObraEtapa TipoObraEtapa[]
+
+  @@index([tenantId])
 }
 
 model EtapaObra {
@@ -113,21 +169,98 @@ model EtapaObra {
   obra      Obra      @relation(fields: [obraId], references: [id], onDelete: Cascade)
   tipoEtapa TipoEtapa @relation(fields: [tipoEtapaId], references: [id])
 
+  // Prioridade 7: custo realizado por etapa
+  alocacoes    Alocacao[]
+  consumos     ConsumoInsumo[]
+  apontamentos ApontamentoMO[]
+  despesas     Despesa[]
+  ordensCompra OrdemCompra[]
+
   @@index([tenantId])
   @@index([obraId])
+}
+
+// ─── Tipos de Obra (Melhoria 2) ───────────────────────────────────────────────
+
+model TipoObra {
+  id        Int     @id @default(autoincrement())
+  tenantId  String
+  nome      String
+  descricao String?
+  ativo     Boolean @default(true)
+
+  tenant Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  obras  Obra[]
+  etapas TipoObraEtapa[]
+
+  @@index([tenantId])
+}
+
+/// Vínculo N:N entre TipoObra e TipoEtapa com ordenação
+model TipoObraEtapa {
+  id          Int @id @default(autoincrement())
+  tipoObraId  Int
+  tipoEtapaId Int
+  ordem       Int @default(0)
+
+  tipoObra  TipoObra  @relation(fields: [tipoObraId], references: [id], onDelete: Cascade)
+  tipoEtapa TipoEtapa @relation(fields: [tipoEtapaId], references: [id], onDelete: Cascade)
+
+  @@unique([tipoObraId, tipoEtapaId])
+  @@index([tipoObraId])
+}
+
+// ─── Máquinas e Equipamentos (Melhoria 1) ────────────────────────────────────
+
+/// Categorias de equipamentos (ex: Escavadeira, Betoneira…)
+model CategoriaMaquina {
+  id       Int     @id @default(autoincrement())
+  tenantId String
+  nome     String
+  ativo    Boolean @default(true)
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  maquinas Maquina[]
+
+  @@index([tenantId])
 }
 
 model Maquina {
   id        Int     @id @default(autoincrement())
   tenantId  String
   nome      String
+  // Campo legado mantido — agora preenchido como texto livre OU substituído por categoriaId
   tipo      String?
   modelo    String?
+  // Custo efetivo por hora — fonte de verdade para calcMaq.
+  // Calculado automaticamente pelo frontend conforme tipoPropriedade.
   custoHora Float   @default(0)
 
-  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  // Melhoria 1: categoria via FK
+  categoriaId Int?
+
+  // Melhoria 1: tipo de propriedade
+  tipoPropriedade String? // "propria" | "alugada"
+
+  // Campos para máquina alugada
+  tipoCobranca String? // "hora" | "mensal"
+  valorLocacao Float? // valor/hora ou valor/mês conforme tipoCobranca
+
+  // Campos para máquina própria
+  valorAquisicao Float?
+  dataAquisicao  String?
+  vidaUtilAnos   Int?
+  horasProdMes   Int?
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  categoria CategoriaMaquina? @relation(fields: [categoriaId], references: [id], onDelete: SetNull)
   alocacoes Alocacao[]
+
+  @@index([tenantId])
+  @@index([categoriaId])
 }
+
+// ─── Funcionários ─────────────────────────────────────────────────────────────
 
 model Funcionario {
   id         Int     @id @default(autoincrement())
@@ -141,6 +274,7 @@ model Funcionario {
 
   tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   funcionarioObra FuncionarioObra[]
+  apontamentos    ApontamentoMO[]
 }
 
 model FuncionarioObra {
@@ -153,6 +287,8 @@ model FuncionarioObra {
   obra        Obra        @relation(fields: [obraId], references: [id], onDelete: Cascade)
 }
 
+// ─── Insumos ──────────────────────────────────────────────────────────────────
+
 model Insumo {
   id         Int     @id @default(autoincrement())
   tenantId   String
@@ -162,11 +298,14 @@ model Insumo {
   categoria  String?
   fornecedor String?
 
-  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  estoques     Estoque[]
-  alocacoes    Alocacao[]
-  ordensCompra OrdemCompra[]
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  estoques       Estoque[]
+  alocacoes      Alocacao[]
+  ordensCompra   OrdemCompra[]
+  consumoInsumos ConsumoInsumo[]
 }
+
+// ─── Estoque ──────────────────────────────────────────────────────────────────
 
 model Estoque {
   id             Int      @id @default(autoincrement())
@@ -179,33 +318,140 @@ model Estoque {
   origem         String?
   createdAt      DateTime @default(now())
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  obra   Obra   @relation(fields: [obraId], references: [id], onDelete: Cascade)
-  insumo Insumo @relation(fields: [insumoId], references: [id], onDelete: Cascade)
+  tenant   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  obra     Obra            @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  insumo   Insumo          @relation(fields: [insumoId], references: [id], onDelete: Cascade)
+  consumos ConsumoInsumo[]
 
   @@index([tenantId])
   @@index([obraId])
 }
+
+// ─── Consumo de Insumo (Prioridades 4 e 8) ───────────────────────────────────
+
+/// Baixa de estoque como lançamento próprio: tem data, custo congelado e etapa.
+/// Substitui o acúmulo cego em Estoque.quantUtilizado, que continua sendo
+/// mantido pelo backend como saldo derivado para as telas de disponibilidade.
+model ConsumoInsumo {
+  id            Int      @id @default(autoincrement())
+  tenantId      String
+  obraId        Int
+  estoqueId     Int
+  insumoId      Int
+  etapaId       Int?
+  quantidade    Float    @default(0)
+  /// Snapshot do custo unitário na data da baixa — reajustar o insumo
+  /// depois não reescreve o custo já apropriado.
+  custoUnitario Float    @default(0)
+  data          String
+  obs           String?
+  createdAt     DateTime @default(now())
+
+  tenant  Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  obra    Obra       @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  estoque Estoque    @relation(fields: [estoqueId], references: [id], onDelete: Cascade)
+  insumo  Insumo     @relation(fields: [insumoId], references: [id], onDelete: Cascade)
+  etapa   EtapaObra? @relation(fields: [etapaId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([obraId])
+  @@index([estoqueId])
+  @@index([etapaId])
+}
+
+// ─── Apontamento de Mão de Obra (Prioridade 5) ───────────────────────────────
+
+/// Presença diária por pessoa e obra, com valor/dia congelado.
+/// A chave única impede o mesmo dia ser lançado duas vezes — a duplicação
+/// silenciosa de custo que o vínculo acumulado permitia.
+model ApontamentoMO {
+  id            Int      @id @default(autoincrement())
+  tenantId      String
+  obraId        Int
+  funcionarioId Int
+  etapaId       Int?
+  data          String
+  /// Fração do dia: 1 = dia cheio, 0.5 = meio período
+  dias          Float    @default(1)
+  /// Snapshot do valor/dia da pessoa na data do apontamento
+  valorDia      Float    @default(0)
+  /// Registro do diário que originou este apontamento, quando houver
+  diarioId      Int?
+  obs           String?
+  createdAt     DateTime @default(now())
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  obra        Obra        @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  funcionario Funcionario @relation(fields: [funcionarioId], references: [id], onDelete: Cascade)
+  etapa       EtapaObra?  @relation(fields: [etapaId], references: [id], onDelete: SetNull)
+  diarioRef   DiarioObra? @relation(fields: [diarioId], references: [id], onDelete: SetNull)
+
+  @@unique([funcionarioId, obraId, data])
+  @@index([tenantId])
+  @@index([obraId])
+  @@index([etapaId])
+}
+
+// ─── Despesas (Prioridade 6) ─────────────────────────────────────────────────
+
+/// Custos que não são material, máquina nem mão de obra: combustível,
+/// manutenção, aluguel, tributos, administrativo.
+/// obraId nulo = despesa geral da empresa, fora do custo de uma obra.
+model Despesa {
+  id         Int      @id @default(autoincrement())
+  tenantId   String
+  obraId     Int?
+  etapaId    Int?
+  categoria  String
+  descricao  String
+  valor      Float    @default(0)
+  data       String
+  fornecedor String?
+  obs        String?
+  createdAt  DateTime @default(now())
+
+  tenant Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  obra   Obra?      @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  etapa  EtapaObra? @relation(fields: [etapaId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([obraId])
+  @@index([etapaId])
+}
+
+// ─── Alocação ─────────────────────────────────────────────────────────────────
 
 model Alocacao {
-  id         Int     @id @default(autoincrement())
-  tenantId   String  @default("")
-  obraId     Int
-  tipo       String
-  maquinaId  Int?
-  insumoId   Int?
-  quantidade Float   @default(0)
-  data       String
-  obs        String?
+  id            Int     @id @default(autoincrement())
+  tenantId      String  @default("")
+  obraId        Int
+  tipo          String
+  maquinaId     Int?
+  insumoId      Int?
+  quantidade    Float   @default(0)
+  data          String
+  obs           String?
+  // Melhoria 1: custo snapshot no momento da alocação.
+  // - Máquina própria / alugada hora: quantidade × custoHora (calculado pelo backend)
+  // - Máquina alugada mensal: valorLocacao (custo fixo, independe das horas)
+  // Nullable para compatibilidade com alocações anteriores (fallback em calcMaq).
+  custoUnitario Float?
 
-  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  obra    Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
-  maquina Maquina? @relation(fields: [maquinaId], references: [id])
-  insumo  Insumo?  @relation(fields: [insumoId], references: [id])
+  // Prioridade 7: apropriação por etapa
+  etapaId Int?
+
+  tenant  Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  obra    Obra       @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  maquina Maquina?   @relation(fields: [maquinaId], references: [id])
+  insumo  Insumo?    @relation(fields: [insumoId], references: [id])
+  etapa   EtapaObra? @relation(fields: [etapaId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([obraId])
+  @@index([etapaId])
 }
+
+// ─── Diário de Obra ───────────────────────────────────────────────────────────
 
 model DiarioObra {
   id            Int      @id @default(autoincrement())
@@ -218,12 +464,15 @@ model DiarioObra {
   obs           String?
   createdAt     DateTime @default(now())
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  obra   Obra   @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  tenant       Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  obra         Obra            @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  apontamentos ApontamentoMO[]
 
   @@index([tenantId])
   @@index([obraId])
 }
+
+// ─── Receitas ─────────────────────────────────────────────────────────────────
 
 model Receita {
   id        Int    @id @default(autoincrement())
@@ -240,6 +489,36 @@ model Receita {
   @@index([tenantId])
   @@index([obraId])
 }
+
+// ─── Ordens de Compra ─────────────────────────────────────────────────────────
+
+model OrdemCompra {
+  id         Int     @id @default(autoincrement())
+  tenantId   String  @default("")
+  obraId     Int
+  insumoId   Int?
+  descricao  String
+  quantidade Float   @default(0)
+  valorUnit  Float   @default(0)
+  fornecedor String?
+  status     String  @default("Pendente")
+  data       String
+  obs        String?
+
+  // Prioridade 7: apropriação por etapa
+  etapaId Int?
+
+  tenant Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  obra   Obra       @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  insumo Insumo?    @relation(fields: [insumoId], references: [id])
+  etapa  EtapaObra? @relation(fields: [etapaId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([obraId])
+  @@index([etapaId])
+}
+
+// ─── Segurança ────────────────────────────────────────────────────────────────
 
 model RefreshToken {
   id        String   @id @default(cuid())
@@ -272,25 +551,4 @@ model AuditLog {
 
   @@index([tenantId])
   @@index([createdAt])
-}
-
-model OrdemCompra {
-  id         Int     @id @default(autoincrement())
-  tenantId   String  @default("")
-  obraId     Int
-  insumoId   Int?
-  descricao  String
-  quantidade Float   @default(0)
-  valorUnit  Float   @default(0)
-  fornecedor String?
-  status     String  @default("Pendente")
-  data       String
-  obs        String?
-
-  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  obra   Obra    @relation(fields: [obraId], references: [id], onDelete: Cascade)
-  insumo Insumo? @relation(fields: [insumoId], references: [id])
-
-  @@index([tenantId])
-  @@index([obraId])
 }

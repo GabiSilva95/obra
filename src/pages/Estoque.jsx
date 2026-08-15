@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { C, F } from "../constants/tokens";
 import { today, fmt } from "../utils/helpers";
 import { Icon, Bar, Card, Modal, Inp, Sel, Btn, Hdr, DSel } from "../components/ui";
+import { avisarErro, confirmar } from "../utils/aviso";
 
 // ── Entrada de Insumos ────────────────────────────────────────────────────────
 function EntradaInsumos({ data, setData, api, canWrite }) {
@@ -24,7 +25,7 @@ function EntradaInsumos({ data, setData, api, canWrite }) {
         setData(d => ({ ...d, estoques: [...d.estoques, novo] }));
       }
       setModal(false); setObraDestino(""); setItensForm([{ insumoId: "", quantidade: "" }]);
-    } catch (err) { alert(err.message); }
+    } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
   };
 
   const [impModal, setImpModal] = useState(false);
@@ -56,7 +57,7 @@ function EntradaInsumos({ data, setData, api, canWrite }) {
         setData(d => ({ ...d, estoques: [...d.estoques, novo] }));
       }
       setImpModal(false); setStep(1); setImpData(null); setImpObra("");
-    } catch (err) { alert(err.message); }
+    } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
   };
 
   const extrato = [...estoques].sort((a, b) => b.dataMov.localeCompare(a.dataMov));
@@ -133,6 +134,7 @@ function EntradaInsumos({ data, setData, api, canWrite }) {
           );
         })}
       </div>
+
 
       {modal && (
         <Modal title="Nova Entrada de Insumos" onClose={() => setModal(false)} wide>
@@ -280,10 +282,17 @@ function PosicaoEstoque({ data }) {
 
 // ── Baixa de Estoque ─────────────────────────────────────────────────────────
 function BaixaEstoque({ data, setData, api, canWrite }) {
-  const { obras, insumos, estoques } = data;
+  const { obras, insumos, estoques, consumos = [], etapasObra = [], tiposEtapa = [] } = data;
   const [obraId, setObraId] = useState(obras[0]?.id || "");
   const [modal, setModal] = useState(false);
   const [itens, setItens] = useState([{ estoqueId: "", quantidade: "" }]);
+  const [dataBaixa, setDataBaixa] = useState(today());
+  const [etapaId, setEtapaId]     = useState("");
+
+  const etapasDaObra = etapasObra.filter(e => e.obraId === parseInt(obraId));
+  const consumosDaObra = consumos
+    .filter(c => c.obraId === parseInt(obraId))
+    .sort((a, b) => b.data.localeCompare(a.data));
 
   const obraEstoques = estoques.filter(e => e.obraId === parseInt(obraId));
   const comSaldo = obraEstoques.filter(e => (e.quantEntrada - e.quantUtilizado) > 0);
@@ -297,14 +306,35 @@ function BaixaEstoque({ data, setData, api, canWrite }) {
     if (!validas.length) return;
     try {
       for (const l of validas) {
-        const est = estoques.find(e => e.id === parseInt(l.estoqueId));
-        if (!est) continue;
-        const novoUtilizado = est.quantUtilizado + parseFloat(l.quantidade);
-        const updated = await api.put(`/estoque/${est.id}`, { ...est, quantUtilizado: novoUtilizado });
-        setData(d => ({ ...d, estoques: d.estoques.map(e => e.id === est.id ? { ...e, quantUtilizado: novoUtilizado } : e) }));
+        // O backend congela o custo unitário e mantém o saldo do lote.
+        const consumo = await api.post("/estoque/consumos", {
+          estoqueId:  parseInt(l.estoqueId),
+          quantidade: parseFloat(l.quantidade),
+          data:       dataBaixa,
+          etapaId:    etapaId ? parseInt(etapaId) : null,
+        });
+        setData(d => ({
+          ...d,
+          consumos: [consumo, ...(d.consumos || [])],
+          estoques: d.estoques.map(e => e.id === consumo.estoqueId
+            ? { ...e, quantUtilizado: e.quantUtilizado + consumo.quantidade } : e),
+        }));
       }
-      setModal(false); setItens([{ estoqueId: "", quantidade: "" }]);
-    } catch (err) { alert(err.message); }
+      setModal(false); setItens([{ estoqueId: "", quantidade: "" }]); setEtapaId("");
+    } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
+  };
+
+  const desfazer = async c => {
+    if (!(await confirmar({ mensagem: "Desfazer esta baixa? A quantidade volta para o saldo.", confirmarRotulo: "Remover", perigo: true }))) return;
+    try {
+      await api.del(`/estoque/consumos/${c.id}`);
+      setData(d => ({
+        ...d,
+        consumos: d.consumos.filter(x => x.id !== c.id),
+        estoques: d.estoques.map(e => e.id === c.estoqueId
+          ? { ...e, quantUtilizado: e.quantUtilizado - c.quantidade } : e),
+      }));
+    } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
   };
 
   return (
@@ -352,11 +382,55 @@ function BaixaEstoque({ data, setData, api, canWrite }) {
         })}
       </Card>
 
+      {/* Histórico de baixas — cada consumo com data e custo congelado */}
+      <Card style={{ padding: 0, overflow: "hidden", marginTop: 14 }}>
+        <div style={{ padding: "11px 14px", borderBottom: `1px solid ${C.borderLight}`, fontSize: 10, fontWeight: 700, color: C.dim, textTransform: "uppercase", letterSpacing: "0.08em", ...F }}>
+          Baixas registradas
+        </div>
+        {!consumosDaObra.length && <div style={{ padding: "36px", textAlign: "center", color: C.dim, fontSize: 12 }}>Nenhuma baixa registrada nesta obra.</div>}
+        {consumosDaObra.map(c => {
+          const etapa = etapasObra.find(e => e.id === c.etapaId);
+          const tp    = etapa && tiposEtapa.find(t => t.id === etapa.tipoEtapaId);
+          return (
+            <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 14px", borderBottom: `1px solid ${C.borderLight}` }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: C.text, ...F }}>
+                  {c.insumo?.nome || "—"}
+                  {tp && <span style={{ fontSize: 10, color: C.orange, marginLeft: 7 }}>· {tp.nome}</span>}
+                </div>
+                <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
+                  {c.quantidade} {c.insumo?.unidade || ""} · {new Date(c.data + "T12:00:00").toLocaleDateString("pt-BR")}
+                </div>
+              </div>
+              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: C.orange, ...F }}>{fmt(c.custoUnitario * c.quantidade)}</div>
+                <div style={{ fontSize: 10, color: C.dim }}>{fmt(c.custoUnitario)}/un na data</div>
+              </div>
+              {canWrite && (
+                <button onClick={() => desfazer(c)} title="Desfazer baixa" style={{ background: "none", border: "none", cursor: "pointer", padding: 3, flexShrink: 0 }}>
+                  <Icon n="trash" size={13} color={C.dim} />
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </Card>
+
       {modal && (
         <Modal title="Registrar Baixa de Estoque" onClose={() => setModal(false)} wide>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div style={{ fontSize: 12, color: C.muted, background: "rgba(249,115,22,.05)", border: "1px solid rgba(249,115,22,.15)", borderRadius: 9, padding: "9px 13px" }}>
               <Icon n="alert" size={12} color={C.orange} /> Registre o consumo real de materiais da obra <b style={{ color: C.orange }}>{obras.find(o => o.id === parseInt(obraId))?.nome}</b>.
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <Inp label="Data do consumo" type="date" value={dataBaixa} onChange={e => setDataBaixa(e.target.value)} />
+              <Sel label="Etapa (opcional)" value={etapaId} onChange={e => setEtapaId(e.target.value)}>
+                <option value="">Sem etapa</option>
+                {etapasDaObra.map(et => {
+                  const tp = tiposEtapa.find(t => t.id === et.tipoEtapaId);
+                  return <option key={et.id} value={et.id}>{tp?.nome || `Etapa ${et.id}`}</option>;
+                })}
+              </Sel>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {itens.map((l, i) => {

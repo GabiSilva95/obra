@@ -39,6 +39,9 @@ model Tenant {
   apontamentos      ApontamentoMO[]
   despesas          Despesa[]
   anexos            Anexo[]
+  subetapas         Subetapa[]
+  itensOrdem        ItemOrdemCompra[]
+  transferencias    Transferencia[]
 }
 
 // ─── Usuários e Acessos ───────────────────────────────────────────────────────
@@ -98,10 +101,12 @@ model Obra {
   diario          DiarioObra[]
   receitas        Receita[]
   ordensCompra    OrdemCompra[]
-  consumos        ConsumoInsumo[]
-  apontamentos    ApontamentoMO[]
-  despesas        Despesa[]
-  anexos          Anexo[]
+  consumos              ConsumoInsumo[]
+  apontamentos          ApontamentoMO[]
+  despesas              Despesa[]
+  anexos                Anexo[]
+  transferenciasOrigem  Transferencia[] @relation("TransferenciaOrigem")
+  transferenciasDestino Transferencia[] @relation("TransferenciaDestino")
 
   @@index([tenantId])
   @@index([tipoObraId])
@@ -175,6 +180,7 @@ model EtapaObra {
   apontamentos ApontamentoMO[]
   despesas     Despesa[]
   ordensCompra OrdemCompra[]
+  subetapas    Subetapa[]
 
   @@index([tenantId])
   @@index([obraId])
@@ -263,18 +269,42 @@ model Maquina {
 // ─── Funcionários ─────────────────────────────────────────────────────────────
 
 model Funcionario {
-  id         Int     @id @default(autoincrement())
-  tenantId   String
-  nome       String
-  cargo      String?
-  salarioDia Float   @default(0)
-  telefone   String?
-  cpf        String?
-  ativo      Boolean @default(true)
+  id             Int     @id @default(autoincrement())
+  tenantId       String
+  nome           String
+  cpfCnpj        String?
+  telefone       String?
+  email          String?
+  endereco       String?
+  isColaborador  Boolean @default(false)
+  isFornecedor   Boolean @default(false)
+  isCliente      Boolean @default(false)
+  cargo          String?
+  salarioDia     Float   @default(0)
+  ativo          Boolean @default(true)
 
   tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   funcionarioObra FuncionarioObra[]
   apontamentos    ApontamentoMO[]
+  ordensCompra    OrdemCompra[]
+}
+
+model Subetapa {
+  id          Int     @id @default(autoincrement())
+  etapaId     Int
+  tenantId    String
+  nome        String
+  concluida   Boolean @default(false)
+  dataInicioP String?
+  dataFimP    String?
+  dataInicioR String?
+  dataFimR    String?
+
+  etapa  EtapaObra @relation(fields: [etapaId], references: [id], onDelete: Cascade)
+  tenant Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([etapaId])
+  @@index([tenantId])
 }
 
 model FuncionarioObra {
@@ -303,6 +333,8 @@ model Insumo {
   alocacoes      Alocacao[]
   ordensCompra   OrdemCompra[]
   consumoInsumos ConsumoInsumo[]
+  itensOrdem     ItemOrdemCompra[]
+  transferencias Transferencia[]
 }
 
 // ─── Estoque ──────────────────────────────────────────────────────────────────
@@ -314,6 +346,7 @@ model Estoque {
   insumoId       Int
   quantEntrada   Float    @default(0)
   quantUtilizado Float    @default(0)
+  custoUnit      Float    @default(0)
   dataMov        String
   origem         String?
   createdAt      DateTime @default(now())
@@ -494,28 +527,72 @@ model Receita {
 
 model OrdemCompra {
   id         Int     @id @default(autoincrement())
+  numero     Int?
   tenantId   String  @default("")
   obraId     Int
+  // Campos legados (OCs antigas single-item) — novos registros usam ItemOrdemCompra
   insumoId   Int?
-  descricao  String
+  descricao  String  @default("")
   quantidade Float   @default(0)
   valorUnit  Float   @default(0)
-  fornecedor String?
-  status     String  @default("Pendente")
-  data       String
-  obs        String?
+  fornecedor   String?
+  fornecedorId Int?
+  status       String  @default("Pendente")
+  data         String
+  obs          String?
+  etapaId      Int?
 
-  // Prioridade 7: apropriação por etapa
-  etapaId Int?
-
-  tenant Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  obra   Obra       @relation(fields: [obraId], references: [id], onDelete: Cascade)
-  insumo Insumo?    @relation(fields: [insumoId], references: [id])
-  etapa  EtapaObra? @relation(fields: [etapaId], references: [id], onDelete: SetNull)
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  obra             Obra              @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  insumo           Insumo?           @relation(fields: [insumoId], references: [id])
+  etapa            EtapaObra?        @relation(fields: [etapaId], references: [id], onDelete: SetNull)
+  fornecedorPessoa Funcionario?      @relation(fields: [fornecedorId], references: [id], onDelete: SetNull)
+  itens            ItemOrdemCompra[]
 
   @@index([tenantId])
   @@index([obraId])
   @@index([etapaId])
+  @@index([fornecedorId])
+}
+
+model ItemOrdemCompra {
+  id         Int     @id @default(autoincrement())
+  ordemId    Int
+  tenantId   String  @default("")
+  insumoId   Int?
+  descricao  String?
+  quantidade Float   @default(0)
+  valorUnit  Float   @default(0)
+
+  ordem  OrdemCompra @relation(fields: [ordemId], references: [id], onDelete: Cascade)
+  tenant Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  insumo Insumo?     @relation(fields: [insumoId], references: [id])
+
+  @@index([ordemId])
+  @@index([tenantId])
+}
+
+// ─── Transferência entre obras ───────────────────────────────────────────────
+
+model Transferencia {
+  id         Int      @id @default(autoincrement())
+  tenantId   String
+  deObraId   Int
+  paraObraId Int
+  insumoId   Int
+  quantidade Float    @default(0)
+  data       String
+  obs        String?
+  createdAt  DateTime @default(now())
+
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  deObra   Obra   @relation("TransferenciaOrigem",  fields: [deObraId],   references: [id], onDelete: Cascade)
+  paraObra Obra   @relation("TransferenciaDestino", fields: [paraObraId], references: [id], onDelete: Cascade)
+  insumo   Insumo @relation(fields: [insumoId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([deObraId])
+  @@index([paraObraId])
 }
 
 // ─── Segurança ────────────────────────────────────────────────────────────────

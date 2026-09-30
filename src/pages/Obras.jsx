@@ -2,19 +2,25 @@ import { useState } from "react";
 import { C, F } from "../constants/tokens";
 import { isAtrasada, calcProg, validate, fmt, calcCustoEtapa } from "../utils/helpers";
 import { Icon, Badge, Bar, Card, Modal, Inp, Sel, Txta, Btn, Hdr, Fld, MoneyInp } from "../components/ui";
-import { avisarErro, confirmar } from "../utils/aviso";
+import { avisarErro, avisarSucesso, confirmar } from "../utils/aviso";
 import AnexosObra from "../components/AnexosObra";
 
 export default function Obras({ data, setData, api, canWrite }) {
-  const { obras, etapasObra, tiposEtapa, tiposObra = [] } = data;
-  const [modal, setModal]       = useState(null);
-  const [etModal, setEtModal]   = useState(false);
-  const [form, setForm]         = useState({});
-  const [etForm, setEtForm]     = useState({});
-  const [etObraId, setEtObraId] = useState(null);
-  const [anexObra, setAnexObra] = useState(null);   // obra com anexos abertos
-  const [erros, setErros]       = useState({});
-  const [etErros, setEtErros]   = useState({});
+  const { obras, etapasObra, tiposEtapa, tiposObra = [], funcionarios = [] } = data;
+  const colaboradores = funcionarios.filter(f => f.isColaborador);
+  const [modal, setModal]           = useState(null);
+  const [etModal, setEtModal]       = useState(false);
+  const [form, setForm]             = useState({});
+  const [etForm, setEtForm]         = useState({});
+  const [etObraId, setEtObraId]     = useState(null);
+  const [anexObra, setAnexObra]     = useState(null);
+  const [erros, setErros]           = useState({});
+  const [etErros, setEtErros]       = useState({});
+  const [novaSubetapa, setNovaSubetapa] = useState({});
+  const [editSub, setEditSub]           = useState(null);
+  const [salvando, setSalvando]         = useState(false);
+  const [salvandoEt, setSalvandoEt]     = useState(false);
+  const [salvandoSub, setSalvandoSub]   = useState(false);
 
   // Preview das etapas do tipo selecionado (só na criação)
   const tipoSelecionado = modal === "new" && form.tipoObraId
@@ -22,6 +28,7 @@ export default function Obras({ data, setData, api, canWrite }) {
     : null;
 
   const saveObra = async () => {
+    if (salvando) return;
     const { ok, erros: e } = validate(form, {
       nome:        { required: true, label: "Nome" },
       local:       { required: true, label: "Local" },
@@ -30,10 +37,10 @@ export default function Obras({ data, setData, api, canWrite }) {
       orcamento:   { required: true, min: 1, label: "Orçamento" },
     });
     if (!ok) { setErros(e); return; }
+    setSalvando(true);
     try {
       if (modal === "new") {
         const nova = await api.post("/obras", form);
-        // O backend retorna obra com etapas e tipoObra embutidos
         const { etapas: novasEtapas = [], acessos: _, ...obraLimpa } = nova;
         setData(d => ({
           ...d,
@@ -48,17 +55,21 @@ export default function Obras({ data, setData, api, canWrite }) {
         const { etapas: _, acessos: _a, ...obraLimpa } = atualizada;
         setData(d => ({ ...d, obras: d.obras.map(o => o.id === form.id ? obraLimpa : o) }));
       }
+      avisarSucesso("Obra salva.");
       setErros({}); setModal(null);
     } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
+    finally { setSalvando(false); }
   };
 
   const saveEt = async () => {
+    if (salvandoEt) return;
     const { ok, erros: e } = validate(etForm, {
       tipoEtapaId: { required: true, label: "Tipo de Etapa" },
       dataInicioP: { required: true, label: "Início Previsto" },
       dataFimP:    { required: true, label: "Fim Previsto" },
     });
     if (!ok) { setEtErros(e); return; }
+    setSalvandoEt(true);
     try {
       if (etForm.id) {
         const updated = await api.put(`/obras/${etObraId}/etapas/${etForm.id}`, etForm);
@@ -67,8 +78,10 @@ export default function Obras({ data, setData, api, canWrite }) {
         const nova = await api.post(`/obras/${etObraId}/etapas`, { ...etForm, progresso: etForm.progresso || 0, status: etForm.status || "Pendente" });
         setData(d => ({ ...d, etapasObra: [...d.etapasObra, { ...nova, obraId: etObraId }] }));
       }
+      avisarSucesso("Etapa salva.");
       setEtErros({}); setEtModal(false);
     } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
+    finally { setSalvandoEt(false); }
   };
 
   const delEt = async id => {
@@ -76,6 +89,60 @@ export default function Obras({ data, setData, api, canWrite }) {
     try {
       await api.del(`/obras/${etObraId}/etapas/${id}`);
       setData(d => ({ ...d, etapasObra: d.etapasObra.filter(e => e.id !== id) }));
+    } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
+  };
+
+  const updateEtapaProgresso = (etapaId, progresso, subetapas) => {
+    setData(d => ({ ...d, etapasObra: d.etapasObra.map(e => e.id === etapaId ? { ...e, progresso, subetapas } : e) }));
+  };
+
+  const addSubetapa = async (etapaId) => {
+    const nome = (novaSubetapa[etapaId] || "").trim();
+    if (!nome) return;
+    try {
+      const sub = await api.post(`/obras/${etObraId}/etapas/${etapaId}/subetapas`, { nome });
+      setData(d => ({ ...d, etapasObra: d.etapasObra.map(e => e.id === etapaId ? { ...e, subetapas: [...(e.subetapas || []), sub] } : e) }));
+      setNovaSubetapa(s => ({ ...s, [etapaId]: "" }));
+    } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
+  };
+
+  const toggleSubetapa = async (etapaId, sub) => {
+    try {
+      const res = await api.put(`/obras/${etObraId}/etapas/${etapaId}/subetapas/${sub.id}`, { concluida: !sub.concluida });
+      setData(d => ({ ...d, etapasObra: d.etapasObra.map(e => {
+        if (e.id !== etapaId) return e;
+        const subs = (e.subetapas || []).map(s => s.id === sub.id ? { ...s, concluida: !s.concluida } : s);
+        return { ...e, progresso: res.progressoEtapa ?? e.progresso, subetapas: subs };
+      }) }));
+    } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
+  };
+
+  const saveSubetapa = async () => {
+    if (!editSub || salvandoSub) return;
+    setSalvandoSub(true);
+    try {
+      const { id, etapaId, nome, dataInicioP, dataFimP, dataInicioR, dataFimR } = editSub;
+      const res = await api.put(`/obras/${etObraId}/etapas/${etapaId}/subetapas/${id}`, { nome, dataInicioP, dataFimP, dataInicioR, dataFimR });
+      setData(d => ({ ...d, etapasObra: d.etapasObra.map(e => {
+        if (e.id !== etapaId) return e;
+        const subs = (e.subetapas || []).map(s => s.id === id ? { ...s, nome, dataInicioP, dataFimP, dataInicioR, dataFimR } : s);
+        return { ...e, progresso: res.progressoEtapa ?? e.progresso, subetapas: subs };
+      }) }));
+      avisarSucesso("Subetapa salva.");
+      setEditSub(null);
+    } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
+    finally { setSalvandoSub(false); }
+  };
+
+  const delSubetapa = async (etapaId, subId) => {
+    try {
+      await api.del(`/obras/${etObraId}/etapas/${etapaId}/subetapas/${subId}`);
+      setData(d => ({ ...d, etapasObra: d.etapasObra.map(e => {
+        if (e.id !== etapaId) return e;
+        const subs = (e.subetapas || []).filter(s => s.id !== subId);
+        const prog = subs.length ? Math.round(subs.filter(s => s.concluida).length / subs.length * 100) : e.progresso;
+        return { ...e, progresso: prog, subetapas: subs };
+      }) }));
     } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
   };
 
@@ -140,7 +207,10 @@ export default function Obras({ data, setData, api, canWrite }) {
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <Inp label="Nome" error={erros.nome} value={form.nome || ""} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} />
             <Inp label="Local" error={erros.local} value={form.local || ""} onChange={e => setForm(f => ({ ...f, local: e.target.value }))} />
-            <Inp label="Responsável" value={form.responsavel || ""} onChange={e => setForm(f => ({ ...f, responsavel: e.target.value }))} />
+            <Sel label="Responsável" value={form.responsavel || ""} onChange={e => setForm(f => ({ ...f, responsavel: e.target.value }))}>
+              <option value="">Sem responsável</option>
+              {colaboradores.map(c => <option key={c.id} value={c.nome}>{c.nome}{c.cargo ? ` — ${c.cargo}` : ""}</option>)}
+            </Sel>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <Inp label="Início" type="date" error={erros.inicio} value={form.inicio || ""} onChange={e => setForm(f => ({ ...f, inicio: e.target.value }))} />
               <Inp label="Previsão de Fim" type="date" error={erros.previsaoFim} value={form.previsaoFim || ""} onChange={e => setForm(f => ({ ...f, previsaoFim: e.target.value }))} />
@@ -181,7 +251,7 @@ export default function Obras({ data, setData, api, canWrite }) {
             <Txta label="Descrição" rows={3} value={form.descricao || ""} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} />
             <div style={{ display: "flex", gap: 9, justifyContent: "flex-end" }}>
               <Btn v="secondary" onClick={() => { setModal(null); setErros({}); }}>Cancelar</Btn>
-              <Btn onClick={saveObra}><Icon n="check" size={13} />Salvar</Btn>
+              <Btn disabled={salvando} onClick={saveObra}><Icon n="check" size={13} />{salvando ? "Salvando..." : "Salvar"}</Btn>
             </div>
           </div>
         </Modal>
@@ -227,10 +297,68 @@ export default function Obras({ data, setData, api, canWrite }) {
                       <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Icon n="cal" size={10} color={C.dim} />Prev: {e.dataInicioP} → {e.dataFimP}</span>
                       {e.dataInicioR && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Icon n="check" size={10} color={C.green} />Real: {e.dataInicioR} → {e.dataFimR || "Em andamento"}</span>}
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 10 }}>
                       <div style={{ flex: 1 }}><Bar val={e.progresso} color={at ? C.red : e.progresso === 100 ? C.green : C.orange} /></div>
                       <span style={{ fontSize: 11, color: C.muted, width: 26, textAlign: "right" }}>{e.progresso}%</span>
                     </div>
+
+                    {/* ── Subetapas ── */}
+                    <div style={{ marginBottom: 6 }}>
+                      {(e.subetapas || []).map(sub => (
+                        <div key={sub.id} style={{ borderBottom: `1px solid ${C.borderLight}`, paddingBottom: 6, marginBottom: 6 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                            <button onClick={() => toggleSubetapa(e.id, sub)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", flexShrink: 0 }}>
+                              <div style={{ width: 16, height: 16, borderRadius: 4, border: `1.5px solid ${sub.concluida ? C.green : C.border}`, background: sub.concluida ? C.green : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                {sub.concluida && <Icon n="check" size={9} color="#fff" />}
+                              </div>
+                            </button>
+                            <span style={{ flex: 1, fontSize: 12, color: sub.concluida ? C.dim : C.text, textDecoration: sub.concluida ? "line-through" : "none", ...F }}>{sub.nome}</span>
+                            {canWrite && <>
+                              <button onClick={() => setEditSub(editSub?.id === sub.id ? null : { ...sub, etapaId: e.id })} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", opacity: 0.5 }}><Icon n="edit" size={10} color={C.dim} /></button>
+                              <button onClick={() => delSubetapa(e.id, sub.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", opacity: 0.4 }}><Icon n="trash" size={10} color={C.dim} /></button>
+                            </>}
+                          </div>
+                          {/* Datas resumidas */}
+                          {(sub.dataInicioP || sub.dataInicioR) && editSub?.id !== sub.id && (
+                            <div style={{ display: "flex", gap: 10, marginTop: 4, marginLeft: 23, fontSize: 10, color: C.dim }}>
+                              {sub.dataInicioP && <span><Icon n="cal" size={9} color={C.dim} /> Prev: {sub.dataInicioP}{sub.dataFimP ? ` → ${sub.dataFimP}` : ""}</span>}
+                              {sub.dataInicioR && <span style={{ color: C.green }}><Icon n="check" size={9} color={C.green} /> Real: {sub.dataInicioR}{sub.dataFimR ? ` → ${sub.dataFimR}` : " → em andamento"}</span>}
+                            </div>
+                          )}
+                          {/* Formulário inline de edição */}
+                          {editSub?.id === sub.id && (
+                            <div style={{ marginTop: 8, marginLeft: 23, display: "flex", flexDirection: "column", gap: 7 }}>
+                              <input value={editSub.nome || ""} onChange={ev => setEditSub(s => ({ ...s, nome: ev.target.value }))} placeholder="Nome da subetapa" style={{ background: "rgba(255,255,255,.04)", border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 8px", color: C.text, fontSize: 12, outline: "none", ...F }} />
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                                <label style={{ fontSize: 10, color: C.muted }}>Início previsto<input type="date" value={editSub.dataInicioP || ""} onChange={ev => setEditSub(s => ({ ...s, dataInicioP: ev.target.value }))} style={{ display: "block", width: "100%", marginTop: 2, background: "rgba(255,255,255,.04)", border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 7px", color: C.text, fontSize: 11, outline: "none" }} /></label>
+                                <label style={{ fontSize: 10, color: C.muted }}>Fim previsto<input type="date" value={editSub.dataFimP || ""} onChange={ev => setEditSub(s => ({ ...s, dataFimP: ev.target.value }))} style={{ display: "block", width: "100%", marginTop: 2, background: "rgba(255,255,255,.04)", border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 7px", color: C.text, fontSize: 11, outline: "none" }} /></label>
+                                <label style={{ fontSize: 10, color: C.muted }}>Início real<input type="date" value={editSub.dataInicioR || ""} onChange={ev => setEditSub(s => ({ ...s, dataInicioR: ev.target.value }))} style={{ display: "block", width: "100%", marginTop: 2, background: "rgba(255,255,255,.04)", border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 7px", color: C.text, fontSize: 11, outline: "none" }} /></label>
+                                <label style={{ fontSize: 10, color: C.muted }}>Fim real<input type="date" value={editSub.dataFimR || ""} onChange={ev => setEditSub(s => ({ ...s, dataFimR: ev.target.value }))} style={{ display: "block", width: "100%", marginTop: 2, background: "rgba(255,255,255,.04)", border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 7px", color: C.text, fontSize: 11, outline: "none" }} /></label>
+                              </div>
+                              <div style={{ display: "flex", gap: 6 }}>
+                                <button disabled={salvandoSub} onClick={saveSubetapa} style={{ background: C.orange, border: "none", borderRadius: 6, padding: "4px 12px", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", ...F }}>{salvandoSub ? "Salvando..." : "Salvar"}</button>
+                                <button onClick={() => setEditSub(null)} style={{ background: "rgba(255,255,255,.06)", border: "none", borderRadius: 6, padding: "4px 10px", color: C.muted, fontSize: 11, cursor: "pointer" }}>Cancelar</button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      {canWrite && (
+                        <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                          <input
+                            placeholder="Nova subetapa..."
+                            value={novaSubetapa[e.id] || ""}
+                            onChange={ev => setNovaSubetapa(s => ({ ...s, [e.id]: ev.target.value }))}
+                            onKeyDown={ev => ev.key === "Enter" && addSubetapa(e.id)}
+                            style={{ flex: 1, background: "rgba(255,255,255,.04)", border: `1px solid ${C.border}`, borderRadius: 7, padding: "5px 9px", color: C.text, fontSize: 12, outline: "none", ...F }}
+                          />
+                          <button onClick={() => addSubetapa(e.id)} style={{ background: C.orangeDim, border: "none", borderRadius: 7, padding: "5px 10px", cursor: "pointer", color: C.orange, display: "flex", alignItems: "center" }}>
+                            <Icon n="plus" size={12} color={C.orange} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
                     {(() => {
                       // Custo realizado da etapa: lançamentos apropriados a ela
                       const c = calcCustoEtapa(e.id, data);
@@ -293,12 +421,19 @@ export default function Obras({ data, setData, api, canWrite }) {
             </Sel>
             <MoneyInp label="Orçamento da Etapa"
               value={etForm.orcamento ?? ""} onChange={e => setEtForm(f => ({ ...f, orcamento: e.target.value }))} />
-            <Fld label={`Progresso: ${etForm.progresso || 0}%`}>
-              <input type="range" min="0" max="100" value={etForm.progresso || 0} onChange={e => setEtForm(f => ({ ...f, progresso: parseInt(e.target.value) }))} style={{ width: "100%", accentColor: C.orange }} />
-            </Fld>
+            {!(etForm.subetapas?.length) && (
+              <Fld label={`Progresso: ${etForm.progresso || 0}%`}>
+                <input type="range" min="0" max="100" value={etForm.progresso || 0} onChange={e => setEtForm(f => ({ ...f, progresso: parseInt(e.target.value) }))} style={{ width: "100%", accentColor: C.orange }} />
+              </Fld>
+            )}
+            {!!(etForm.subetapas?.length) && (
+              <div style={{ fontSize: 11, color: C.muted, background: "rgba(167,139,250,.06)", border: "1px solid rgba(167,139,250,.18)", borderRadius: 9, padding: "8px 12px" }}>
+                Progresso calculado automaticamente pelas subetapas ({etForm.progresso || 0}%)
+              </div>
+            )}
             <div style={{ display: "flex", gap: 9, justifyContent: "flex-end" }}>
               <Btn v="secondary" onClick={() => { setEtModal(false); setEtErros({}); }}>Cancelar</Btn>
-              <Btn onClick={saveEt}><Icon n="check" size={13} />Salvar</Btn>
+              <Btn disabled={salvandoEt} onClick={saveEt}><Icon n="check" size={13} />{salvandoEt ? "Salvando..." : "Salvar"}</Btn>
             </div>
           </div>
         </Modal>

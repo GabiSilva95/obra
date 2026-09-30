@@ -82,7 +82,7 @@ router.get("/", async (req, res) => {
   const obras = await prisma.obra.findMany({
     where: { tenantId: req.user.tenantId },
     include: {
-      etapas:   { include: { tipoEtapa: true } },
+      etapas:   { include: { tipoEtapa: true, subetapas: { orderBy: { id: "asc" } } } },
       acessos:  true,
       tipoObra: true,
     },
@@ -101,7 +101,7 @@ router.post("/", checkPlanLimit("obras"), async (req, res) => {
       where: { id: parseInt(tipoObraId), tenantId: req.user.tenantId },
       include: {
         etapas: {
-          include: { tipoEtapa: true },
+          include: { tipoEtapa: true, subetapas: { orderBy: { id: "asc" } } },
           orderBy: { ordem: "asc" },
         },
       },
@@ -185,7 +185,7 @@ router.put("/:id", async (req, res) => {
       }),
     },
     include: {
-      etapas:   { include: { tipoEtapa: true } },
+      etapas:   { include: { tipoEtapa: true, subetapas: { orderBy: { id: "asc" } } } },
       acessos:  true,
       tipoObra: true,
     },
@@ -209,7 +209,7 @@ router.get("/:id/etapas", async (req, res) => {
   if (!obra) return res.status(404).json({ error: "Obra não encontrada." });
   const etapas = await prisma.etapaObra.findMany({
     where: { obraId },
-    include: { tipoEtapa: true },
+    include: { tipoEtapa: true, subetapas: { orderBy: { id: "asc" } } },
     orderBy: { dataInicioP: "asc" },
   });
   res.json(etapas);
@@ -233,7 +233,7 @@ router.post("/:id/etapas", async (req, res) => {
       progresso:   parseInt(progresso) || 0,
       orcamento:   parseFloat(req.body.orcamento) || 0,
     },
-    include: { tipoEtapa: true },
+    include: { tipoEtapa: true, subetapas: { orderBy: { id: "asc" } } },
   });
   res.status(201).json(etapa);
 });
@@ -256,7 +256,7 @@ router.put("/:id/etapas/:etapaId", async (req, res) => {
       progresso:   parseInt(progresso) || 0,
       orcamento:   orcamento != null ? parseFloat(orcamento) : undefined,
     },
-    include: { tipoEtapa: true },
+    include: { tipoEtapa: true, subetapas: { orderBy: { id: "asc" } } },
   });
   res.json(updated);
 });
@@ -267,6 +267,61 @@ router.delete("/:id/etapas/:etapaId", async (req, res) => {
   const existing = await findEtapaDoTenant(etapaId, obraId, req.user.tenantId);
   if (!existing) return res.status(404).json({ error: "Etapa não encontrada." });
   await prisma.etapaObra.delete({ where: { id: etapaId } });
+  res.json({ ok: true });
+});
+
+// ─── Subetapas ────────────────────────────────────────────────────────────────
+
+async function recalcularProgresso(etapaId) {
+  const subs = await prisma.subetapa.findMany({ where: { etapaId } });
+  if (!subs.length) return;
+  const progresso = Math.round(subs.filter(s => s.concluida).length / subs.length * 100);
+  await prisma.etapaObra.update({ where: { id: etapaId }, data: { progresso } });
+  return progresso;
+}
+
+router.post("/:id/etapas/:etapaId/subetapas", async (req, res) => {
+  const obraId  = parseInt(req.params.id);
+  const etapaId = parseInt(req.params.etapaId);
+  const etapa = await findEtapaDoTenant(etapaId, obraId, req.user.tenantId);
+  if (!etapa) return res.status(404).json({ error: "Etapa não encontrada." });
+  const { nome, dataInicioP, dataFimP, dataInicioR, dataFimR } = req.body;
+  if (!nome?.trim()) return res.status(400).json({ error: "Nome obrigatório." });
+  const sub = await prisma.subetapa.create({
+    data: { etapaId, tenantId: req.user.tenantId, nome: nome.trim(), dataInicioP, dataFimP, dataInicioR, dataFimR },
+  });
+  await recalcularProgresso(etapaId);
+  res.status(201).json(sub);
+});
+
+router.put("/:id/etapas/:etapaId/subetapas/:subId", async (req, res) => {
+  const etapaId = parseInt(req.params.etapaId);
+  const subId   = parseInt(req.params.subId);
+  const sub = await prisma.subetapa.findFirst({ where: { id: subId, etapaId, tenantId: req.user.tenantId } });
+  if (!sub) return res.status(404).json({ error: "Subetapa não encontrada." });
+  const { concluida, nome, dataInicioP, dataFimP, dataInicioR, dataFimR } = req.body;
+  const updated = await prisma.subetapa.update({
+    where: { id: subId },
+    data: {
+      ...(nome !== undefined && { nome }),
+      ...(concluida !== undefined && { concluida: !!concluida }),
+      ...(dataInicioP !== undefined && { dataInicioP }),
+      ...(dataFimP !== undefined && { dataFimP }),
+      ...(dataInicioR !== undefined && { dataInicioR }),
+      ...(dataFimR !== undefined && { dataFimR }),
+    },
+  });
+  const progresso = await recalcularProgresso(etapaId);
+  res.json({ ...updated, progressoEtapa: progresso });
+});
+
+router.delete("/:id/etapas/:etapaId/subetapas/:subId", async (req, res) => {
+  const etapaId = parseInt(req.params.etapaId);
+  const subId   = parseInt(req.params.subId);
+  const sub = await prisma.subetapa.findFirst({ where: { id: subId, etapaId, tenantId: req.user.tenantId } });
+  if (!sub) return res.status(404).json({ error: "Subetapa não encontrada." });
+  await prisma.subetapa.delete({ where: { id: subId } });
+  await recalcularProgresso(etapaId);
   res.json({ ok: true });
 });
 

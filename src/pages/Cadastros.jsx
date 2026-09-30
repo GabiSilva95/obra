@@ -28,8 +28,9 @@ function calcCustoHoraPreview({ tipoPropriedade, tipoCobranca, valorLocacao, val
 export function Maquinas({ data, setData, api, canWrite }) {
   const { maquinas, categoriasMaquina = [] } = data;
   const [modal, setModal] = useState(false);
-  const [form, setForm]   = useState({});
-  const [erros, setErros] = useState({});
+  const [form, setForm]       = useState({});
+  const [erros, setErros]     = useState({});
+  const [salvando, setSalvando] = useState(false);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -37,6 +38,7 @@ export function Maquinas({ data, setData, api, canWrite }) {
   const mostraCusto  = form.tipoPropriedade && custoPreview !== null;
 
   const save = async () => {
+    if (salvando) return;
     const rules = { nome: { required: true, label: "Nome" } };
     if (!form.tipoPropriedade) {
       rules.custoHora = { required: true, min: 0.01, label: "Custo/Hora" };
@@ -48,6 +50,7 @@ export function Maquinas({ data, setData, api, canWrite }) {
     const payload = { ...form };
     if (mostraCusto) payload.custoHora = custoPreview;
 
+    setSalvando(true);
     try {
       if (form.id) {
         const updated = await api.put(`/cadastros/maquinas/${form.id}`, payload);
@@ -56,8 +59,10 @@ export function Maquinas({ data, setData, api, canWrite }) {
         const nova = await api.post("/cadastros/maquinas", payload);
         setData(d => ({ ...d, maquinas: [...d.maquinas, nova] }));
       }
+      avisarSucesso("Máquina salva.");
       setErros({}); setModal(false);
     } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
+    finally { setSalvando(false); }
   };
 
   const del = async id => {
@@ -209,7 +214,7 @@ export function Maquinas({ data, setData, api, canWrite }) {
 
             <div style={{ display: "flex", gap: 9, justifyContent: "flex-end" }}>
               <Btn v="secondary" onClick={() => { setModal(false); setErros({}); }}>Cancelar</Btn>
-              <Btn onClick={save}><Icon n="check" size={13} />Salvar</Btn>
+              <Btn disabled={salvando} onClick={save}><Icon n="check" size={13} />{salvando ? "Salvando..." : "Salvar"}</Btn>
             </div>
           </div>
         </Modal>
@@ -219,6 +224,9 @@ export function Maquinas({ data, setData, api, canWrite }) {
 }
 
 // ── Funcionários ──────────────────────────────────────────────────────────────
+const PERFIL_LABEL = { isColaborador: "Colaborador", isFornecedor: "Fornecedor", isCliente: "Cliente" };
+const PERFIL_COLOR = { isColaborador: "#3b82f6", isFornecedor: "#10b981", isCliente: "#f59e0b" };
+
 export function Funcionarios({ data, setData, api, canWrite }) {
   const { funcionarios, obras, funcionarioObra } = data;
   const [modal, setModal] = useState(false);
@@ -227,14 +235,21 @@ export function Funcionarios({ data, setData, api, canWrite }) {
   const [vincForm, setVincForm] = useState({});
   const [erros, setErros] = useState({});
   const [vincErros, setVincErros] = useState({});
+  const [salvando, setSalvando] = useState(false);
+  const [salvandoVinc, setSalvandoVinc] = useState(false);
+
+  const togglePerfil = key => setForm(f => ({ ...f, [key]: !f[key] }));
 
   const save = async () => {
-    const { ok, erros: e } = validate(form, {
-      nome:       { required: true, label: "Nome" },
-      cargo:      { required: true, label: "Cargo / Função" },
-      salarioDia: { required: true, min: 0.01, label: "Valor/Dia" },
-    });
+    if (salvando) return;
+    const rules = { nome: { required: true, label: "Nome" } };
+    if (form.isColaborador) {
+      rules.cargo      = { required: true, label: "Cargo / Função" };
+      rules.salarioDia = { required: true, min: 0.01, label: "Valor/Dia" };
+    }
+    const { ok, erros: e } = validate(form, rules);
     if (!ok) { setErros(e); return; }
+    setSalvando(true);
     try {
       if (form.id) {
         const updated = await api.put(`/cadastros/funcionarios/${form.id}`, form);
@@ -243,35 +258,43 @@ export function Funcionarios({ data, setData, api, canWrite }) {
         const novo = await api.post("/cadastros/funcionarios", form);
         setData(d => ({ ...d, funcionarios: [...d.funcionarios, novo] }));
       }
+      avisarSucesso("Pessoa salva.");
       setErros({}); setModal(false);
     } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
+    finally { setSalvando(false); }
   };
 
   const saveVinc = async () => {
+    if (salvandoVinc) return;
     const { ok, erros: e } = validate(vincForm, {
       funcionarioId: { required: true, label: "Pessoa" },
       obraId:        { required: true, label: "Obra" },
       dias:          { required: true, min: 0.1, label: "Dias Trabalhados" },
     });
     if (!ok) { setVincErros(e); return; }
+    setSalvandoVinc(true);
     try {
       const novo = await api.post(`/cadastros/funcionarios/${vincForm.funcionarioId}/obras`, { obraId: parseInt(vincForm.obraId), dias: parseFloat(vincForm.dias) });
       setData(d => ({ ...d, funcionarioObra: [...d.funcionarioObra, novo] }));
+      avisarSucesso("Vínculo criado.");
       setVincErros({}); setVincModal(false);
     } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
+    finally { setSalvandoVinc(false); }
   };
+
+  const perfisOf = f => Object.keys(PERFIL_LABEL).filter(k => f[k]);
 
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <div>
           <div style={{ fontSize: 14, fontWeight: 700, color: C.text, ...F, letterSpacing: "-0.02em" }}>Pessoas</div>
-          <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Funcionários e prestadores</div>
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Fornecedores, colaboradores e clientes</div>
         </div>
         {canWrite && (
           <div style={{ display: "flex", gap: 8 }}>
             <Btn v="outline" onClick={() => { setVincForm({}); setVincModal(true); }} sx={{ fontSize: 11, padding: "6px 12px" }}><Icon n="link" size={12} />Vincular a Obra</Btn>
-            <Btn onClick={() => { setForm({ tipo: "Funcionário" }); setModal(true); }} sx={{ fontSize: 11, padding: "6px 12px" }}><Icon n="plus" size={12} />Nova Pessoa</Btn>
+            <Btn onClick={() => { setForm({}); setModal(true); }} sx={{ fontSize: 11, padding: "6px 12px" }}><Icon n="plus" size={12} />Nova Pessoa</Btn>
           </div>
         )}
       </div>
@@ -279,7 +302,7 @@ export function Funcionarios({ data, setData, api, canWrite }) {
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
           <thead>
             <tr style={{ background: "rgba(255,255,255,.02)" }}>
-              {["", "Nome", "Cargo", "CPF/CNPJ", "Valor/dia", "Obras", ""].map((h, i) => (
+              {["", "Nome", "Perfis", "CPF/CNPJ", "Contato", "Obras", ""].map((h, i) => (
                 <th key={i} style={{ padding: "10px 14px", textAlign: "left", color: C.dim, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", ...F, whiteSpace: "nowrap" }}>{h}</th>
               ))}
             </tr>
@@ -287,15 +310,29 @@ export function Funcionarios({ data, setData, api, canWrite }) {
           <tbody>
             {funcionarios.map(f => {
               const vincs = funcionarioObra.filter(v => v.funcionarioId === f.id);
+              const ps = perfisOf(f);
               return (
                 <tr key={f.id} style={{ borderTop: `1px solid ${C.borderLight}` }}>
                   <td style={{ padding: "10px 14px", width: 36 }}>
                     <div style={{ width: 32, height: 32, borderRadius: 10, background: C.orangeDim, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13, color: C.orange, ...F }}>{f.nome[0]}</div>
                   </td>
-                  <td style={{ padding: "10px 14px", fontWeight: 600, color: C.text, ...F }}>{f.nome}</td>
-                  <td style={{ padding: "10px 14px", color: C.muted }}>{f.cargo}</td>
-                  <td style={{ padding: "10px 14px", color: C.muted, fontFamily: "monospace", fontSize: 11 }}>{f.cpf || "—"}</td>
-                  <td style={{ padding: "10px 14px", fontWeight: 700, color: C.orange }}>{fmt(f.salarioDia)}</td>
+                  <td style={{ padding: "10px 14px", fontWeight: 600, color: C.text, ...F }}>
+                    {f.nome}
+                    {f.isColaborador && f.cargo && <div style={{ fontSize: 10, color: C.muted, fontWeight: 400 }}>{f.cargo}</div>}
+                  </td>
+                  <td style={{ padding: "10px 14px" }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                      {ps.length > 0 ? ps.map(k => (
+                        <span key={k} style={{ fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: PERFIL_COLOR[k] + "22", color: PERFIL_COLOR[k], textTransform: "uppercase", letterSpacing: "0.06em" }}>{PERFIL_LABEL[k]}</span>
+                      )) : <span style={{ color: C.dim, fontSize: 11 }}>—</span>}
+                    </div>
+                  </td>
+                  <td style={{ padding: "10px 14px", color: C.muted, fontFamily: "monospace", fontSize: 11 }}>{f.cpfCnpj || "—"}</td>
+                  <td style={{ padding: "10px 14px", color: C.muted, fontSize: 11 }}>
+                    {f.telefone && <div>{f.telefone}</div>}
+                    {f.email && <div style={{ color: C.dim }}>{f.email}</div>}
+                    {!f.telefone && !f.email && "—"}
+                  </td>
                   <td style={{ padding: "10px 14px" }}>
                     {vincs.length > 0
                       ? <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>{vincs.map(v => { const ob = obras.find(o => o.id === v.obraId); return ob ? <Badge key={v.id} v="default">{ob.nome.split(" ")[0]}</Badge> : null; })}</div>
@@ -312,14 +349,44 @@ export function Funcionarios({ data, setData, api, canWrite }) {
       </Card>
       {modal && (
         <Modal title={form.id ? "Editar Pessoa" : "Nova Pessoa"} onClose={() => { setModal(false); setErros({}); }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <Inp label="Nome" error={erros.nome} value={form.nome || ""} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} />
-            <Inp label="Cargo / Função" error={erros.cargo} value={form.cargo || ""} onChange={e => setForm(f => ({ ...f, cargo: e.target.value }))} />
-            <Inp label="CPF / CNPJ" value={form.cpf || ""} onChange={e => setForm(f => ({ ...f, cpf: e.target.value }))} />
-            <MoneyInp label="Valor/Dia" error={erros.salarioDia} value={form.salarioDia ?? ""} onChange={e => setForm(f => ({ ...f, salarioDia: e.target.value }))} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <Inp label="Nome completo / Razão social" error={erros.nome} value={form.nome || ""} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} />
+
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.06em" }}>Perfil</div>
+              <div style={{ display: "flex", gap: 10 }}>
+                {Object.entries(PERFIL_LABEL).map(([key, label]) => {
+                  const active = !!form[key];
+                  return (
+                    <button key={key} onClick={() => togglePerfil(key)} style={{
+                      flex: 1, padding: "8px 0", border: `1.5px solid ${active ? PERFIL_COLOR[key] : C.border}`,
+                      borderRadius: 8, background: active ? PERFIL_COLOR[key] + "18" : "transparent",
+                      color: active ? PERFIL_COLOR[key] : C.muted, fontWeight: 700, fontSize: 12,
+                      cursor: "pointer", ...F, transition: "all .15s",
+                    }}>{label}</button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <Inp label="CPF / CNPJ" value={form.cpfCnpj || ""} onChange={e => setForm(f => ({ ...f, cpfCnpj: e.target.value }))} />
+              <Inp label="Telefone" value={form.telefone || ""} onChange={e => setForm(f => ({ ...f, telefone: e.target.value }))} />
+            </div>
+            <Inp label="E-mail" type="email" value={form.email || ""} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+            <Inp label="Endereço" value={form.endereco || ""} onChange={e => setForm(f => ({ ...f, endereco: e.target.value }))} />
+
+            {form.isColaborador && (
+              <div style={{ borderTop: `1px solid ${C.borderLight}`, paddingTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#3b82f6", textTransform: "uppercase", letterSpacing: "0.06em" }}>Dados do colaborador</div>
+                <Inp label="Cargo / Função" error={erros.cargo} value={form.cargo || ""} onChange={e => setForm(f => ({ ...f, cargo: e.target.value }))} />
+                <MoneyInp label="Valor/Dia" error={erros.salarioDia} value={form.salarioDia ?? ""} onChange={e => setForm(f => ({ ...f, salarioDia: e.target.value }))} />
+              </div>
+            )}
+
             <div style={{ display: "flex", gap: 9, justifyContent: "flex-end" }}>
               <Btn v="secondary" onClick={() => { setModal(false); setErros({}); }}>Cancelar</Btn>
-              <Btn onClick={save}><Icon n="check" size={13} />Salvar</Btn>
+              <Btn disabled={salvando} onClick={save}><Icon n="check" size={13} />{salvando ? "Salvando..." : "Salvar"}</Btn>
             </div>
           </div>
         </Modal>
@@ -338,7 +405,7 @@ export function Funcionarios({ data, setData, api, canWrite }) {
             <Inp label="Dias Trabalhados" type="number" error={vincErros.dias} value={vincForm.dias || ""} onChange={e => setVincForm(f => ({ ...f, dias: e.target.value }))} />
             <div style={{ display: "flex", gap: 9, justifyContent: "flex-end" }}>
               <Btn v="secondary" onClick={() => { setVincModal(false); setVincErros({}); }}>Cancelar</Btn>
-              <Btn onClick={saveVinc}><Icon n="check" size={13} />Vincular</Btn>
+              <Btn disabled={salvandoVinc} onClick={saveVinc}><Icon n="check" size={13} />{salvandoVinc ? "Salvando..." : "Vincular"}</Btn>
             </div>
           </div>
         </Modal>
@@ -358,15 +425,18 @@ export function Insumos({ data, setData, api, canWrite }) {
   const [impData, setImpData] = useState(null);
   const [impObra, setImpObra] = useState("");
   const [loading, setLoading] = useState(false);
+  const [salvando, setSalvando] = useState(false);
   const fileRef = useRef();
 
   const save = async () => {
+    if (salvando) return;
     const { ok, erros: e } = validate(form, {
       nome:      { required: true, label: "Nome" },
       unidade:   { required: true, label: "Unidade" },
       custoUnit: { required: true, min: 0.01, label: "Custo Unitário" },
     });
     if (!ok) { setErros(e); return; }
+    setSalvando(true);
     try {
       if (form.id) {
         const updated = await api.put(`/cadastros/insumos/${form.id}`, form);
@@ -375,8 +445,10 @@ export function Insumos({ data, setData, api, canWrite }) {
         const novo = await api.post("/cadastros/insumos", form);
         setData(d => ({ ...d, insumos: [...d.insumos, novo] }));
       }
+      avisarSucesso("Insumo salvo.");
       setErros({}); setModal(false);
     } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
+    finally { setSalvando(false); }
   };
 
   const onFile = e => {
@@ -460,7 +532,7 @@ export function Insumos({ data, setData, api, canWrite }) {
             <Inp label="Fornecedor" value={form.fornecedor || ""} onChange={e => setForm(f => ({ ...f, fornecedor: e.target.value }))} />
             <div style={{ display: "flex", gap: 9, justifyContent: "flex-end" }}>
               <Btn v="secondary" onClick={() => { setModal(false); setErros({}); }}>Cancelar</Btn>
-              <Btn onClick={save}><Icon n="check" size={13} />Salvar</Btn>
+              <Btn disabled={salvando} onClick={save}><Icon n="check" size={13} />{salvando ? "Salvando..." : "Salvar"}</Btn>
             </div>
           </div>
         </Modal>
@@ -525,8 +597,10 @@ export function TiposObra({ data, setData, api, canWrite }) {
   const [busca, setBusca]               = useState("");
 
   const saveForm = async () => {
+    if (salvando) return;
     const { ok, erros: e } = validate(form, { nome: { required: true, label: "Nome" } });
     if (!ok) { setErros(e); return; }
+    setSalvando(true);
     try {
       if (form.id) {
         const updated = await api.put(`/cadastros/tipos-obra/${form.id}`, form);
@@ -535,8 +609,10 @@ export function TiposObra({ data, setData, api, canWrite }) {
         const novo = await api.post("/cadastros/tipos-obra", form);
         setData(d => ({ ...d, tiposObra: [...d.tiposObra, novo] }));
       }
+      avisarSucesso("Tipo de obra salvo.");
       setErros({}); setFormModal(false);
     } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
+    finally { setSalvando(false); }
   };
 
   const del = async id => {
@@ -668,7 +744,7 @@ export function TiposObra({ data, setData, api, canWrite }) {
             )}
             <div style={{ display: "flex", gap: 9, justifyContent: "flex-end" }}>
               <Btn v="secondary" onClick={() => { setFormModal(false); setErros({}); }}>Cancelar</Btn>
-              <Btn onClick={saveForm}><Icon n="check" size={13} />Salvar</Btn>
+              <Btn disabled={salvando} onClick={saveForm}><Icon n="check" size={13} />{salvando ? "Salvando..." : "Salvar"}</Btn>
             </div>
           </div>
         </Modal>
@@ -747,7 +823,6 @@ export function TiposObra({ data, setData, api, canWrite }) {
 const CADS = [
   { id: "etapas",    label: "Tipos de Etapa", icon: "checklist" },
   { id: "tiposObra", label: "Tipos de Obra",  icon: "building"  },
-  { id: "maquinas",  label: "Máquinas",       icon: "excavator" },
   { id: "pessoas",   label: "Pessoas",        icon: "people"    },
   { id: "insumos",   label: "Insumos",        icon: "cube"      },
 ];
@@ -759,7 +834,7 @@ export default function Cadastros({ data, setData, api, canWrite }) {
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 26, gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 800, color: C.text, margin: 0, letterSpacing: "-0.03em", ...F }}>Cadastros</h1>
-          <p style={{ fontSize: 11, color: C.muted, marginTop: 4, ...F }}>Tipos de etapa, tipos de obra, máquinas, pessoas e insumos</p>
+          <p style={{ fontSize: 11, color: C.muted, marginTop: 4, ...F }}>Tipos de etapa, tipos de obra, pessoas e insumos</p>
         </div>
       </div>
       <div style={{ display: "flex", gap: 2, marginBottom: 22, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 4, width: "fit-content", flexWrap: "wrap" }}>
@@ -771,7 +846,6 @@ export default function Cadastros({ data, setData, api, canWrite }) {
       </div>
       {aba === "etapas"    && <TiposEtapa  data={data} setData={setData} api={api} canWrite={canWrite} />}
       {aba === "tiposObra" && <TiposObra   data={data} setData={setData} api={api} canWrite={canWrite} />}
-      {aba === "maquinas"  && <Maquinas    data={data} setData={setData} api={api} canWrite={canWrite} />}
       {aba === "pessoas"   && <Funcionarios data={data} setData={setData} api={api} canWrite={canWrite} />}
       {aba === "insumos"   && <Insumos     data={data} setData={setData} api={api} canWrite={canWrite} />}
     </div>

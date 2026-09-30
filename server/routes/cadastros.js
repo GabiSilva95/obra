@@ -214,9 +214,13 @@ router.get("/funcionarios", async (req, res) => {
 
 router.post("/funcionarios", async (req, res) => {
   try {
-    const { nome, cargo, salarioDia, telefone, cpf } = req.body;
+    const { nome, cpfCnpj, telefone, email, endereco, isColaborador, isFornecedor, isCliente, cargo, salarioDia } = req.body;
     const item = await prisma.funcionario.create({
-      data: { tenantId: req.user.tenantId, nome, cargo, salarioDia: parseFloat(salarioDia) || 0, telefone, cpf },
+      data: {
+        tenantId: req.user.tenantId, nome, cpfCnpj, telefone, email, endereco,
+        isColaborador: !!isColaborador, isFornecedor: !!isFornecedor, isCliente: !!isCliente,
+        cargo, salarioDia: parseFloat(salarioDia) || 0,
+      },
     });
     res.status(201).json(item);
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -227,10 +231,14 @@ router.put("/funcionarios/:id", async (req, res) => {
     const id = parseInt(req.params.id);
     const existing = await findDoTenant("funcionario", id, req.user.tenantId);
     if (!existing) return ownershipError(res);
-    const { nome, cargo, salarioDia, telefone, cpf, ativo } = req.body;
+    const { nome, cpfCnpj, telefone, email, endereco, isColaborador, isFornecedor, isCliente, cargo, salarioDia, ativo } = req.body;
     const item = await prisma.funcionario.update({
       where: { id },
-      data: { nome, cargo, salarioDia: parseFloat(salarioDia) || 0, telefone, cpf, ativo: ativo ?? true },
+      data: {
+        nome, cpfCnpj, telefone, email, endereco,
+        isColaborador: !!isColaborador, isFornecedor: !!isFornecedor, isCliente: !!isCliente,
+        cargo, salarioDia: parseFloat(salarioDia) || 0, ativo: ativo ?? true,
+      },
     });
     res.json(item);
   } catch (e) { res.status(500).json({ error: e.message }); }

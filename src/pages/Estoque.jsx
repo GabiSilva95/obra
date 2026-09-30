@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { C, F } from "../constants/tokens";
 import { today, fmt } from "../utils/helpers";
 import { Icon, Bar, Card, Modal, Inp, Sel, Btn, Hdr, DSel } from "../components/ui";
-import { avisarErro, confirmar } from "../utils/aviso";
+import { avisarErro, avisarSucesso, confirmar } from "../utils/aviso";
 
 // ── Entrada de Insumos ────────────────────────────────────────────────────────
 function EntradaInsumos({ data, setData, api, canWrite }) {
@@ -35,12 +35,27 @@ function EntradaInsumos({ data, setData, api, canWrite }) {
   const [loading, setLoading] = useState(false);
 
   const onFile = e => {
-    const file = e.target.files?.[0]; if (!file) return; setLoading(true);
+    const file = e.target.files?.[0]; if (!file) return;
     const ext = file.name.split(".").pop().toUpperCase();
-    setTimeout(() => {
-      setImpData({ fornecedor: "Distribuidora Santos Ltda", nfe: `NFE-${Math.floor(Math.random() * 90000 + 10000)}`, data: today(), itens: [{ nome: "Cimento CP-II 50kg", unidade: "saco 50kg", quantidade: 100, valorUnit: 39.90, categoria: "Material" }, { nome: "Areia Fina Lavada", unidade: "m³", quantidade: 15, valorUnit: 110.00, categoria: "Material" }, { nome: "Brita 1", unidade: "m³", quantidade: 10, valorUnit: 130.00, categoria: "Material" }], arquivo: file.name, tipo: ext });
-      setLoading(false); setStep(2);
-    }, 1800);
+    if (ext !== "XML") {
+      avisarErro("Por enquanto apenas arquivos XML NF-e são suportados.");
+      return;
+    }
+    setLoading(true);
+    const reader = new FileReader();
+    reader.onload = async ev => {
+      try {
+        const xml = ev.target.result;
+        const dados = await api.post("/estoque/importar-nf", { xml });
+        setImpData({ ...dados, arquivo: file.name, tipo: ext });
+        setStep(2);
+      } catch (err) {
+        avisarErro(err.message || "Erro ao processar o XML.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    reader.readAsText(file, "UTF-8");
   };
 
   const confirmImp = async () => {
@@ -192,10 +207,41 @@ function EntradaInsumos({ data, setData, api, canWrite }) {
           )}
           {step === 2 && impData && (
             <div>
-              <div style={{ background: "rgba(34,197,94,.06)", border: "1px solid rgba(34,197,94,.18)", borderRadius: 10, padding: "11px 14px", marginBottom: 18 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 7, color: C.green, fontWeight: 700, fontSize: 12, marginBottom: 3 }}><Icon n="check" size={13} color={C.green} />Processado: {impData.arquivo}</div>
-                <div style={{ fontSize: 11, color: "rgba(34,197,94,.65)" }}>Fornecedor: <b>{impData.fornecedor}</b> · NF: <b>{impData.nfe}</b></div>
+              <div style={{ background: "rgba(34,197,94,.06)", border: "1px solid rgba(34,197,94,.18)", borderRadius: 10, padding: "11px 14px", marginBottom: 14 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 7, color: C.green, fontWeight: 700, fontSize: 12, marginBottom: 4 }}>
+                  <Icon n="check" size={13} color={C.green} />Processado: {impData.arquivo}
+                </div>
+                <div style={{ fontSize: 11, color: "rgba(34,197,94,.75)", display: "flex", flexWrap: "wrap", gap: 10 }}>
+                  {impData.fornecedor && <span>Fornecedor: <b>{impData.fornecedor}</b></span>}
+                  {impData.cnpj      && <span>CNPJ: <b>{impData.cnpj}</b></span>}
+                  {impData.nfe       && <span>NF: <b>{impData.nfe}</b></span>}
+                  {impData.data      && <span>Emissão: <b>{new Date(impData.data + "T12:00:00").toLocaleDateString("pt-BR")}</b></span>}
+                </div>
               </div>
+
+              {/* Preview dos itens */}
+              <div style={{ marginBottom: 14, maxHeight: 200, overflowY: "auto", border: `1px solid ${C.border}`, borderRadius: 10 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ background: "rgba(255,255,255,.02)" }}>
+                      {["Produto", "Unid.", "Qtd.", "Valor Unit."].map(h => (
+                        <th key={h} style={{ padding: "8px 12px", textAlign: "left", color: C.dim, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.07em", ...F }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {impData.itens.map((item, i) => (
+                      <tr key={i} style={{ borderTop: `1px solid ${C.borderLight}` }}>
+                        <td style={{ padding: "8px 12px", color: C.text, fontWeight: 500 }}>{item.nome}</td>
+                        <td style={{ padding: "8px 12px", color: C.muted }}>{item.unidade}</td>
+                        <td style={{ padding: "8px 12px", color: C.text }}>{item.quantidade}</td>
+                        <td style={{ padding: "8px 12px", color: C.muted }}>{fmt(item.valorUnit)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
               <div style={{ marginBottom: 18 }}>
                 <Sel label="Obra de Destino" value={impObra} onChange={e => setImpObra(e.target.value)}>
                   <option value="">— Selecione —</option>
@@ -204,7 +250,7 @@ function EntradaInsumos({ data, setData, api, canWrite }) {
               </div>
               <div style={{ display: "flex", gap: 9, justifyContent: "flex-end" }}>
                 <Btn v="secondary" onClick={() => { setStep(1); setImpData(null); }}>← Voltar</Btn>
-                <Btn disabled={!impObra} onClick={confirmImp}><Icon n="check" size={13} />Confirmar Importação</Btn>
+                <Btn disabled={!impObra} onClick={confirmImp}><Icon n="check" size={13} />Confirmar Importação ({impData.itens.length} itens)</Btn>
               </div>
             </div>
           )}
@@ -219,8 +265,9 @@ function PosicaoEstoque({ data }) {
   const { obras, insumos, estoques } = data;
   const [obraId, setObraId] = useState(obras[0]?.id || null);
   const itens = estoques.filter(e => e.obraId === obraId);
-  const totDisp = itens.reduce((s, e) => { const i = insumos.find(x => x.id === e.insumoId); return s + (i ? i.custoUnit * (e.quantEntrada - e.quantUtilizado) : 0); }, 0);
-  const totUtil = itens.reduce((s, e) => { const i = insumos.find(x => x.id === e.insumoId); return s + (i ? i.custoUnit * e.quantUtilizado : 0); }, 0);
+  const custoBatch = (e) => { const i = insumos.find(x => x.id === e.insumoId); return e.custoUnit || (i ? i.custoUnit : 0); };
+  const totDisp = itens.reduce((s, e) => s + custoBatch(e) * (e.quantEntrada - e.quantUtilizado), 0);
+  const totUtil = itens.reduce((s, e) => s + custoBatch(e) * e.quantUtilizado, 0);
 
   return (
     <div>
@@ -266,8 +313,8 @@ function PosicaoEstoque({ data }) {
                     <td style={{ padding: "11px 14px", color: C.orange, fontWeight: 600 }}>{item.quantUtilizado}</td>
                     <td style={{ padding: "11px 14px", color: C.green, fontWeight: 600 }}>{disp}</td>
                     <td style={{ padding: "11px 14px" }}><div style={{ display: "flex", alignItems: "center", gap: 7 }}><div style={{ width: 52 }}><Bar val={pct} color={pct > 90 ? C.red : C.orange} /></div><span style={{ fontSize: 11, color: C.muted }}>{pct}%</span></div></td>
-                    <td style={{ padding: "11px 14px", color: C.muted }}>{fmt(ins.custoUnit * item.quantUtilizado)}</td>
-                    <td style={{ padding: "11px 14px", color: C.muted }}>{fmt(ins.custoUnit * disp)}</td>
+                    <td style={{ padding: "11px 14px", color: C.muted }}>{fmt(custoBatch(item) * item.quantUtilizado)}</td>
+                    <td style={{ padding: "11px 14px", color: C.muted }}>{fmt(custoBatch(item) * disp)}</td>
                   </tr>
                 );
               })}
@@ -301,12 +348,15 @@ function BaixaEstoque({ data, setData, api, canWrite }) {
   const remLinha = i => setItens(f => f.filter((_, j) => j !== i));
   const updLinha = (i, k, v) => setItens(f => f.map((l, j) => j === i ? { ...l, [k]: v } : l));
 
+  const [registrando, setRegistrando] = useState(false);
+
   const registrar = async () => {
+    if (registrando) return;
     const validas = itens.filter(l => l.estoqueId && l.quantidade && parseFloat(l.quantidade) > 0);
     if (!validas.length) return;
+    setRegistrando(true);
     try {
       for (const l of validas) {
-        // O backend congela o custo unitário e mantém o saldo do lote.
         const consumo = await api.post("/estoque/consumos", {
           estoqueId:  parseInt(l.estoqueId),
           quantidade: parseFloat(l.quantidade),
@@ -320,8 +370,10 @@ function BaixaEstoque({ data, setData, api, canWrite }) {
             ? { ...e, quantUtilizado: e.quantUtilizado + consumo.quantidade } : e),
         }));
       }
+      avisarSucesso(`${validas.length} baixa(s) registrada(s).`);
       setModal(false); setItens([{ estoqueId: "", quantidade: "" }]); setEtapaId("");
     } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
+    finally { setRegistrando(false); }
   };
 
   const desfazer = async c => {
@@ -454,7 +506,136 @@ function BaixaEstoque({ data, setData, api, canWrite }) {
             </button>
             <div style={{ display: "flex", gap: 9, justifyContent: "flex-end", borderTop: `1px solid ${C.borderLight}`, paddingTop: 12 }}>
               <Btn v="secondary" onClick={() => setModal(false)}>Cancelar</Btn>
-              <Btn v="danger" disabled={!itens.some(l => l.estoqueId && l.quantidade)} onClick={registrar}><Icon n="check" size={13} />Confirmar Baixa</Btn>
+              <Btn v="danger" disabled={registrando || !itens.some(l => l.estoqueId && l.quantidade)} onClick={registrar}><Icon n="check" size={13} />{registrando ? "Registrando..." : "Confirmar Baixa"}</Btn>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ── Transferência entre Obras ─────────────────────────────────────────────────
+function TransferenciaEstoque({ data, setData, api, canWrite }) {
+  const { obras, insumos, estoques, transferencias = [] } = data;
+  const [modal, setModal]   = useState(false);
+  const [deObra, setDeObra] = useState(obras[0]?.id?.toString() || "");
+  const [paraObra, setParaObra] = useState("");
+  const [insumoId, setInsumoId] = useState("");
+  const [quantidade, setQuantidade] = useState("");
+  const [dataTransf, setDataTransf] = useState(today());
+  const [obs, setObs] = useState("");
+
+  const resetForm = () => { setDeObra(obras[0]?.id?.toString() || ""); setParaObra(""); setInsumoId(""); setQuantidade(""); setDataTransf(today()); setObs(""); };
+
+  // Insumos com saldo na obra de origem
+  const lotesOrigem = estoques.filter(e => e.obraId === parseInt(deObra));
+  const insumosComSaldo = insumos.filter(ins => {
+    const saldo = lotesOrigem.filter(e => e.insumoId === ins.id).reduce((s, e) => s + (e.quantEntrada - e.quantUtilizado), 0);
+    return saldo > 0;
+  });
+  const saldoInsumo = insumoId ? lotesOrigem.filter(e => e.insumoId === parseInt(insumoId)).reduce((s, e) => s + (e.quantEntrada - e.quantUtilizado), 0) : 0;
+  const insumoDados = insumos.find(i => i.id === parseInt(insumoId));
+
+  const [salvandoTransf, setSalvandoTransf] = useState(false);
+
+  const salvar = async () => {
+    if (!deObra || !paraObra || !insumoId || !quantidade || salvandoTransf) return;
+    setSalvandoTransf(true);
+    try {
+      const result = await api.post("/estoque/transferencias", { deObraId: parseInt(deObra), paraObraId: parseInt(paraObra), insumoId: parseInt(insumoId), quantidade: parseFloat(quantidade), data: dataTransf, obs: obs || undefined });
+      // Atualiza estado local: nova transferência + nova entrada de estoque + debita lotes de origem
+      setData(d => {
+        const novosEstoques = [...d.estoques, result.entrada];
+        // Ajusta quantUtilizado nos lotes da origem (mesma lógica FIFO do backend)
+        let restante = parseFloat(quantidade);
+        const estsAtualizados = d.estoques.map(e => {
+          if (e.obraId !== parseInt(deObra) || e.insumoId !== parseInt(insumoId) || restante <= 0) return e;
+          const saldo = e.quantEntrada - e.quantUtilizado;
+          if (saldo <= 0) return e;
+          const debitar = Math.min(saldo, restante);
+          restante -= debitar;
+          return { ...e, quantUtilizado: e.quantUtilizado + debitar };
+        });
+        return { ...d, estoques: [...estsAtualizados, result.entrada], transferencias: [result.transf, ...(d.transferencias || [])] };
+      });
+      avisarSucesso(`${parseFloat(quantidade)} ${insumoDados?.unidade ?? ""} transferido(s) com sucesso.`);
+      setModal(false); resetForm();
+    } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
+    finally { setSalvandoTransf(false); }
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: C.text, ...F, letterSpacing: "-0.02em" }}>Transferência entre Obras</div>
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Mova insumos do estoque de uma obra para outra</div>
+        </div>
+        {canWrite && <Btn onClick={() => { resetForm(); setModal(true); }} sx={{ fontSize: 11, padding: "6px 12px" }}><Icon n="arrow" size={12} />Nova Transferência</Btn>}
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+        {!transferencias.length && <Card style={{ padding: "40px", textAlign: "center" }}><span style={{ color: C.dim, fontSize: 12 }}>Nenhuma transferência registrada.</span></Card>}
+        {transferencias.map(t => {
+          const ins = insumos.find(i => i.id === t.insumoId) ?? t.insumo;
+          const nomeDeObra   = obras.find(o => o.id === t.deObraId)?.nome   ?? t.deObra?.nome   ?? "—";
+          const nomeParaObra = obras.find(o => o.id === t.paraObraId)?.nome ?? t.paraObra?.nome ?? "—";
+          return (
+            <Card key={t.id} style={{ padding: "13px 16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 9, background: "rgba(99,102,241,.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Icon n="arrow" size={15} color="#6366f1" />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.text, ...F }}>
+                    {ins?.nome ?? "—"}
+                    <span style={{ fontWeight: 500, color: C.muted }}> · {t.quantidade} {ins?.unidade ?? ""}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 2, display: "flex", alignItems: "center", gap: 5 }}>
+                    <span style={{ color: C.orange, fontWeight: 600 }}>{nomeDeObra}</span>
+                    <span>→</span>
+                    <span style={{ color: C.green, fontWeight: 600 }}>{nomeParaObra}</span>
+                    <span style={{ color: C.dim }}>· {new Date(t.data + "T12:00:00").toLocaleDateString("pt-BR")}</span>
+                  </div>
+                  {t.obs && <div style={{ fontSize: 10, color: C.dim, marginTop: 2 }}>{t.obs}</div>}
+                </div>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
+      {modal && (
+        <Modal title="Nova Transferência de Estoque" onClose={() => setModal(false)} wide>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <Sel label="Obra de Origem" value={deObra} onChange={e => { setDeObra(e.target.value); setInsumoId(""); setQuantidade(""); }}>
+                {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
+              </Sel>
+              <Sel label="Obra de Destino" value={paraObra} onChange={e => setParaObra(e.target.value)}>
+                <option value="">— Selecione —</option>
+                {obras.filter(o => o.id.toString() !== deObra).map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
+              </Sel>
+            </div>
+            <Sel label="Insumo" value={insumoId} onChange={e => { setInsumoId(e.target.value); setQuantidade(""); }}>
+              <option value="">— Selecione o insumo —</option>
+              {insumosComSaldo.map(i => {
+                const saldo = lotesOrigem.filter(e => e.insumoId === i.id).reduce((s, e) => s + (e.quantEntrada - e.quantUtilizado), 0);
+                return <option key={i.id} value={i.id}>{i.nome} (saldo: {saldo} {i.unidade})</option>;
+              })}
+            </Sel>
+            {!insumosComSaldo.length && deObra && (
+              <div style={{ fontSize: 11, color: C.dim, background: C.orangeDim, borderRadius: 8, padding: "8px 12px" }}>Nenhum insumo com saldo disponível nesta obra.</div>
+            )}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <Inp label={`Quantidade${insumoDados ? ` (máx ${saldoInsumo} ${insumoDados.unidade})` : ""}`} type="number" placeholder="0" value={quantidade} onChange={e => setQuantidade(e.target.value)} />
+              <Inp label="Data" type="date" value={dataTransf} onChange={e => setDataTransf(e.target.value)} />
+            </div>
+            <Inp label="Observação (opcional)" value={obs} onChange={e => setObs(e.target.value)} placeholder="ex: sobra de material" />
+            <div style={{ display: "flex", gap: 9, justifyContent: "flex-end", borderTop: `1px solid ${C.borderLight}`, paddingTop: 12 }}>
+              <Btn v="secondary" onClick={() => setModal(false)}>Cancelar</Btn>
+              <Btn disabled={salvandoTransf || !deObra || !paraObra || !insumoId || !(parseFloat(quantidade) > 0)} onClick={salvar}><Icon n="check" size={13} />{salvandoTransf ? "Transferindo..." : "Confirmar Transferência"}</Btn>
             </div>
           </div>
         </Modal>
@@ -465,16 +646,16 @@ function BaixaEstoque({ data, setData, api, canWrite }) {
 
 // ── Estoque (wrapper com abas) ────────────────────────────────────────────────
 const ESTABS = [
-  { id: "entradas", label: "Entrada de Insumos", icon: "upload" },
-  { id: "baixa",    label: "Baixa de Estoque",   icon: "minus"   },
-  { id: "posicao",  label: "Posição",             icon: "warehouse" },
+  { id: "posicao",       label: "Posição",         icon: "warehouse" },
+  { id: "baixa",         label: "Baixa",           icon: "minus"     },
+  { id: "transferencia", label: "Transferências",  icon: "arrow"     },
 ];
 
 export default function Estoque({ data, setData, api, canWrite }) {
-  const [aba, setAba] = useState("entradas");
+  const [aba, setAba] = useState("posicao");
   return (
     <div>
-      <Hdr title="Estoque" sub="Entradas, baixas e posição de estoque por obra" />
+      <Hdr title="Estoque" sub="Posição, baixas e transferências por obra" />
       <div style={{ display: "flex", gap: 2, marginBottom: 22, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 4, width: "fit-content" }}>
         {ESTABS.map(t => { const a = aba === t.id; return (
           <button key={t.id} onClick={() => setAba(t.id)} style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 15px", borderRadius: 9, border: "none", cursor: "pointer", fontSize: 12, fontWeight: a ? 700 : 500, transition: "all .15s", ...F, background: a ? C.orange : "transparent", color: a ? "#0a0a0a" : C.muted, letterSpacing: "-0.01em" }}>
@@ -482,9 +663,9 @@ export default function Estoque({ data, setData, api, canWrite }) {
           </button>
         ); })}
       </div>
-      {aba === "entradas" && <EntradaInsumos data={data} setData={setData} api={api} canWrite={canWrite} />}
-      {aba === "baixa"    && <BaixaEstoque   data={data} setData={setData} api={api} canWrite={canWrite} />}
-      {aba === "posicao"  && <PosicaoEstoque data={data} />}
+      {aba === "posicao"       && <PosicaoEstoque       data={data} />}
+      {aba === "baixa"         && <BaixaEstoque         data={data} setData={setData} api={api} canWrite={canWrite} />}
+      {aba === "transferencia" && <TransferenciaEstoque data={data} setData={setData} api={api} canWrite={canWrite} />}
     </div>
   );
 }

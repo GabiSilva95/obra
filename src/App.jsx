@@ -23,7 +23,7 @@ import Financeiro from "./pages/Financeiro";
 import Compras from "./pages/Compras";
 
 function normalizeData(raw) {
-  const { obras, maquinas, funcionarios, insumos, estoques, alocacoes, tiposEtapa, users, diario, receitas, compras, categoriasMaquina, tiposObra, consumos, apontamentos, despesas } = raw;
+  const { obras, maquinas, funcionarios, insumos, estoques, alocacoes, tiposEtapa, users, diario, receitas, compras, categoriasMaquina, tiposObra, consumos, apontamentos, despesas, transferencias } = raw;
   const etapasObra = obras.flatMap(o => (o.etapas || []).map(e => ({ ...e, obraId: o.id })));
   const funcionarioObra = funcionarios.flatMap(f => (f.funcionarioObra || []));
   const normalizedAlocacoes = alocacoes.map(a => ({ ...a, referenciaId: a.maquinaId || a.insumoId }));
@@ -47,6 +47,7 @@ function normalizeData(raw) {
     consumos: consumos || [],
     apontamentos: apontamentos || [],
     despesas: despesas || [],
+    transferencias: transferencias || [],
   };
 }
 
@@ -72,7 +73,7 @@ function AppShell({ session, setSession }) {
 
   const loadData = useCallback(async () => {
     try {
-      const [obras, maquinas, funcionarios, insumos, estoques, alocacoes, tiposEtapa, users, diario, receitas, compras, categoriasMaquina, tiposObra, consumos, apontamentos, despesas] = await Promise.all([
+      const [obras, maquinas, funcionarios, insumos, estoques, alocacoes, tiposEtapa, users, diario, receitas, compras, categoriasMaquina, tiposObra, consumos, apontamentos, despesas, transferencias] = await Promise.all([
         api.get("/obras"),
         api.get("/cadastros/maquinas"),
         api.get("/cadastros/funcionarios"),
@@ -84,15 +85,14 @@ function AppShell({ session, setSession }) {
         api.get("/diario"),
         api.get("/receitas"),
         api.get("/compras"),
-        // Endpoints adicionados na Etapa 3 — fallback [] para compatibilidade
-        // com servidores ainda não atualizados (local sem restart ou pré-deploy)
         api.get("/cadastros/categorias-maquina").catch(() => []),
         api.get("/cadastros/tipos-obra").catch(() => []),
         api.get("/estoque/consumos").catch(() => []),
         api.get("/apontamentos").catch(() => []),
         api.get("/despesas").catch(() => []),
+        api.get("/estoque/transferencias").catch(() => []),
       ]);
-      setData(normalizeData({ obras, maquinas, funcionarios, insumos, estoques, alocacoes, tiposEtapa, users, diario, receitas, compras, categoriasMaquina, tiposObra, consumos, apontamentos, despesas }));
+      setData(normalizeData({ obras, maquinas, funcionarios, insumos, estoques, alocacoes, tiposEtapa, users, diario, receitas, compras, categoriasMaquina, tiposObra, consumos, apontamentos, despesas, transferencias }));
     } catch (e) {
       setLoadErr(e.message);
     }

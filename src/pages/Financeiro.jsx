@@ -1,24 +1,12 @@
 import { useState } from "react";
-import { C, F } from "../constants/tokens";
 import { fmt, calcIns, calcMaq, calcMO, calcDesp, calcCustoObra, validate, today } from "../utils/helpers";
-import { Icon, Badge, Bar, Card, Modal, Inp, Btn, Hdr, DSel, MoneyInp } from "../components/ui";
 import { avisarErro, confirmar } from "../utils/aviso";
+import { Badge, Banner, Button, Card, DataTable, IconButton, Input, Modal, MoneyInput, ProgressBar, SegmentedTabs, Select, StatCard, Tag } from "../../design-system";
+import { PageActions } from "../components/PageActions";
 
 const TIPOS_RECEITA = ["Contrato", "Medição", "Adiantamento", "Retenção liberada", "Outro"];
-const STATUS_COLORS = { positivo: C.green || "#22c55e", negativo: "#ef4444", neutro: C.muted };
-
-function StatCard({ label, value, icon, color, sub }) {
-  return (
-    <div style={{ background: "rgba(255,255,255,.025)", borderRadius: 12, padding: "14px 16px", flex: 1 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-        <Icon n={icon} size={13} color={color || C.dim} />
-        <span style={{ fontSize: 10, color: C.dim, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", ...F }}>{label}</span>
-      </div>
-      <div style={{ fontSize: 18, fontWeight: 800, color: color || C.text, letterSpacing: "-0.03em", ...F }}>{value}</div>
-      {sub && <div style={{ fontSize: 10, color: C.dim, marginTop: 3 }}>{sub}</div>}
-    </div>
-  );
-}
+const COR_CUSTO = { Insumos: "var(--stat-4)", Maquinário: "var(--stat-1)", "Mão de obra": "var(--cp-data-purple)", Despesas: "var(--cp-data-pink)" };
+const dataBR = d => new Date(d + "T12:00:00").toLocaleDateString("pt-BR");
 
 export default function Financeiro({ data, setData, api, canWrite }) {
   const { obras, receitas = [], insumos, alocacoes, maquinas, funcionarioObra, funcionarios,
@@ -31,6 +19,7 @@ export default function Financeiro({ data, setData, api, canWrite }) {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({});
   const [erros, setErros] = useState({});
+  const [salvando, setSalvando] = useState(false);
 
   const obrasSel = obraFiltro ? obras.filter(o => o.id === parseInt(obraFiltro)) : obras;
 
@@ -53,6 +42,8 @@ export default function Financeiro({ data, setData, api, canWrite }) {
       data: { required: true, label: "Data" },
     });
     if (!ok) { setErros(e); return; }
+    if (salvando) return;
+    setSalvando(true);
     try {
       if (form.id) {
         const updated = await api.put(`/receitas/${form.id}`, form);
@@ -63,6 +54,7 @@ export default function Financeiro({ data, setData, api, canWrite }) {
       }
       setErros({}); setModal(false);
     } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
+    finally { setSalvando(false); }
   };
 
   const del = async id => {
@@ -96,6 +88,8 @@ export default function Financeiro({ data, setData, api, canWrite }) {
       etapaId: despForm.etapaId ? parseInt(despForm.etapaId) : null,
       valor:   parseFloat(despForm.valor),
     };
+    if (salvando) return;
+    setSalvando(true);
     try {
       if (despForm.id) {
         const upd = await api.put(`/despesas/${despForm.id}`, payload);
@@ -106,6 +100,7 @@ export default function Financeiro({ data, setData, api, canWrite }) {
       }
       setDespErros({}); setDespModal(false);
     } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
+    finally { setSalvando(false); }
   };
 
   const delDespesa = async id => {
@@ -116,376 +111,217 @@ export default function Financeiro({ data, setData, api, canWrite }) {
     } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
   };
 
-  const ABAS = [
-    { id: "resumo", label: "Resumo", icon: "barchart" },
-    { id: "receitas", label: "Receitas", icon: "money" },
-    { id: "despesas", label: "Despesas", icon: "cube" },
-    { id: "obras", label: "Por Obra", icon: "building" },
-    { id: "fluxo", label: "Fluxo de Caixa", icon: "trending" },
-  ];
+  // Monthly cash flow: revenue in, and the same cost base as the summary out (material, machines, labour, expenses)
+  const fluxo = (() => {
+    const meses = {};
+    const addMes = (d, tipo, valor) => {
+      const m = d.slice(0, 7);
+      if (!meses[m]) meses[m] = { mes: m, entradas: 0, saidas: 0 };
+      meses[m][tipo === "entrada" ? "entradas" : "saidas"] += valor;
+    };
+    const daObra = x => !obraFiltro || x.obraId === parseInt(obraFiltro);
+    receitas.filter(daObra).forEach(r => addMes(r.data, "entrada", r.valor));
+    consumos.filter(daObra).forEach(c => {
+      const cu = c.custoUnitario ?? (insumos.find(i => i.id === c.insumoId)?.custoUnit ?? 0);
+      if (c.data) addMes(c.data, "saida", cu * c.quantidade);
+    });
+    alocacoes.filter(a => daObra(a) && a.tipo === "maquina").forEach(a => {
+      const cu = a.custoUnitario ?? (maquinas.find(m => m.id === a.referenciaId)?.custoHora ?? 0);
+      if (a.data) addMes(a.data, "saida", cu * a.quantidade);
+    });
+    apontamentos.filter(daObra).forEach(a => {
+      const vd = a.valorDia ?? (funcionarios.find(f => f.id === a.funcionarioId)?.salarioDia ?? 0);
+      if (a.data) addMes(a.data, "saida", vd * a.dias);
+    });
+    despesas.filter(daObra).forEach(d => { if (d.data) addMes(d.data, "saida", d.valor); });
+    return Object.values(meses).sort((a, b) => a.mes.localeCompare(b.mes)).reduce((rows, m) => {
+      const saldo = m.entradas - m.saidas;
+      const acum = (rows.at(-1)?.acum ?? 0) + saldo;
+      const [ano, mes] = m.mes.split("-");
+      return [...rows, { ...m, saldo, acum, label: new Date(parseInt(ano), parseInt(mes) - 1).toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }) }];
+    }, []);
+  })();
+
+  const cor = v => (v >= 0 ? "var(--status-success-text)" : "var(--status-danger)");
+  const fecharReceita = () => { setModal(false); setErros({}); };
+  const fecharDespesa = () => { setDespModal(false); setDespErros({}); };
+  const setD = k => e => setDespForm(f => ({ ...f, [k]: e.target.value }));
+  const setR = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
   return (
-    <div>
-      <Hdr
-        title="Financeiro"
-        sub="Receitas, custos e lucratividade"
-        action={
-          <div style={{ display: "flex", gap: 9, alignItems: "center" }}>
-            <DSel value={obraFiltro} onChange={e => setObraFiltro(e.target.value)}>
-              <option value="">Todas as obras</option>
-              {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
-            </DSel>
-            {canWrite && aba === "despesas" && (
-              <Btn onClick={() => { setDespForm({ obraId: obraFiltro || "", data: today(), categoria: "Combustível" }); setDespModal(true); }}>
-                <Icon n="plus" size={13} />Nova Despesa
-              </Btn>
-            )}
-            {canWrite && aba === "receitas" && (
-              <Btn onClick={() => { setForm({ obraId: obraFiltro || obras[0]?.id, data: new Date().toISOString().slice(0, 10), tipo: "Contrato" }); setModal(true); }}>
-                <Icon n="plus" size={13} />Nova Receita
-              </Btn>
-            )}
-          </div>
-        }
-      />
-
-      {/* Tabs */}
-      <div style={{ display: "flex", gap: 2, marginBottom: 20, background: "rgba(255,255,255,.03)", borderRadius: 12, padding: 4, border: `1px solid ${C.borderLight}` }}>
-        {ABAS.map(a => (
-          <button key={a.id} onClick={() => setAba(a.id)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 9, border: "none", cursor: "pointer", background: aba === a.id ? "rgba(249,115,22,.12)" : "transparent", color: aba === a.id ? C.orange : C.muted, fontSize: 11, fontWeight: aba === a.id ? 700 : 500, transition: "all .15s", ...F }}>
-            <Icon n={a.icon} size={12} color={aba === a.id ? C.orange : C.dim} />{a.label}
-          </button>
-        ))}
-      </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)" }}>
+      <PageActions>
+        <Select aria-label="Filtrar obra" style={{ height: "var(--control-h-sm)", minWidth: "var(--control-w-md)" }} value={obraFiltro} onChange={e => setObraFiltro(e.target.value)}>
+          <option value="">Todas as obras</option>
+          {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
+        </Select>
+        {canWrite && aba === "despesas" && <Button iconLeft="plus" onClick={() => { setDespForm({ obraId: obraFiltro || "", data: today(), categoria: "Combustível" }); setDespModal(true); }}>Nova despesa</Button>}
+        {canWrite && aba === "receitas" && <Button iconLeft="plus" onClick={() => { setForm({ obraId: obraFiltro || obras[0]?.id, data: today(), tipo: "Contrato" }); setModal(true); }}>Nova receita</Button>}
+      </PageActions>
+      <p style={{ color: "var(--text-secondary)" }}>Receitas, custos e lucratividade.</p>
+      <SegmentedTabs variant="light" value={aba} onChange={setAba} tabs={[
+        { value: "resumo", label: "Resumo" }, { value: "receitas", label: "Receitas", count: receitasFiltradas.length },
+        { value: "despesas", label: "Despesas", count: despesasFiltradas.length }, { value: "obras", label: "Por obra" }, { value: "fluxo", label: "Fluxo de caixa" },
+      ]} />
 
       {aba === "resumo" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <StatCard label="Total Receitas" value={fmt(totalReceitas)} icon="money" color="#22c55e" />
-            <StatCard label="Total Custos" value={fmt(totalCustos)} icon="barchart" color={C.orange} />
-            <StatCard label="Lucro" value={fmt(lucro)} icon="trending" color={lucro >= 0 ? "#22c55e" : "#ef4444"} sub={`Margem: ${margem}%`} />
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(var(--col-min-md),1fr))", gap: "var(--space-6)" }}>
+            <StatCard value={fmt(totalReceitas)} label="Total de receitas" color="var(--stat-3)" />
+            <StatCard value={fmt(totalCustos)} label="Total de custos" color="var(--stat-4)" />
+            <StatCard value={fmt(lucro)} label={`Lucro · margem ${margem}%`} color={lucro >= 0 ? "var(--stat-1)" : "var(--status-danger)"} />
           </div>
-          <Card style={{ padding: "16px 20px" }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 14, ...F }}>Composição de custos</div>
+          <Card title="Composição de custos">
             {obrasSel.map(o => {
-              const cIns = calcIns(o.id, consumos, insumos);
-              const cMaq = calcMaq(o.id, alocacoes, maquinas);
-              const cMO = calcMO(o.id, apontamentos, funcionarios, funcionarioObra);
-              const cDesp = calcDesp(o.id, despesas);
-              const cT = cIns + cMaq + cMO + cDesp;
+              const partes = { Insumos: calcIns(o.id, consumos, insumos), Maquinário: calcMaq(o.id, alocacoes, maquinas), "Mão de obra": calcMO(o.id, apontamentos, funcionarios, funcionarioObra), Despesas: calcDesp(o.id, despesas) };
+              const cT = Object.values(partes).reduce((a, b) => a + b, 0);
               const rec = receitas.filter(r => r.obraId === o.id).reduce((s, r) => s + r.valor, 0);
               const pOrc = cT > 0 && o.orcamento > 0 ? Math.min(100, Math.round(cT / o.orcamento * 100)) : 0;
               return (
-                <div key={o.id} style={{ marginBottom: 18 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: C.text, ...F }}>{o.nome}</span>
-                    <span style={{ fontSize: 11, color: rec - cT >= 0 ? "#22c55e" : "#ef4444", fontWeight: 700 }}>{fmt(rec - cT)}</span>
+                <div key={o.id} style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", paddingBottom: "var(--space-4)", borderBottom: "var(--border-w) solid var(--border-subtle)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: "var(--space-2)" }}>
+                    <b>{o.nome}</b>
+                    <span style={{ color: cor(rec - cT), fontWeight: "var(--fw-bold)" }}>{fmt(rec - cT)}</span>
                   </div>
-                  <div style={{ display: "flex", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
-                    {[["Insumos", cIns, C.orange], ["Maquinário", cMaq, "#60a5fa"], ["Mão de obra", cMO, "#a78bfa"], ["Despesas", cDesp, "#f472b6"]].map(([l, v, c]) => (
-                      <span key={l} style={{ fontSize: 10, color: C.dim }}><span style={{ color: c, fontWeight: 700 }}>●</span> {l}: {fmt(v)}</span>
-                    ))}
+                  <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
+                    {Object.entries(partes).map(([l, v]) => <Tag key={l} tone="neutral" dot={COR_CUSTO[l]}>{l}: {fmt(v)}</Tag>)}
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ flex: 1 }}>
-                      <Bar val={pOrc} color={pOrc > 100 ? "#ef4444" : pOrc > 80 ? "#f59e0b" : C.orange} />
-                    </div>
-                    <span style={{ fontSize: 10, color: C.dim, flexShrink: 0 }}>{pOrc}% do orç.</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+                    <div style={{ flex: 1 }}><ProgressBar value={pOrc} color={pOrc >= 100 ? "var(--status-danger)" : pOrc > 80 ? "var(--status-warning)" : "var(--accent)"} label="Orçamento utilizado" /></div>
+                    <span style={{ fontSize: "var(--fs-p6)", color: "var(--text-secondary)" }}>{pOrc}% do orçamento</span>
                   </div>
                 </div>
               );
             })}
           </Card>
-        </div>
+        </>
       )}
 
       {aba === "receitas" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {receitasFiltradas.length === 0 ? (
-            <Card style={{ textAlign: "center", padding: "48px 24px", color: C.dim }}>
-              <Icon n="money" size={32} color={C.border} />
-              <div style={{ marginTop: 12, fontSize: 13 }}>Nenhuma receita registrada</div>
-            </Card>
-          ) : receitasFiltradas.map(r => {
-            const obra = obras.find(o => o.id === r.obraId);
-            return (
-              <Card key={r.id}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ width: 40, height: 40, borderRadius: 11, background: "rgba(34,197,94,.08)", border: "1px solid rgba(34,197,94,.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <Icon n="money" size={16} color="#22c55e" />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", gap: 7, alignItems: "center", flexWrap: "wrap", marginBottom: 3 }}>
-                      <span style={{ fontWeight: 700, fontSize: 13, color: C.text, ...F }}>{r.descricao}</span>
-                      <Badge v="green">{r.tipo}</Badge>
-                      {obra && <Badge v="blue">{obra.nome}</Badge>}
-                    </div>
-                    <span style={{ fontSize: 11, color: C.dim }}>{new Date(r.data + "T12:00:00").toLocaleDateString("pt-BR")}</span>
-                  </div>
-                  <div style={{ fontWeight: 800, fontSize: 15, color: "#22c55e", ...F, flexShrink: 0 }}>{fmt(r.valor)}</div>
-                  {canWrite && (
-                    <div style={{ display: "flex", gap: 5 }}>
-                      <button onClick={() => { setForm({ ...r }); setModal(true); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-                        <Icon n="edit" size={13} color={C.dim} />
-                      </button>
-                      <button onClick={() => del(r.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-                        <Icon n="trash" size={13} color={C.dim} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+        <DataTable minWidth={720} rows={receitasFiltradas} rowKey={r => r.id} empty="Nenhuma receita registrada." columns={[
+          { key: "descricao", label: "Descrição", render: r => <b>{r.descricao}</b> },
+          { key: "tipo", label: "Tipo", render: r => <Tag tone="success">{r.tipo}</Tag> },
+          { key: "obra", label: "Obra", render: r => obras.find(o => o.id === r.obraId)?.nome || "—" },
+          { key: "data", label: "Data", render: r => dataBR(r.data) },
+          { key: "valor", label: "Valor", align: "right", render: r => <b style={{ color: "var(--status-success-text)" }}>{fmt(r.valor)}</b> },
+          ...(canWrite ? [{ key: "acoes", label: "", width: "var(--space-24)", render: r => (
+            <div style={{ display: "flex", gap: "var(--space-1)" }}>
+              <IconButton icon="pencil" size={28} label="Editar" onClick={() => { setForm({ ...r }); setModal(true); }} />
+              <IconButton icon="trash-2" variant="danger" size={28} label="Excluir" onClick={() => del(r.id)} />
+            </div>
+          ) }] : []),
+        ]} />
       )}
 
       {aba === "despesas" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {despesasGerais > 0 && (
-            <Card style={{ padding: "12px 16px", background: "rgba(244,114,182,.05)", borderColor: "rgba(244,114,182,.18)" }}>
-              <div style={{ fontSize: 11, color: "#f472b6", fontWeight: 700, ...F }}>
-                {fmt(despesasGerais)} em despesas gerais da empresa
+        <>
+          {despesasGerais > 0 && <Banner tone="info" title={`${fmt(despesasGerais)} em despesas gerais da empresa`}>Sem obra vinculada: não entram no custo de nenhuma obra.</Banner>}
+          <DataTable minWidth={820} rows={despesasFiltradas} rowKey={r => r.id} empty="Nenhuma despesa registrada. Combustível, manutenção, aluguel, tributos e administrativo." columns={[
+            { key: "descricao", label: "Descrição", render: d => (
+              <span style={{ display: "flex", flexDirection: "column" }}><b>{d.descricao}</b>{d.fornecedor && <span style={{ fontSize: "var(--fs-p6)", color: "var(--text-secondary)" }}>{d.fornecedor}</span>}</span>
+            ) },
+            { key: "categoria", label: "Categoria", render: d => <Tag tone="neutral">{d.categoria}</Tag> },
+            { key: "obra", label: "Obra / etapa", render: d => {
+              const obra = obras.find(o => o.id === d.obraId);
+              const etapa = (data.etapasObra || []).find(e => e.id === d.etapaId);
+              const tp = etapa && (data.tiposEtapa || []).find(t => t.id === etapa.tipoEtapaId);
+              return obra ? <span>{obra.nome}{tp && <span style={{ color: "var(--text-secondary)" }}> · {tp.nome}</span>}</span> : <Badge size="sm" tone="warning">Geral</Badge>;
+            } },
+            { key: "data", label: "Data", render: d => dataBR(d.data) },
+            { key: "valor", label: "Valor", align: "right", render: d => <b>{fmt(d.valor)}</b> },
+            ...(canWrite ? [{ key: "acoes", label: "", width: "var(--space-24)", render: d => (
+              <div style={{ display: "flex", gap: "var(--space-1)" }}>
+                <IconButton icon="pencil" size={28} label="Editar" onClick={() => { setDespForm({ ...d }); setDespModal(true); }} />
+                <IconButton icon="trash-2" variant="danger" size={28} label="Excluir" onClick={() => delDespesa(d.id)} />
               </div>
-              <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
-                Sem obra vinculada — não entram no custo de nenhuma obra.
-              </div>
-            </Card>
-          )}
-          {despesasFiltradas.length === 0 ? (
-            <Card style={{ textAlign: "center", padding: "48px 24px", color: C.dim }}>
-              <Icon n="cube" size={32} color={C.border} />
-              <div style={{ marginTop: 12, fontSize: 13 }}>Nenhuma despesa registrada</div>
-              <div style={{ marginTop: 4, fontSize: 11 }}>Combustível, manutenção, aluguel, tributos e administrativo.</div>
-            </Card>
-          ) : despesasFiltradas.map(d => {
-            const obra  = obras.find(o => o.id === d.obraId);
-            const etapa = (data.etapasObra || []).find(e => e.id === d.etapaId);
-            const tp    = etapa && (data.tiposEtapa || []).find(t => t.id === etapa.tipoEtapaId);
-            return (
-              <Card key={d.id}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ width: 40, height: 40, borderRadius: 11, background: "rgba(244,114,182,.08)", border: "1px solid rgba(244,114,182,.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <Icon n="cube" size={16} color="#f472b6" />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", gap: 7, alignItems: "center", flexWrap: "wrap", marginBottom: 3 }}>
-                      <span style={{ fontWeight: 700, fontSize: 13, color: C.text, ...F }}>{d.descricao}</span>
-                      <Badge>{d.categoria}</Badge>
-                      {obra ? <Badge v="blue">{obra.nome}</Badge> : <Badge v="yellow">Geral</Badge>}
-                      {tp && <Badge v="orange">{tp.nome}</Badge>}
-                    </div>
-                    <span style={{ fontSize: 11, color: C.dim }}>
-                      {new Date(d.data + "T12:00:00").toLocaleDateString("pt-BR")}
-                      {d.fornecedor ? ` · ${d.fornecedor}` : ""}
-                    </span>
-                  </div>
-                  <div style={{ fontWeight: 800, fontSize: 15, color: "#f472b6", ...F, flexShrink: 0 }}>{fmt(d.valor)}</div>
-                  {canWrite && (
-                    <div style={{ display: "flex", gap: 5 }}>
-                      <button onClick={() => { setDespForm({ ...d }); setDespModal(true); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-                        <Icon n="edit" size={13} color={C.dim} />
-                      </button>
-                      <button onClick={() => delDespesa(d.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-                        <Icon n="trash" size={13} color={C.dim} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+            ) }] : []),
+          ]} />
+        </>
       )}
 
       {aba === "obras" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(var(--col-min-lg),1fr))", gap: "var(--space-6)" }}>
           {obrasSel.map(o => {
             const custos = calcCustoObra(o.id, data);
             const recsList = receitas.filter(r => r.obraId === o.id);
             const recs = recsList.reduce((s, r) => s + r.valor, 0);
             const lucroObra = recs - custos;
-            const margem = recs > 0 ? ((lucroObra / recs) * 100).toFixed(1) : "—";
+            const margemObra = recs > 0 ? ((lucroObra / recs) * 100).toFixed(1) : "—";
             return (
-              <Card key={o.id}>
-                <div style={{ fontWeight: 700, fontSize: 13, color: C.text, marginBottom: 14, ...F }}>{o.nome}</div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 12 }}>
-                  {[
-                    { l: "Receitas", v: fmt(recs), c: "#22c55e" },
-                    { l: "Custos", v: fmt(custos), c: C.orange },
-                    { l: "Lucro", v: fmt(lucroObra), c: lucroObra >= 0 ? "#22c55e" : "#ef4444" },
-                    { l: "Margem", v: `${margem}%`, c: lucroObra >= 0 ? "#22c55e" : "#ef4444" },
-                  ].map(k => (
-                    <div key={k.l} style={{ background: "rgba(255,255,255,.025)", borderRadius: 9, padding: "10px 12px" }}>
-                      <div style={{ fontSize: 10, color: C.dim, marginBottom: 3 }}>{k.l}</div>
-                      <div style={{ fontSize: 13, fontWeight: 800, color: k.c, ...F }}>{k.v}</div>
+              <Card key={o.id} title={o.nome}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3) var(--space-6)" }}>
+                  {[["Receitas", fmt(recs), "var(--status-success-text)"], ["Custos", fmt(custos), "var(--text-primary)"], ["Lucro", fmt(lucroObra), cor(lucroObra)], ["Margem", `${margemObra}%`, cor(lucroObra)]].map(([l, v, c]) => (
+                    <div key={l} style={{ display: "flex", flexDirection: "column", gap: "var(--space-0-5)" }}>
+                      <span style={{ fontSize: "var(--fs-p5-5)", color: "var(--text-secondary)" }}>{l}:</span>
+                      <span style={{ fontWeight: "var(--fw-bold)", color: c }}>{v}</span>
                     </div>
                   ))}
                 </div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  {recsList.slice(0, 3).map(r => (
-                    <span key={r.id} style={{ fontSize: 10, color: C.dim, background: "rgba(255,255,255,.03)", border: `1px solid ${C.borderLight}`, borderRadius: 6, padding: "3px 8px" }}>
-                      {r.descricao}: <span style={{ color: "#22c55e", fontWeight: 700 }}>{fmt(r.valor)}</span>
-                    </span>
-                  ))}
-                  {recsList.length > 3 && <span style={{ fontSize: 10, color: C.dim }}>+{recsList.length - 3} mais</span>}
-                </div>
+                {recsList.length > 0 && (
+                  <div style={{ display: "flex", gap: "var(--space-1-5)", flexWrap: "wrap" }}>
+                    {recsList.slice(0, 3).map(r => <Tag key={r.id} tone="success">{r.descricao}: {fmt(r.valor)}</Tag>)}
+                    {recsList.length > 3 && <Tag tone="neutral">+{recsList.length - 3}</Tag>}
+                  </div>
+                )}
               </Card>
             );
           })}
         </div>
       )}
 
-      {aba === "fluxo" && (() => {
-        // Build monthly cash flow from receitas and estoque movements
-        const meses = {};
-        const addMes = (data, tipo, valor) => {
-          const m = data.slice(0, 7);
-          if (!meses[m]) meses[m] = { mes: m, entradas: 0, saidas: 0 };
-          if (tipo === "entrada") meses[m].entradas += valor;
-          else meses[m].saidas += valor;
-        };
-        const daObra = x => !obraFiltro || x.obraId === parseInt(obraFiltro);
-
-        // Entradas: receitas lançadas
-        receitas.filter(daObra).forEach(r => addMes(r.data, "entrada", r.valor));
-
-        // Saídas: a mesma base do Resumo — material consumido, máquina, mão de
-        // obra e despesas, cada um na sua data. Antes só a entrada de estoque
-        // era considerada, o que dava um custo diferente do resto da tela.
-        consumos.filter(daObra).forEach(c => {
-          const cu = c.custoUnitario ?? (insumos.find(i => i.id === c.insumoId)?.custoUnit ?? 0);
-          if (c.data) addMes(c.data, "saida", cu * c.quantidade);
-        });
-        alocacoes.filter(a => daObra(a) && a.tipo === "maquina").forEach(a => {
-          const cu = a.custoUnitario ?? (maquinas.find(m => m.id === a.referenciaId)?.custoHora ?? 0);
-          if (a.data) addMes(a.data, "saida", cu * a.quantidade);
-        });
-        apontamentos.filter(daObra).forEach(a => {
-          const vd = a.valorDia ?? (funcionarios.find(f => f.id === a.funcionarioId)?.salarioDia ?? 0);
-          if (a.data) addMes(a.data, "saida", vd * a.dias);
-        });
-        despesas.filter(d => !obraFiltro ? true : d.obraId === parseInt(obraFiltro))
-          .forEach(d => { if (d.data) addMes(d.data, "saida", d.valor); });
-        const sorted = Object.values(meses).sort((a, b) => a.mes.localeCompare(b.mes));
-        let saldoAcum = 0;
-        return (
-          <Card style={{ padding: "16px 20px" }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 14, ...F }}>Fluxo de Caixa Mensal</div>
-            {sorted.length === 0 ? (
-              <div style={{ fontSize: 12, color: C.dim, textAlign: "center", padding: "24px 0" }}>Nenhum dado disponível</div>
-            ) : (
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
-                <thead>
-                  <tr style={{ background: "rgba(255,255,255,.02)" }}>
-                    {["Mês", "Entradas", "Saídas", "Saldo Mês", "Saldo Acum."].map(h => (
-                      <th key={h} style={{ padding: "8px 12px", textAlign: "left", color: C.dim, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", ...F, borderBottom: `1px solid ${C.borderLight}` }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {sorted.map(m => {
-                    const saldoMes = m.entradas - m.saidas;
-                    saldoAcum += saldoMes;
-                    const [ano, mes] = m.mes.split("-");
-                    const label = new Date(parseInt(ano), parseInt(mes) - 1).toLocaleDateString("pt-BR", { month: "short", year: "2-digit" });
-                    return (
-                      <tr key={m.mes} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
-                        <td style={{ padding: "10px 12px", fontWeight: 600, color: C.text, ...F }}>{label}</td>
-                        <td style={{ padding: "10px 12px", color: "#22c55e", fontWeight: 600 }}>{fmt(m.entradas)}</td>
-                        <td style={{ padding: "10px 12px", color: "#ef4444" }}>{fmt(m.saidas)}</td>
-                        <td style={{ padding: "10px 12px", color: saldoMes >= 0 ? "#22c55e" : "#ef4444", fontWeight: 700 }}>{fmt(saldoMes)}</td>
-                        <td style={{ padding: "10px 12px", color: saldoAcum >= 0 ? "#22c55e" : "#ef4444", fontWeight: 800, ...F }}>{fmt(saldoAcum)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </Card>
-        );
-      })()}
+      {aba === "fluxo" && (
+        <DataTable minWidth={640} rows={fluxo} rowKey={m => m.mes} empty="Nenhum dado disponível." columns={[
+          { key: "label", label: "Mês", render: m => <b style={{ textTransform: "capitalize" }}>{m.label}</b> },
+          { key: "entradas", label: "Entradas", align: "right", render: m => <span style={{ color: "var(--status-success-text)", fontWeight: "var(--fw-semibold)" }}>{fmt(m.entradas)}</span> },
+          { key: "saidas", label: "Saídas", align: "right", render: m => <span style={{ color: "var(--status-danger)" }}>{fmt(m.saidas)}</span> },
+          { key: "saldo", label: "Saldo do mês", align: "right", render: m => <b style={{ color: cor(m.saldo) }}>{fmt(m.saldo)}</b> },
+          { key: "acum", label: "Saldo acumulado", align: "right", render: m => <b style={{ color: cor(m.acum) }}>{fmt(m.acum)}</b> },
+        ]} />
+      )}
 
       {despModal && (
-        <Modal title={despForm.id ? "Editar Despesa" : "Nova Despesa"} onClose={() => { setDespModal(false); setDespErros({}); }} wide>
-          <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.dim, textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 6, ...F }}>Categoria *</div>
-                <select value={despForm.categoria || ""} onChange={e => setDespForm(f => ({ ...f, categoria: e.target.value }))}
-                  style={{ width: "100%", background: "rgba(255,255,255,.04)", border: `1px solid ${despErros.categoria ? "#ef4444" : C.border}`, borderRadius: 10, padding: "10px 12px", fontSize: 12, color: C.text, outline: "none", ...F }}>
-                  {CATEGORIAS_DESPESA.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-              <Inp label="Data *" type="date" error={despErros.data} value={despForm.data || ""} onChange={e => setDespForm(f => ({ ...f, data: e.target.value }))} />
+        <Modal title={despForm.id ? "Editar despesa" : "Nova despesa"} onClose={fecharDespesa} wide
+          footer={<><Button variant="secondary" onClick={fecharDespesa}>Cancelar</Button><Button iconLeft="check" loading={salvando} onClick={saveDespesa}>Salvar despesa</Button></>}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(var(--col-min-md),1fr))", gap: "var(--space-4)" }}>
+              <Select label="Categoria" required error={despErros.categoria} value={despForm.categoria || ""} onChange={setD("categoria")} options={CATEGORIAS_DESPESA} />
+              <Input label="Data" required type="date" error={despErros.data} value={despForm.data || ""} onChange={setD("data")} />
             </div>
-
-            <Inp label="Descrição *" error={despErros.descricao} value={despForm.descricao || ""} onChange={e => setDespForm(f => ({ ...f, descricao: e.target.value }))} />
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <MoneyInp label="Valor *" error={despErros.valor} value={despForm.valor ?? ""} onChange={e => setDespForm(f => ({ ...f, valor: e.target.value }))} />
-              <Inp label="Fornecedor" value={despForm.fornecedor || ""} onChange={e => setDespForm(f => ({ ...f, fornecedor: e.target.value }))} />
+            <Input label="Descrição" required error={despErros.descricao} value={despForm.descricao || ""} onChange={setD("descricao")} />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(var(--col-min-md),1fr))", gap: "var(--space-4)" }}>
+              <MoneyInput label="Valor" required error={despErros.valor} value={despForm.valor ?? ""} onChange={setD("valor")} />
+              <Input label="Fornecedor" value={despForm.fornecedor || ""} onChange={setD("fornecedor")} />
+              <Select label="Obra" value={despForm.obraId || ""} onChange={e => setDespForm(f => ({ ...f, obraId: e.target.value, etapaId: "" }))}>
+                <option value="">Geral da empresa</option>
+                {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
+              </Select>
+              <Select label="Etapa (opcional)" disabled={!despForm.obraId} value={despForm.etapaId || ""} onChange={setD("etapaId")}>
+                <option value="">Sem etapa</option>
+                {etapasDaObra().map(et => {
+                  const tp = (data.tiposEtapa || []).find(t => t.id === et.tipoEtapaId);
+                  return <option key={et.id} value={et.id}>{tp?.nome || `Etapa ${et.id}`}</option>;
+                })}
+              </Select>
             </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.dim, textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 6, ...F }}>Obra</div>
-                <select value={despForm.obraId || ""} onChange={e => setDespForm(f => ({ ...f, obraId: e.target.value, etapaId: "" }))}
-                  style={{ width: "100%", background: "rgba(255,255,255,.04)", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px", fontSize: 12, color: C.text, outline: "none", ...F }}>
-                  <option value="">Geral da empresa</option>
-                  {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
-                </select>
-              </div>
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.dim, textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 6, ...F }}>Etapa (opcional)</div>
-                <select value={despForm.etapaId || ""} disabled={!despForm.obraId} onChange={e => setDespForm(f => ({ ...f, etapaId: e.target.value }))}
-                  style={{ width: "100%", background: "rgba(255,255,255,.04)", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px", fontSize: 12, color: despForm.obraId ? C.text : C.dim, outline: "none", ...F }}>
-                  <option value="">Sem etapa</option>
-                  {etapasDaObra().map(et => {
-                    const tp = (data.tiposEtapa || []).find(t => t.id === et.tipoEtapaId);
-                    return <option key={et.id} value={et.id}>{tp?.nome || `Etapa ${et.id}`}</option>;
-                  })}
-                </select>
-              </div>
-            </div>
-
-            <div style={{ fontSize: 11, color: C.muted, background: "rgba(255,255,255,.03)", borderRadius: 9, padding: "9px 13px" }}>
-              Sem obra vinculada, a despesa entra apenas no consolidado da empresa.
-            </div>
-
-            <div style={{ display: "flex", gap: 9, justifyContent: "flex-end", borderTop: `1px solid ${C.borderLight}`, paddingTop: 13 }}>
-              <Btn v="secondary" onClick={() => { setDespModal(false); setDespErros({}); }}>Cancelar</Btn>
-              <Btn onClick={saveDespesa}><Icon n="check" size={13} />Salvar Despesa</Btn>
-            </div>
+            <Banner tone="info">Sem obra vinculada, a despesa entra apenas no consolidado da empresa.</Banner>
           </div>
         </Modal>
       )}
 
       {modal && (
-        <Modal title={form.id ? "Editar Receita" : "Nova Receita"} onClose={() => { setModal(false); setErros({}); }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.dim, textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 6, ...F }}>Obra</div>
-              <select value={form.obraId || ""} onChange={e => setForm(f => ({ ...f, obraId: parseInt(e.target.value) }))} style={{ width: "100%", background: "rgba(255,255,255,.04)", border: `1px solid ${erros.obraId ? "#ef4444" : C.border}`, borderRadius: 10, padding: "10px 12px", fontSize: 12, color: C.text, outline: "none", ...F }}>
-                <option value="">Selecione...</option>
-                {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
-              </select>
+        <Modal title={form.id ? "Editar receita" : "Nova receita"} onClose={fecharReceita}
+          footer={<><Button variant="secondary" onClick={fecharReceita}>Cancelar</Button><Button iconLeft="check" loading={salvando} onClick={save}>Salvar</Button></>}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+            <Select label="Obra" required error={erros.obraId} value={form.obraId || ""} onChange={e => setForm(f => ({ ...f, obraId: parseInt(e.target.value) }))}>
+              <option value="">Selecione…</option>
+              {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
+            </Select>
+            <Input label="Descrição" required error={erros.descricao} value={form.descricao || ""} onChange={setR("descricao")} />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
+              <MoneyInput label="Valor" required error={erros.valor} value={form.valor ?? ""} onChange={setR("valor")} />
+              <Input label="Data" required type="date" error={erros.data} value={form.data || ""} onChange={setR("data")} />
             </div>
-            <Inp label="Descrição" error={erros.descricao} value={form.descricao || ""} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <MoneyInp label="Valor" error={erros.valor} value={form.valor ?? ""} onChange={e => setForm(f => ({ ...f, valor: e.target.value }))} />
-              <Inp label="Data" type="date" error={erros.data} value={form.data || ""} onChange={e => setForm(f => ({ ...f, data: e.target.value }))} />
-            </div>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.dim, textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 6, ...F }}>Tipo</div>
-              <select value={form.tipo || "Contrato"} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))} style={{ width: "100%", background: "rgba(255,255,255,.04)", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px", fontSize: 12, color: C.text, outline: "none", ...F }}>
-                {TIPOS_RECEITA.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-            <div style={{ display: "flex", gap: 9, justifyContent: "flex-end", borderTop: `1px solid ${C.borderLight}`, paddingTop: 12 }}>
-              <Btn v="secondary" onClick={() => { setModal(false); setErros({}); }}>Cancelar</Btn>
-              <Btn onClick={save}><Icon n="check" size={13} />Salvar</Btn>
-            </div>
+            <Select label="Tipo" value={form.tipo || "Contrato"} onChange={setR("tipo")} options={TIPOS_RECEITA} />
           </div>
         </Modal>
       )}

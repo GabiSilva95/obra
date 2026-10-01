@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { C, F } from "../constants/tokens";
-import { PLANOS } from "../constants/data";
+import { PLANOS, planoPorId } from "../constants/data";
 import { validate } from "../utils/helpers";
-import { Icon, Badge, Bar, Card, Modal, Inp, Btn, Hdr } from "../components/ui";
 import { avisarErro } from "../utils/aviso";
 import { emitirLimiteAtingido } from "../utils/planoLimite";
+import { Avatar, Badge, Banner, Button, Card, IconButton, Input, Modal, OptionRow, ProgressBar, Tag } from "../../design-system";
+import { PageActions } from "../components/PageActions";
 
 const ALL_PERMS = [
   { id: "obras", l: "Obras" }, { id: "maquinas", l: "Máquinas" }, { id: "cadastros", l: "Cadastros" },
@@ -14,13 +14,14 @@ const ALL_PERMS = [
 export default function Usuarios({ data, setData, api, tenant, setTenant }) {
   const { obras } = data;
   const users = data.users;
-  const plano = PLANOS.find(p => p.id === tenant.plano) || PLANOS[0];
+  const plano = planoPorId(tenant.plano) || PLANOS[0];
   const ativos = users.filter(u => u.ativo).length;
   const limiteAtingido = ativos >= plano.usuarios;
   const [modal, setModal] = useState(false);
   const [planoModal, setPlanoModal] = useState(false);
   const [form, setForm] = useState({});
   const [erros, setErros] = useState({});
+  const [salvando, setSalvando] = useState(false);
 
   const save = async () => {
     const rules = {
@@ -30,6 +31,8 @@ export default function Usuarios({ data, setData, api, tenant, setTenant }) {
     if (!form.id) rules.senha = { required: true, label: "Senha" };
     const { ok, erros: e } = validate(form, rules);
     if (!ok) { setErros(e); return; }
+    if (salvando) return;
+    setSalvando(true);
     try {
       if (form.id) {
         const updated = await api.put(`/usuarios/${form.id}`, { ...form, obrasAcesso: form.obrasAcesso || [], permissoes: form.permissoes || [] });
@@ -40,6 +43,7 @@ export default function Usuarios({ data, setData, api, tenant, setTenant }) {
       }
       setErros({}); setModal(false);
     } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
+    finally { setSalvando(false); }
   };
   const togP = p => { const pp = form.permissoes || []; setForm(f => ({ ...f, permissoes: pp.includes(p) ? pp.filter(x => x !== p) : [...pp, p] })); };
   const togO = id => { const oa = form.obrasAcesso || []; setForm(f => ({ ...f, obrasAcesso: oa.includes(id) ? oa.filter(x => x !== id) : [...oa, id] })); };
@@ -51,142 +55,114 @@ export default function Usuarios({ data, setData, api, tenant, setTenant }) {
     } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
   };
 
-  return (
-    <div>
-      <Hdr
-        title="Usuários"
-        sub={`Plano ${plano.nome} — ${ativos} de ${plano.usuarios === 999 ? "∞" : plano.usuarios} usuários ativos`}
-        action={
-          <div style={{ display: "flex", gap: 9 }}>
-            <Btn v="outline" onClick={() => setPlanoModal(true)} sx={{ fontSize: 11, padding: "6px 13px" }}><Icon n="shield" size={12} />Alterar Plano</Btn>
-            <Btn onClick={() => { if (limiteAtingido) { emitirLimiteAtingido({ recurso: "usuarios", limite: plano.usuarios, atual: ativos }); return; } setForm({ permissoes: [], obrasAcesso: [] }); setModal(true); }} sx={{ opacity: limiteAtingido ? .5 : 1 }}><Icon n="plus" size={13} />Novo Usuário</Btn>
-          </div>
-        }
-      />
+  const planoAtual = planoPorId(tenant.plano)?.id;
+  const fecharModal = () => { setModal(false); setErros({}); };
 
-      <Card style={{ padding: "13px 16px", marginBottom: 18, display: "flex", alignItems: "center", gap: 14 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-            <span style={{ fontSize: 11, color: C.muted }}>Usuários ativos</span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: limiteAtingido ? C.red : C.text }}>{ativos}{plano.usuarios !== 999 && ` / ${plano.usuarios}`}</span>
-          </div>
-          <Bar val={plano.usuarios === 999 ? 20 : Math.round(ativos / plano.usuarios * 100)} color={limiteAtingido ? C.red : C.orange} />
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)" }}>
+      <PageActions>
+        <Button variant="secondary" iconLeft="shield-check" onClick={() => setPlanoModal(true)}>Alterar plano</Button>
+        <Button iconLeft="plus" onClick={() => { if (limiteAtingido) { emitirLimiteAtingido({ recurso: "usuarios", limite: plano.usuarios, atual: ativos }); return; } setForm({ permissoes: [], obrasAcesso: [] }); setModal(true); }}>Novo usuário</Button>
+      </PageActions>
+
+      <Card title="Usuários ativos" action={<Tag tone="accent">Plano {plano.nome}</Tag>}>
+        <div style={{ display: "flex", justifyContent: "space-between", color: "var(--text-secondary)" }}>
+          <span>{ativos} de {plano.usuarios === 999 ? "ilimitados" : plano.usuarios} usuários</span>
+          <span style={{ fontWeight: "var(--fw-bold)", color: limiteAtingido ? "var(--status-danger)" : "var(--text-primary)" }}>{plano.usuarios === 999 ? "Sem limite" : `${Math.round(ativos / plano.usuarios * 100)}%`}</span>
         </div>
-        <div style={{ textAlign: "right", flexShrink: 0 }}>
-          <div style={{ fontSize: 10, color: C.dim }}>Plano atual</div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: plano.cor || C.orange, ...F }}>{plano.nome}</div>
-        </div>
+        <ProgressBar value={plano.usuarios === 999 ? 20 : Math.round(ativos / plano.usuarios * 100)} color={limiteAtingido ? "var(--status-danger)" : "var(--accent)"} label="Uso do plano" />
       </Card>
 
       {limiteAtingido && (
-        <div style={{ marginBottom: 16, background: "rgba(239,68,68,.06)", border: "1px solid rgba(239,68,68,.18)", borderRadius: 11, padding: "11px 15px", display: "flex", alignItems: "center", gap: 10 }}>
-          <Icon n="alert" size={16} color={C.red} />
-          <div style={{ flex: 1 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: C.red }}>Limite de usuários atingido. </span>
-            <span style={{ fontSize: 12, color: "rgba(239,68,68,.65)" }}>Faça upgrade para adicionar mais usuários.</span>
-          </div>
-          <Btn v="danger" onClick={() => setPlanoModal(true)} sx={{ fontSize: 11, padding: "5px 13px" }}>Upgrade</Btn>
-        </div>
+        <Banner tone="danger" title="Limite de usuários atingido" action={<Button size="sm" variant="danger" onClick={() => setPlanoModal(true)}>Fazer upgrade</Button>}>
+          Faça upgrade para adicionar mais usuários.
+        </Banner>
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {users.map(u => (
-          <Card key={u.id}>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 13 }}>
-              <div style={{ width: 42, height: 42, borderRadius: 13, background: u.role === "tenant_admin" ? C.orangeDim : "rgba(255,255,255,.04)", border: `1px solid ${u.role === "tenant_admin" ? C.orange : C.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 16, color: u.role === "tenant_admin" ? C.orange : C.muted, flexShrink: 0, ...F }}>
-                {u.nome[0]}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", marginBottom: 3 }}>
-                  <span style={{ fontWeight: 700, fontSize: 13, color: C.text, ...F, letterSpacing: "-0.02em" }}>{u.nome}</span>
-                  {u.role === "tenant_admin" && <Badge v="orange"><Icon n="shield" size={9} />Admin</Badge>}
-                  <Badge v={u.ativo ? "green" : "red"} dot>{u.ativo ? "Ativo" : "Inativo"}</Badge>
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+        {users.map(u => {
+          const admin = u.role === "tenant_admin";
+          return (
+            <Card key={u.id} padding="var(--space-4) var(--space-5)" style={{ flexDirection: "row", alignItems: "flex-start", gap: "var(--space-4)" }}>
+              <Avatar name={u.nome} size={44} />
+              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexWrap: "wrap" }}>
+                  <span style={{ fontWeight: "var(--fw-bold)" }}>{u.nome}</span>
+                  {admin && <Badge size="sm" tone="dark">Administrador</Badge>}
+                  <Badge size="sm" tone={u.ativo ? "success" : "neutral"}>{u.ativo ? "Ativo" : "Inativo"}</Badge>
                 </div>
-                <div style={{ fontSize: 11, color: C.muted, marginBottom: 7 }}>{u.email}</div>
-                {u.role !== "tenant_admin" && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
-                      <span style={{ fontSize: 10, color: C.dim, marginRight: 2 }}>Telas:</span>
-                      {(u.permissoes || []).length ? (u.permissoes || []).map(p => { const pp = ALL_PERMS.find(x => x.id === p); return pp ? <Badge key={p}>{pp.l}</Badge> : null; }) : <span style={{ fontSize: 11, color: C.dim }}>Nenhuma</span>}
+                <span style={{ color: "var(--text-secondary)" }}>{u.email}</span>
+                {!admin && (
+                  <>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-1-5)", alignItems: "center" }}>
+                      <span style={{ fontSize: "var(--fs-p5-5)", color: "var(--text-secondary)" }}>Telas:</span>
+                      {(u.permissoes || []).length ? (u.permissoes || []).map(p => { const pp = ALL_PERMS.find(x => x.id === p); return pp ? <Tag key={p} tone="neutral">{pp.l}</Tag> : null; }) : <span style={{ color: "var(--text-secondary)" }}>Nenhuma</span>}
                     </div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
-                      <span style={{ fontSize: 10, color: C.dim, marginRight: 2 }}>Obras:</span>
-                      {(u.obrasAcesso || []).length ? (u.obrasAcesso || []).map(id => { const o = obras.find(x => x.id === id); return o ? <Badge key={id} v="blue">{o.nome}</Badge> : null; }) : <span style={{ fontSize: 11, color: C.dim }}>Todas</span>}
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-1-5)", alignItems: "center" }}>
+                      <span style={{ fontSize: "var(--fs-p5-5)", color: "var(--text-secondary)" }}>Obras:</span>
+                      {(u.obrasAcesso || []).length ? (u.obrasAcesso || []).map(id => { const o = obras.find(x => x.id === id); return o ? <Tag key={id} tone="accent">{o.nome}</Tag> : null; }) : <span style={{ color: "var(--text-secondary)" }}>Todas</span>}
                     </div>
-                  </div>
+                  </>
                 )}
               </div>
-              {u.role !== "tenant_admin" && (
-                <div style={{ display: "flex", gap: 7, flexShrink: 0 }}>
-                  <Btn v="secondary" onClick={() => { setForm({ ...u, permissoes: u.permissoes || [], obrasAcesso: u.obrasAcesso || [] }); setModal(true); }} sx={{ fontSize: 11, padding: "5px 11px" }}><Icon n="edit" size={12} />Editar</Btn>
-                  <Btn v={u.ativo ? "danger" : "secondary"} onClick={() => togAtivo(u)} sx={{ fontSize: 11, padding: "5px 11px" }}>{u.ativo ? "Desativar" : "Ativar"}</Btn>
+              {!admin && (
+                <div style={{ display: "flex", gap: "var(--space-2)", flexShrink: 0 }}>
+                  <IconButton icon="pencil" variant="outline" label="Editar" onClick={() => { setForm({ ...u, permissoes: u.permissoes || [], obrasAcesso: u.obrasAcesso || [] }); setModal(true); }} />
+                  <Button size="sm" variant={u.ativo ? "secondary" : "primary"} onClick={() => togAtivo(u)}>{u.ativo ? "Desativar" : "Ativar"}</Button>
                 </div>
               )}
-            </div>
-          </Card>
-        ))}
+            </Card>
+          );
+        })}
       </div>
 
       {modal && (
-        <Modal title={form.id ? "Editar Usuário" : "Novo Usuário"} onClose={() => { setModal(false); setErros({}); }} wide>
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <Inp label="Nome" error={erros.nome} value={form.nome || ""} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} />
-              <Inp label="E-mail" type="email" error={erros.email} value={form.email || ""} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+        <Modal title={form.id ? "Editar usuário" : "Novo usuário"} onClose={fecharModal} wide
+          footer={<><Button variant="secondary" onClick={fecharModal}>Cancelar</Button><Button iconLeft="check" loading={salvando} onClick={save}>Salvar usuário</Button></>}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(var(--col-min-md),1fr))", gap: "var(--space-4)" }}>
+              <Input label="Nome" required error={erros.nome} value={form.nome || ""} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} />
+              <Input label="E-mail" required type="email" error={erros.email} value={form.email || ""} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
             </div>
-            {!form.id && <Inp label="Senha" type="password" error={erros.senha} value={form.senha || ""} onChange={e => setForm(f => ({ ...f, senha: e.target.value }))} />}
+            {!form.id && <Input label="Senha" required type="password" autoComplete="new-password" error={erros.senha} value={form.senha || ""} onChange={e => setForm(f => ({ ...f, senha: e.target.value }))} />}
             <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.dim, textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 8, ...F }}>Telas Permitidas</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 7 }}>
-                {ALL_PERMS.map(p => { const ch = (form.permissoes || []).includes(p.id); return (
-                  <label key={p.id} onClick={() => togP(p.id)} style={{ display: "flex", alignItems: "center", gap: 7, cursor: "pointer", background: ch ? C.orangeDim : "rgba(255,255,255,.025)", border: `1px solid ${ch ? C.orange : C.border}`, borderRadius: 9, padding: "7px 10px", transition: "all .15s" }}>
-                    <div style={{ width: 14, height: 14, borderRadius: 4, background: ch ? C.orange : "rgba(255,255,255,.05)", border: `1px solid ${ch ? C.orange : C.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      {ch && <Icon n="check" size={9} color="#0a0a0a" />}
-                    </div>
-                    <span style={{ fontSize: 11, color: ch ? C.orange : C.muted, ...F }}>{p.l}</span>
-                  </label>
-                ); })}
+              <h3 style={{ margin: 0, font: "var(--type-card-title)", fontSize: "var(--fs-p4)" }}>Telas permitidas</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(var(--col-min-sm),1fr))", columnGap: "var(--space-8)" }}>
+                {ALL_PERMS.map(p => <OptionRow key={p.id} label={p.l} checked={(form.permissoes || []).includes(p.id)} onChange={() => togP(p.id)} />)}
               </div>
             </div>
             <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.dim, textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 4, ...F }}>Obras com Acesso</div>
-              <div style={{ fontSize: 10, color: C.dim, marginBottom: 8 }}>Deixe vazio para acesso a todas</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 7 }}>
-                {obras.map(o => { const ch = (form.obrasAcesso || []).includes(o.id); return (
-                  <label key={o.id} onClick={() => togO(o.id)} style={{ display: "flex", alignItems: "center", gap: 7, cursor: "pointer", background: ch ? "rgba(96,165,250,.07)" : "rgba(255,255,255,.025)", border: `1px solid ${ch ? C.blue : C.border}`, borderRadius: 9, padding: "7px 10px", transition: "all .15s" }}>
-                    <div style={{ width: 14, height: 14, borderRadius: 4, background: ch ? C.blue : "rgba(255,255,255,.05)", border: `1px solid ${ch ? C.blue : C.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      {ch && <Icon n="check" size={9} color="#fff" />}
-                    </div>
-                    <span style={{ fontSize: 11, color: ch ? C.blue : C.muted, ...F }}>{o.nome}</span>
-                  </label>
-                ); })}
+              <h3 style={{ margin: 0, font: "var(--type-card-title)", fontSize: "var(--fs-p4)" }}>Obras com acesso</h3>
+              <p style={{ margin: "var(--space-1) 0 0", color: "var(--text-secondary)", fontSize: "var(--fs-p5-5)" }}>Deixe vazio para acesso a todas.</p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(var(--col-min-md),1fr))", columnGap: "var(--space-8)" }}>
+                {obras.map(o => <OptionRow key={o.id} icon="building-2" label={o.nome} checked={(form.obrasAcesso || []).includes(o.id)} onChange={() => togO(o.id)} />)}
               </div>
-            </div>
-            <div style={{ display: "flex", gap: 9, justifyContent: "flex-end", borderTop: `1px solid ${C.borderLight}`, paddingTop: 14 }}>
-              <Btn v="secondary" onClick={() => { setModal(false); setErros({}); }}>Cancelar</Btn>
-              <Btn onClick={save}><Icon n="check" size={13} />Salvar Usuário</Btn>
             </div>
           </div>
         </Modal>
       )}
 
       {planoModal && (
-        <Modal title="Alterar Plano" onClose={() => setPlanoModal(false)} wide>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 18 }}>
-            {PLANOS.map(p => { const curr = tenant.plano === p.id; return (
-              <div key={p.id} onClick={() => !curr && setTenant(t => ({ ...t, plano: p.id }))} style={{ background: curr ? "rgba(249,115,22,.06)" : "rgba(255,255,255,.02)", border: `2px solid ${curr ? C.orange : C.border}`, borderRadius: 14, padding: "18px 16px", cursor: curr ? "default" : "pointer", transition: "all .18s", position: "relative" }}>
-                {curr && <div style={{ position: "absolute", top: 10, right: 10, width: 16, height: 16, borderRadius: "50%", background: C.orange, display: "flex", alignItems: "center", justifyContent: "center" }}><Icon n="check" size={9} color="#0a0a0a" /></div>}
-                {p.popular && <div style={{ fontSize: 9, fontWeight: 800, color: C.orange, marginBottom: 6, letterSpacing: "0.07em" }}>★ POPULAR</div>}
-                <div style={{ fontSize: 12, fontWeight: 700, color: p.cor, ...F, marginBottom: 4 }}>{p.nome}</div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: C.text, letterSpacing: "-0.04em", marginBottom: 4 }}>R$ {p.preco.mensal}<span style={{ fontSize: 11, fontWeight: 400, color: C.muted }}>/mês</span></div>
-                <div style={{ fontSize: 11, color: C.muted }}>{p.usuarios === 999 ? "Usuários ilimitados" : `Até ${p.usuarios} usuários`}</div>
-                <div style={{ fontSize: 11, color: C.muted }}>{p.obras === 999 ? "Obras ilimitadas" : `Até ${p.obras} obras`}</div>
-                {curr && <div style={{ marginTop: 10, fontSize: 10, color: C.orange, fontWeight: 700 }}>Plano atual</div>}
-                {!curr && <Btn onClick={() => { setTenant(t => ({ ...t, plano: p.id })); setPlanoModal(false); }} sx={{ marginTop: 12, width: "100%", justifyContent: "center", fontSize: 11, padding: "7px" }}>Migrar para {p.nome}</Btn>}
-              </div>
-            ); })}
+        <Modal title="Alterar plano" onClose={() => setPlanoModal(false)} wide>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(var(--col-min-sm),1fr))", gap: "var(--space-3)" }}>
+              {PLANOS.map(p => {
+                const curr = planoAtual === p.id;
+                return (
+                  <Card key={p.id} selected={curr} padding="var(--space-4)" title={p.nome}
+                    action={curr ? <Badge size="sm" tone="accent">Atual</Badge> : p.popular ? <Badge size="sm" tone="neutral">Popular</Badge> : null}>
+                    <div><span style={{ font: "var(--type-stat)", fontSize: "var(--fs-h4)" }}>R$ {p.preco.mensal}</span><span style={{ color: "var(--text-secondary)" }}> /mês</span></div>
+                    <div style={{ color: "var(--text-secondary)", fontSize: "var(--fs-p5-5)" }}>
+                      <div>{p.usuarios === 999 ? "Usuários ilimitados" : `Até ${p.usuarios} usuários`}</div>
+                      <div>{p.obras === 999 ? "Obras ilimitadas" : `Até ${p.obras} obras`}</div>
+                    </div>
+                    {!curr && <Button size="sm" fullWidth onClick={() => { setTenant(t => ({ ...t, plano: p.id })); setPlanoModal(false); }}>Migrar para {p.nome}</Button>}
+                  </Card>
+                );
+              })}
+            </div>
+            <p style={{ margin: 0, fontSize: "var(--fs-p5-5)", color: "var(--text-secondary)", textAlign: "center" }}>A migração de plano é imediata nesta demonstração.</p>
           </div>
-          <div style={{ fontSize: 11, color: C.dim, textAlign: "center" }}>A migração de plano é imediata nesta demonstração.</div>
         </Modal>
       )}
     </div>

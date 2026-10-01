@@ -1,18 +1,18 @@
 export const TIPOS_ETAPA = [
-  {id:1,nome:"Terraplanagem",icon:"excavator"},{id:2,nome:"Fundação",icon:"building"},
-  {id:3,nome:"Estrutura de Concreto",icon:"building"},{id:4,nome:"Estrutura Metálica",icon:"excavator"},
-  {id:5,nome:"Alvenaria",icon:"warehouse"},{id:6,nome:"Cobertura",icon:"building"},
-  {id:7,nome:"Instalações Hidráulicas",icon:"cube"},{id:8,nome:"Instalações Elétricas",icon:"link"},
-  {id:9,nome:"Instalações de HVAC",icon:"cube"},{id:10,nome:"Revestimento Interno",icon:"checklist"},
-  {id:11,nome:"Revestimento Externo",icon:"building"},{id:12,nome:"Esquadrias",icon:"checklist"},
-  {id:13,nome:"Pintura",icon:"checklist"},{id:14,nome:"Pavimentação",icon:"excavator"},
-  {id:15,nome:"Paisagismo",icon:"pin"},{id:16,nome:"Acabamento Final",icon:"check"},
-  {id:17,nome:"Comissionamento",icon:"file"},{id:18,nome:"Entrega",icon:"key"},
+  {id:1,nome:"Terraplanagem",icon:"construction"},{id:2,nome:"Fundação",icon:"building-2"},
+  {id:3,nome:"Estrutura de Concreto",icon:"building-2"},{id:4,nome:"Estrutura Metálica",icon:"construction"},
+  {id:5,nome:"Alvenaria",icon:"warehouse"},{id:6,nome:"Cobertura",icon:"building-2"},
+  {id:7,nome:"Instalações Hidráulicas",icon:"box"},{id:8,nome:"Instalações Elétricas",icon:"link"},
+  {id:9,nome:"Instalações de HVAC",icon:"box"},{id:10,nome:"Revestimento Interno",icon:"square-check"},
+  {id:11,nome:"Revestimento Externo",icon:"building-2"},{id:12,nome:"Esquadrias",icon:"square-check"},
+  {id:13,nome:"Pintura",icon:"square-check"},{id:14,nome:"Pavimentação",icon:"construction"},
+  {id:15,nome:"Paisagismo",icon:"map-pin"},{id:16,nome:"Acabamento Final",icon:"check"},
+  {id:17,nome:"Comissionamento",icon:"file-text"},{id:18,nome:"Entrega",icon:"key"},
 ];
 
 export const PLANOS = [
   {
-    id:"starter", nome:"Starter", cor:"#60a5fa", corGlow:"rgba(96,165,250,0.18)",
+    id:"starter", nome:"Starter", cor:"var(--cp-data-blue)", tone:"info",
     preco:{mensal:149, anual:119},
     usuarios:2, obras:5,
     desc:"Ideal para pequenas construtoras",
@@ -20,7 +20,7 @@ export const PLANOS = [
     suporte:["email"],
   },
   {
-    id:"business", nome:"Business", cor:"#f97316", corGlow:"rgba(249,115,22,0.22)",
+    id:"business", nome:"Business", cor:"var(--accent)", tone:"accent",
     preco:{mensal:349, anual:279},
     usuarios:5, obras:15,
     popular:true,
@@ -29,7 +29,7 @@ export const PLANOS = [
     suporte:["email","whatsapp"],
   },
   {
-    id:"professional", nome:"Professional", cor:"#a78bfa", corGlow:"rgba(167,139,250,0.18)",
+    id:"professional", nome:"Professional", cor:"var(--cp-data-purple)", tone:"dark",
     preco:{mensal:749, anual:599},
     usuarios:999, obras:999,
     desc:"Sem limites, suporte dedicado",
@@ -53,7 +53,7 @@ const INIT_TENANTS = [
       {id:3,tenantId:"t1",nome:"Carlos Lima",email:"carlos@aurora.com",senha:"1234",role:"user",ativo:true,permissoes:["obras","maquinas","alocacao"],obrasAcesso:[]},
     ],
     obras:[
-      {id:1,nome:"Edifício Aurora",local:"Av. Paulista, 1500 — SP",inicio:"2024-01-15",previsaoFim:"2025-06-30",orcamento:2500000,status:"Em andamento",responsavel:"João Silva",descricao:"Edifício residencial 12 andares."},
+      {id:1,nome:"Edifício Aurora",local:"Av. Paulista, 1500, SP",inicio:"2024-01-15",previsaoFim:"2025-06-30",orcamento:2500000,status:"Em andamento",responsavel:"João Silva",descricao:"Edifício residencial 12 andares."},
       {id:2,nome:"Ponte Rio Verde",local:"Rodovia SP-330, km 45",inicio:"2024-03-01",previsaoFim:"2025-03-01",orcamento:800000,status:"Em andamento",responsavel:"Maria Santos",descricao:"Ponte de concreto armado 80m."},
       {id:3,nome:"Galpão Industrial Norte",local:"Distrito Industrial, Lote 22",inicio:"2023-08-10",previsaoFim:"2024-08-10",orcamento:450000,status:"Concluída",responsavel:"Carlos Lima",descricao:"Galpão 2000m²."},
     ],
@@ -106,3 +106,7 @@ const INIT_TENANTS = [
 ];
 
 export const globalTenants = JSON.parse(JSON.stringify(INIT_TENANTS));
+
+// Backend stores "pro" / "enterprise"; the frontend catalogue uses "business" / "professional".
+const PLANO_ALIAS = { pro: "business", enterprise: "professional" };
+export const planoPorId = id => PLANOS.find(p => p.id === (PLANO_ALIAS[id] ?? id));

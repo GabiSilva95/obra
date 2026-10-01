@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { C, F } from "../constants/tokens";
 import { validate, fmt } from "../utils/helpers";
-import { Icon, Badge, Card, Modal, Inp, Btn, Hdr, DSel } from "../components/ui";
 import { avisarErro, confirmar } from "../utils/aviso";
+import { Banner, Button, Card, Checkbox, Icon, IconButton, Input, Modal, Select, Tag, Textarea } from "../../design-system";
+import { PageActions } from "../components/PageActions";
 
 const CLIMAS = ["Ensolarado", "Nublado", "Chuvoso", "Parcialmente nublado", "Tempestade"];
-const CLIMA_ICON = { Ensolarado: "sun", Nublado: "cloud", Chuvoso: "rain", "Parcialmente nublado": "cloud", Tempestade: "alert" };
+const CLIMA_ICON = { Ensolarado: "sun", Nublado: "cloud", Chuvoso: "cloud-rain", "Parcialmente nublado": "cloud", Tempestade: "zap" };
 
 export default function Diario({ data, setData, api, canWrite }) {
   const { obras, diario = [], funcionarios = [] } = data;
@@ -13,6 +13,7 @@ export default function Diario({ data, setData, api, canWrite }) {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({});
   const [erros, setErros] = useState({});
+  const [salvando, setSalvando] = useState(false);
   const [presencas, setPresencas] = useState([]);   // [{ funcionarioId, dias }]
 
   const togglePresenca = id => setPresencas(p =>
@@ -51,6 +52,8 @@ export default function Diario({ data, setData, api, canWrite }) {
       descricao: { required: true, label: "Descrição" },
     });
     if (!ok) { setErros(e); return; }
+    if (salvando) return;
+    setSalvando(true);
     try {
       const payload = { ...form, presencas };
       if (form.id) {
@@ -74,6 +77,7 @@ export default function Diario({ data, setData, api, canWrite }) {
       }
       setErros({}); setModal(false); setPresencas([]);
     } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
+    finally { setSalvando(false); }
   };
 
   const del = async id => {
@@ -84,69 +88,57 @@ export default function Diario({ data, setData, api, canWrite }) {
     } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
   };
 
+  const fechar = () => { setModal(false); setErros({}); };
+  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
+
   return (
-    <div>
-      <Hdr
-        title="Diário de Obra"
-        sub="Registro diário de atividades, equipe e condições"
-        action={
-          <div style={{ display: "flex", gap: 9, alignItems: "center" }}>
-            <DSel value={obraFiltro} onChange={e => setObraFiltro(e.target.value)}>
-              <option value="">Todas as obras</option>
-              {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
-            </DSel>
-            {canWrite && (
-              <Btn onClick={abrirNovo}>
-                <Icon n="plus" size={13} />Novo Registro
-              </Btn>
-            )}
-          </div>
-        }
-      />
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)" }}>
+      <PageActions>
+        <Select aria-label="Filtrar obra" style={{ height: "var(--control-h-sm)", minWidth: "var(--control-w-md)" }} value={obraFiltro} onChange={e => setObraFiltro(e.target.value)}>
+          <option value="">Todas as obras</option>
+          {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
+        </Select>
+        {canWrite && <Button iconLeft="plus" onClick={abrirNovo}>Novo registro</Button>}
+      </PageActions>
+      <p style={{ color: "var(--text-secondary)" }}>Registro diário de atividades, equipe e condições.</p>
 
       {registros.length === 0 ? (
-        <Card style={{ textAlign: "center", padding: "48px 24px", color: C.dim }}>
-          <Icon n="book" size={32} color={C.border} />
-          <div style={{ marginTop: 12, fontSize: 13 }}>Nenhum registro encontrado</div>
-          <div style={{ fontSize: 11, marginTop: 4 }}>Comece registrando as atividades do dia</div>
+        <Card style={{ alignItems: "center", textAlign: "center", padding: "var(--space-12) var(--space-6)", color: "var(--text-secondary)" }}>
+          <Icon name="book-open" size={32} />
+          <div style={{ fontWeight: "var(--fw-semibold)", color: "var(--text-primary)" }}>Nenhum registro encontrado</div>
+          <div>Comece registrando as atividades do dia.</div>
         </Card>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
           {registros.map(reg => {
             const obra = obras.find(o => o.id === reg.obraId);
             return (
-              <Card key={reg.id}>
-                <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 12, background: C.orangeDim, border: `1px solid ${C.orange}22`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <Icon n={CLIMA_ICON[reg.clima] || "clock"} size={18} color={C.orange} />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
-                      <span style={{ fontWeight: 700, fontSize: 13, color: C.text, ...F }}>
-                        {new Date(reg.data + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
+              <Card key={reg.id} padding="var(--space-4) var(--space-5)" style={{ flexDirection: "row", alignItems: "flex-start", gap: "var(--space-4)" }}>
+                <span style={{ width: "var(--space-11)", height: "var(--space-11)", borderRadius: "var(--radius-md)", background: "var(--accent)", color: "var(--text-on-accent)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Icon name={CLIMA_ICON[reg.clima] || "clock"} size={22} />
+                </span>
+                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexWrap: "wrap" }}>
+                    <span style={{ fontWeight: "var(--fw-bold)" }}>
+                      {(d => d[0].toUpperCase() + d.slice(1))(new Date(reg.data + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" }))}
+                    </span>
+                    {obra && <Tag tone="accent">{obra.nome}</Tag>}
+                    {reg.clima && <Tag tone="neutral">{reg.clima}</Tag>}
+                    {reg.trabalhadores > 0 && (
+                      <span style={{ fontSize: "var(--fs-p5-5)", color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: "var(--space-1)" }}>
+                        <Icon name="users" size={16} />{reg.trabalhadores} trabalhadores
                       </span>
-                      {obra && <Badge v="blue">{obra.nome}</Badge>}
-                      {reg.clima && <Badge>{reg.clima}</Badge>}
-                      {reg.trabalhadores > 0 && (
-                        <span style={{ fontSize: 11, color: C.muted, display: "flex", alignItems: "center", gap: 4 }}>
-                          <Icon n="users" size={10} color={C.dim} />{reg.trabalhadores} trabalhadores
-                        </span>
-                      )}
-                    </div>
-                    <p style={{ fontSize: 12, color: C.muted, lineHeight: 1.6, margin: 0 }}>{reg.descricao}</p>
-                    {reg.obs && <p style={{ fontSize: 11, color: C.dim, marginTop: 6, fontStyle: "italic" }}>{reg.obs}</p>}
+                    )}
                   </div>
-                  {canWrite && (
-                    <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                      <button onClick={() => abrirEdicao(reg)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-                        <Icon n="edit" size={13} color={C.dim} />
-                      </button>
-                      <button onClick={() => del(reg.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-                        <Icon n="trash" size={13} color={C.dim} />
-                      </button>
-                    </div>
-                  )}
+                  <p style={{ margin: 0, lineHeight: "var(--lh-body)" }}>{reg.descricao}</p>
+                  {reg.obs && <p style={{ margin: 0, fontSize: "var(--fs-p5-5)", color: "var(--text-secondary)" }}><b>Nota:</b> {reg.obs}</p>}
                 </div>
+                {canWrite && (
+                  <div style={{ display: "flex", gap: "var(--space-1)", flexShrink: 0 }}>
+                    <IconButton icon="pencil" label="Editar" onClick={() => abrirEdicao(reg)} />
+                    <IconButton icon="trash-2" label="Excluir" onClick={() => del(reg.id)} />
+                  </div>
+                )}
               </Card>
             );
           })}
@@ -154,84 +146,58 @@ export default function Diario({ data, setData, api, canWrite }) {
       )}
 
       {modal && (
-        <Modal title={form.id ? "Editar Registro" : "Novo Registro Diário"} onClose={() => { setModal(false); setErros({}); }} wide>
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.dim, textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 6, ...F }}>Obra</div>
-                <select value={form.obraId || ""} onChange={e => setForm(f => ({ ...f, obraId: parseInt(e.target.value) }))} style={{ width: "100%", background: "rgba(255,255,255,.04)", border: `1px solid ${erros.obraId ? "#ef4444" : C.border}`, borderRadius: 10, padding: "10px 12px", fontSize: 12, color: C.text, outline: "none", ...F }}>
-                  <option value="">Selecione...</option>
-                  {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
-                </select>
-                {erros.obraId && <div style={{ fontSize: 10, color: "#ef4444", marginTop: 4 }}>{erros.obraId}</div>}
-              </div>
-              <Inp label="Data" type="date" error={erros.data} value={form.data || ""} onChange={e => setForm(f => ({ ...f, data: e.target.value }))} />
+        <Modal title={form.id ? "Editar registro" : "Novo registro diário"} onClose={fechar} wide
+          footer={<><Button variant="secondary" onClick={fechar}>Cancelar</Button><Button iconLeft="check" loading={salvando} onClick={save}>Salvar registro</Button></>}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(var(--col-min-md),1fr))", gap: "var(--space-4)" }}>
+              <Select label="Obra" required error={erros.obraId} value={form.obraId || ""} onChange={e => setForm(f => ({ ...f, obraId: parseInt(e.target.value) }))}>
+                <option value="">Selecione…</option>
+                {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
+              </Select>
+              <Input label="Data" required type="date" error={erros.data} value={form.data || ""} onChange={set("data")} />
+              <Select label="Clima" value={form.clima || ""} onChange={set("clima")}>
+                <option value="">Não informado</option>
+                {CLIMAS.map(c => <option key={c} value={c}>{c}</option>)}
+              </Select>
+              <Input label="Trabalhadores presentes" type="number" min="0" placeholder="0" value={presencas.length || form.trabalhadores || ""} disabled={presencas.length > 0} onChange={set("trabalhadores")} />
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.dim, textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 6, ...F }}>Clima</div>
-                <select value={form.clima || ""} onChange={e => setForm(f => ({ ...f, clima: e.target.value }))} style={{ width: "100%", background: "rgba(255,255,255,.04)", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px", fontSize: 12, color: C.text, outline: "none", ...F }}>
-                  <option value="">Não informado</option>
-                  {CLIMAS.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-              <Inp label="Trabalhadores presentes" type="number" placeholder="0" value={presencas.length || form.trabalhadores || ""} disabled={presencas.length > 0} onChange={e => setForm(f => ({ ...f, trabalhadores: e.target.value }))} />
-            </div>
-            {/* Lista de presença — vira apontamento de mão de obra com data */}
-            <div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 7 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.dim, textTransform: "uppercase", letterSpacing: "0.09em", ...F }}>Equipe presente</div>
-                {presencas.length > 0 && (
-                  <div style={{ fontSize: 11, color: "#a78bfa", fontWeight: 700, ...F }}>
-                    {presencas.length} presente{presencas.length > 1 ? "s" : ""} · {fmt(custoDia)}
-                  </div>
-                )}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--space-2)" }}>
+                <h3 style={{ margin: 0, font: "var(--type-card-title)", fontSize: "var(--fs-p4)" }}>Equipe presente</h3>
+                {presencas.length > 0 && <Tag tone="accent">{presencas.length} presente{presencas.length > 1 ? "s" : ""} · {fmt(custoDia)}</Tag>}
               </div>
               {!funcionarios.length ? (
-                <div style={{ fontSize: 11, color: C.dim, background: "rgba(255,255,255,.03)", borderRadius: 9, padding: "11px 13px" }}>
-                  Nenhuma pessoa cadastrada. Cadastre em Cadastros › Pessoas para apontar presença.
-                </div>
+                <Banner tone="info">Nenhuma pessoa cadastrada. Cadastre em Cadastros › Pessoas para apontar presença.</Banner>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: 190, overflowY: "auto", border: `1px solid ${C.borderLight}`, borderRadius: 10, padding: 7 }}>
+                <div style={{ display: "flex", flexDirection: "column", maxHeight: "var(--scroll-h-sm)", overflowY: "auto", border: "var(--border-w) solid var(--border-default)", borderRadius: "var(--radius-md)" }}>
                   {funcionarios.map(f => {
                     const p = presencas.find(x => x.funcionarioId === f.id);
                     return (
-                      <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 8px", borderRadius: 8, background: p ? "rgba(167,139,250,.08)" : "transparent" }}>
-                        <input type="checkbox" checked={!!p} onChange={() => togglePresenca(f.id)} style={{ accentColor: "#a78bfa", cursor: "pointer" }} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 12, fontWeight: 600, color: p ? C.text : C.muted, ...F }}>{f.nome}</div>
-                          <div style={{ fontSize: 10, color: C.dim }}>{f.cargo || "\u2014"} \u00b7 {fmt(f.salarioDia)}/dia</div>
-                        </div>
+                      <div key={f.id} style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", padding: "var(--space-2) var(--space-3)", borderBottom: "var(--border-w) solid var(--border-subtle)", background: p ? "var(--surface-row-hover)" : "transparent" }}>
+                        <Checkbox checked={!!p} onChange={() => togglePresenca(f.id)} label={
+                          <span style={{ display: "flex", flexDirection: "column" }}>
+                            <span style={{ fontWeight: "var(--fw-semibold)" }}>{f.nome}</span>
+                            <span style={{ fontSize: "var(--fs-p6)", color: "var(--text-secondary)" }}>{f.cargo || "—"} · {fmt(f.salarioDia)}/dia</span>
+                          </span>
+                        } />
+                        <span style={{ flex: 1 }} />
                         {p && (
-                          <select value={p.dias} onChange={e => setDiasPresenca(f.id, parseFloat(e.target.value))}
-                            style={{ background: "rgba(255,255,255,.05)", border: `1px solid ${C.border}`, borderRadius: 7, padding: "3px 7px", fontSize: 11, color: C.text, outline: "none", cursor: "pointer", ...F }}>
+                          <Select aria-label="Período" style={{ height: "var(--control-h-sm)", minWidth: "var(--control-w-sm)" }} value={p.dias} onChange={e => setDiasPresenca(f.id, parseFloat(e.target.value))}>
                             <option value={1}>Dia cheio</option>
                             <option value={0.5}>Meio período</option>
-                          </select>
+                          </Select>
                         )}
                       </div>
                     );
                   })}
                 </div>
               )}
-              <div style={{ fontSize: 10, color: C.dim, marginTop: 6 }}>
-                Cada pessoa marcada vira um apontamento na data — é o que alimenta o custo de mão de obra.
-              </div>
+              <span style={{ fontSize: "var(--fs-p6)", color: "var(--text-secondary)" }}>Cada pessoa marcada vira um apontamento na data: é o que alimenta o custo de mão de obra.</span>
             </div>
 
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.dim, textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 6, ...F }}>Descrição das atividades *</div>
-              <textarea value={form.descricao || ""} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} rows={4} placeholder="Descreva as atividades realizadas no dia..." style={{ width: "100%", background: "rgba(255,255,255,.04)", border: `1px solid ${erros.descricao ? "#ef4444" : C.border}`, borderRadius: 10, padding: "10px 12px", fontSize: 12, color: C.text, outline: "none", resize: "vertical", ...F, fontFamily: "inherit" }} />
-              {erros.descricao && <div style={{ fontSize: 10, color: "#ef4444", marginTop: 4 }}>{erros.descricao}</div>}
-            </div>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.dim, textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 6, ...F }}>Observações</div>
-              <textarea value={form.obs || ""} onChange={e => setForm(f => ({ ...f, obs: e.target.value }))} rows={2} placeholder="Ocorrências, problemas, pendências..." style={{ width: "100%", background: "rgba(255,255,255,.04)", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px", fontSize: 12, color: C.text, outline: "none", resize: "vertical", ...F, fontFamily: "inherit" }} />
-            </div>
-            <div style={{ display: "flex", gap: 9, justifyContent: "flex-end", borderTop: `1px solid ${C.borderLight}`, paddingTop: 14 }}>
-              <Btn v="secondary" onClick={() => { setModal(false); setErros({}); }}>Cancelar</Btn>
-              <Btn onClick={save}><Icon n="check" size={13} />Salvar Registro</Btn>
-            </div>
+            <Textarea label="Descrição das atividades" required rows={4} maxLength={2000} error={erros.descricao} placeholder="Descreva as atividades realizadas no dia…" value={form.descricao || ""} onChange={set("descricao")} />
+            <Textarea label="Observações" rows={2} maxLength={1000} placeholder="Ocorrências, problemas, pendências…" value={form.obs || ""} onChange={set("obs")} />
           </div>
         </Modal>
       )}

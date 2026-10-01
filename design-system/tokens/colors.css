@@ -1,0 +1,76 @@
+/* Source of truth: DESIGN.md (repo root). Keep values in sync with its front matter. */
+
+:root {
+  /* Brand — from the logo */
+  --cp-orange:#F26A1B;--cp-orange-700:#B84A0C;--cp-orange-600:#D95A12;--cp-orange-300:#F89A63;--cp-orange-100:#FDE3D2;--cp-orange-50:#FEF3EB;
+  --cp-stone:#A8A49B;--cp-stone-700:#5E5A52;--cp-stone-100:#EEEDEA;
+  /* Neutrals */
+  --cp-black:#242424;--cp-black-900:#1A1A1A;--cp-white:#FEFEFE;--cp-gray-500:#8F8F8F;--cp-gray-600:#6E6E6E;--cp-gray-300:#E0E0E0;--cp-gray-200:#EDEDED;--cp-gray-100:#F4F4F4;--cp-gray-50:#FAFAFA;
+  /* Feedback */
+  --cp-error:#F43927;--cp-error-600:#D92D1C;--cp-error-700:#B42318;--cp-error-100:#FDE4E1;--cp-success:#1EDF00;--cp-success-strong:#159912;--cp-success-100:#DDF7D8;
+  /* Dashboard data colours — data only (KPI numerals, chart series, event bars, status badges) */
+  --cp-data-yellow:#F2C924;--cp-data-orange:#FF7F08;--cp-data-pink:#FF575F;--cp-data-magenta:#D70085;--cp-data-purple:#9B31C8;--cp-data-violet:#5917FF;--cp-data-turquoise:#17E8FF;--cp-data-blue:#2D77C1;--cp-data-electric:#48E101;--cp-data-green:#159912;
+  --stat-1:var(--cp-data-blue);--stat-2:var(--cp-data-yellow);--stat-3:var(--cp-data-green);--stat-4:var(--cp-data-orange);
+}
+
+/* Light — canonical ConstruktPro theme */
+:root, [data-theme="light"] {
+  color-scheme: light;
+  --bg-app:var(--cp-gray-50);
+  --surface-card:var(--cp-white);--surface-raised:var(--cp-white);--surface-sunken:var(--cp-gray-100);
+  --surface-hover:var(--cp-gray-100);--surface-hover-subtle:var(--cp-gray-50);--surface-selected:var(--cp-gray-100);
+  --surface-control:var(--cp-white);--surface-control-disabled:var(--cp-gray-100);
+  --surface-inverse:var(--cp-black);--surface-table-header:var(--cp-black);--surface-row-hover:var(--cp-orange-50);--surface-accent-subtle:var(--cp-orange-50);
+  --surface-sidebar:var(--cp-black);--surface-sidebar-hover:rgba(255,255,255,.06);--surface-tabbar:var(--cp-black);--surface-segmented:var(--cp-black);
+  --surface-avatar:var(--cp-gray-300);--surface-placeholder-a:var(--cp-gray-100);--surface-placeholder-b:var(--cp-stone-100);
+
+  --text-primary:var(--cp-black);--text-secondary:var(--cp-gray-500);--text-muted:var(--cp-gray-600);--text-faint:var(--cp-stone);
+  --text-inverse:var(--cp-white);--text-accent:var(--cp-orange-700);--text-on-accent:var(--cp-black);
+  --text-on-solid:#FFFFFF;--text-on-bright:var(--cp-black);--text-on-sidebar:var(--cp-white);--text-on-sidebar-muted:rgba(254,254,254,.72);
+  --text-avatar:var(--cp-gray-600);--text-placeholder-icon:var(--cp-stone);--text-calendar-out:var(--cp-gray-300);
+
+  --accent:var(--cp-orange);--accent-hover:var(--cp-orange-600);--accent-soft:var(--cp-orange-100);--accent-border:rgba(242,106,27,.2);--accent-glow:rgba(242,106,27,.45);
+
+  --action-primary-bg:var(--cp-black);--action-primary-hover:var(--cp-black-900);--action-primary-fg:var(--cp-white);
+  --action-secondary-bg:var(--cp-gray-100);--action-secondary-hover:var(--cp-gray-300);--action-secondary-fg:var(--cp-black);
+  --action-ghost-hover:var(--cp-gray-100);--action-ghost-fg:var(--cp-black);
+  --action-danger-bg:var(--cp-error);--action-danger-hover:var(--cp-error-600);--action-danger-fg:var(--cp-white);
+
+  --border-default:var(--cp-gray-300);--border-subtle:var(--cp-gray-200);--border-strong:var(--cp-gray-500);--border-focus:var(--cp-orange);--border-card:transparent;
+
+  --status-danger:var(--cp-error);--status-success:var(--cp-success-strong);--status-warning:var(--cp-data-yellow);--status-info:var(--cp-data-blue);
+  --status-danger-soft:var(--cp-error-100);--status-success-soft:var(--cp-success-100);
+  --status-danger-text:var(--cp-error-700);--status-success-text:var(--cp-success-strong);
+  --status-warning-soft:#FDF4D3;--status-info-soft:#DCE9F6;--status-warning-text:#8A6D00;--status-info-text:#1F5A94;
+}
+
+/* Dark — optional theme (the app runs light); derived from the pre-migration palette */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-app:#0A0A0A;
+  --surface-card:#141414;--surface-raised:#111111;--surface-sunken:#1C1C1C;
+  --surface-hover:rgba(255,255,255,.05);--surface-hover-subtle:rgba(255,255,255,.035);--surface-selected:rgba(255,255,255,.07);
+  --surface-control:rgba(255,255,255,.04);--surface-control-disabled:rgba(255,255,255,.02);
+  --surface-inverse:#F0F0F0;--surface-table-header:#1C1C1C;--surface-row-hover:rgba(242,106,27,.06);--surface-accent-subtle:rgba(242,106,27,.08);
+  --surface-sidebar:#141414;--surface-sidebar-hover:rgba(255,255,255,.05);--surface-tabbar:#141414;--surface-segmented:#1C1C1C;
+  --surface-avatar:#252525;--surface-placeholder-a:#1C1C1C;--surface-placeholder-b:#232323;
+
+  --text-primary:#F0F0F0;--text-secondary:#7A7A7A;--text-muted:#9A9A9A;--text-faint:#444444;
+  --text-inverse:#0A0A0A;--text-accent:var(--cp-orange-300);--text-on-accent:#0A0A0A;
+  --text-on-solid:#FFFFFF;--text-on-bright:#0A0A0A;--text-on-sidebar:#F0F0F0;--text-on-sidebar-muted:rgba(240,240,240,.6);
+  --text-avatar:#9A9A9A;--text-placeholder-icon:#5A5A5A;--text-calendar-out:#333333;
+
+  --accent:var(--cp-orange);--accent-hover:var(--cp-orange-600);--accent-soft:rgba(242,106,27,.10);--accent-border:rgba(242,106,27,.13);--accent-glow:rgba(242,106,27,.35);
+
+  --action-primary-bg:#F0F0F0;--action-primary-hover:#FFFFFF;--action-primary-fg:#0A0A0A;
+  --action-secondary-bg:rgba(255,255,255,.06);--action-secondary-hover:rgba(255,255,255,.1);--action-secondary-fg:#F0F0F0;
+  --action-ghost-hover:rgba(255,255,255,.05);--action-ghost-fg:#F0F0F0;
+  --action-danger-bg:#991B1B;--action-danger-hover:#DC2626;--action-danger-fg:#FFFFFF;
+
+  --border-default:#252525;--border-subtle:#1E1E1E;--border-strong:#444444;--border-focus:var(--cp-orange);--border-card:#252525;
+
+  --status-danger:#EF4444;--status-success:#22C55E;--status-warning:#FBBF24;--status-info:#60A5FA;
+  --status-danger-soft:rgba(239,68,68,.08);--status-success-soft:rgba(34,197,94,.08);
+  --status-danger-text:#F87171;--status-success-text:#22C55E;
+  --status-warning-soft:rgba(251,191,36,.08);--status-info-soft:rgba(96,165,250,.08);--status-warning-text:#FBBF24;--status-info-text:#60A5FA;
+}

@@ -1,0 +1,18 @@
+<!-- @dsCard group="Components" viewport="700x300" name="Core" subtitle="Button, IconButton, Badge, Tag, Avatar, Icon" -->
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{background:var(--bg-app);padding:20px}.lbl{font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.06em}.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}.col{display:flex;flex-direction:column;gap:12px}</style></head><body><div id="root"></div>
+<script type="text/babel">
+const { Button, IconButton, Badge, Tag, Avatar, Icon } = window.ConstruktProDesignSystem_8956f7;
+function Demo(){ return <div className="col">
+<div className="row"><Button iconLeft="plus">Nova obra</Button><Button variant="accent" iconLeft="plus">Novo pedido</Button><Button variant="secondary" iconLeft="chevron-left">Voltar</Button><Button variant="ghost" iconRight="chevron-right">Ver tudo</Button><Button variant="link">Cancelar</Button><Button disabled>Enviar</Button></div>
+<div className="row"><Button size="sm" iconLeft="pencil">Editar</Button><Button size="lg">Próxima etapa</Button><Button variant="danger" size="sm" iconLeft="trash-2">Excluir</Button>
+<IconButton icon="search" label="Buscar" /><IconButton icon="bell" label="Notificações" badge={3} /><IconButton icon="pencil" variant="outline" size={32} label="Editar" /><IconButton icon="trash-2" variant="danger" size={28} label="Excluir" /><IconButton icon="chevron-right" variant="outline" round size={28} label="Próximo" /></div>
+<div className="row"><Badge tone="danger">Novo pedido</Badge><Badge tone="neutral">Em trânsito</Badge><Badge tone="warning">Pendente</Badge><Badge tone="info">Recebido</Badge><Badge tone="cyan">Em execução</Badge><Badge tone="success">Pago 100%</Badge><Badge tone="orange">Saiu p/ entrega</Badge><Badge tone="error">Falhou</Badge><Badge tone="electric">Entregue</Badge></div>
+<div className="row"><Tag>Estrutural</Tag><Tag tone="neutral" dot="var(--cp-data-blue)">Residencial</Tag><Tag tone="success">Aprovado</Tag><Tag tone="neutral" count={8} active>Todos</Tag><Tag tone="neutral" count={3}>Fornecedores</Tag>
+<Avatar name="Marina Costa" /><Avatar name="Carlos Mendes" online /><span style={{display:'flex',gap:10}}>{['hard-hat','building-2','truck','ruler','hammer','clipboard-list'].map(n=><Icon key={n} name={n} size={22} />)}</span></div></div>; }
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script></body></html>

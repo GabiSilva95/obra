@@ -1,0 +1,22 @@
+<!-- @dsCard group="Components" viewport="700x620" name="Data" subtitle="Card, StatCard, charts, DataTable, calendars, messages" -->
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{background:var(--bg-app);padding:20px}.lbl{font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.06em}.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}.col{display:flex;flex-direction:column;gap:12px}</style></head><body><div id="root"></div>
+<script type="text/babel">
+const { Card, StatCard, AreaChart, BarChart, PieChart, DataTable, MiniCalendar, MonthCalendar, MessageItem, ChatBubble, Badge, Tag } = window.ConstruktProDesignSystem_8956f7;
+function Demo(){ return <div className="col">
+<div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12}}><StatCard value="24" label="Obras ativas" color="var(--stat-1)" /><StatCard value="103" label="Entregas na semana" color="var(--stat-2)" /><StatCard value="86" label="Equipes em campo" color="var(--stat-3)" /><StatCard value="R$ 342k" label="Receita do mês" color="var(--stat-4)" /></div>
+<div style={{display:'grid',gridTemplateColumns:'1.4fr 1fr',gap:12}}>
+<Card title="Receita"><AreaChart height={120} data={[180,260,150,420,300,240,380,460]} labels={['Abr','Mai','Jun','Jul','Ago','Set','Out','Nov']} highlight={3} format={v=>'R$'+v+'k'} /></Card>
+<Card><MiniCalendar today={12} marked={[13,16,17,19,26]} alert={[20]} /></Card></div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
+<Card title="Medições"><BarChart height={90} series={[{key:'a',label:'Previsto',color:'var(--accent)'},{key:'b',label:'Realizado',color:'var(--cp-black)'}]} data={[{label:'S',a:200,b:120},{label:'T',a:160,b:60},{label:'Q',a:190,b:110},{label:'Q',a:150,b:70}]} /></Card>
+<Card title="Mensagens" padding={12}><MessageItem name="Carlos Mendes" preview="Entrega confirmada para 7h" time="14:36" unread={3} active /><MessageItem name="Ana Ribeiro" preview="Segue a medição do bloco B" time="Ontem" /></Card>
+<Card title="Chat" padding={12}><ChatBubble text="O concreto chega amanhã?" time="11:40" /><ChatBubble mine text="Sim, às 7h." time="11:45" /></Card></div>
+<DataTable minWidth={0} dense columns={[{key:'id',label:'Pedido'},{key:'obra',label:'Obra'},{key:'cat',label:'Categoria',render:r=><Tag>{r.cat}</Tag>},{key:'st',label:'Status',render:r=><Badge size="sm" tone={r.t}>{r.st}</Badge>}]} rows={[{id:'PC-2052',obra:'Vila Nova · B',cat:'Estrutural',st:'Pago 100%',t:'success'},{id:'PC-2053',obra:'Ed. Aurora',cat:'Acabamento',st:'Pendente',t:'warning'}]} />
+</div>; }
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script></body></html>

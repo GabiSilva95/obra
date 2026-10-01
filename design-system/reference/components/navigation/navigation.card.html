@@ -1,0 +1,24 @@
+<!-- @dsCard group="Components" viewport="700x560" name="Navigation" subtitle="Sidebar, Header, Stepper, SegmentedTabs, MobileTabBar" -->
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{background:var(--bg-app);padding:20px}.lbl{font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.06em}.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}.col{display:flex;flex-direction:column;gap:12px}</style></head><body><div id="root"></div>
+<script type="text/babel">
+const { Sidebar, Header, Stepper, SegmentedTabs, MobileTabBar } = window.ConstruktProDesignSystem_8956f7;
+function Demo(){ const [a,setA]=React.useState('home');
+const items=[{id:'home',label:'Início',icon:'layout-grid'},{id:'perfil',label:'Meu perfil',icon:'user'},{id:'obras',label:'Obras',icon:'building-2'},{id:'equipes',label:'Equipes',icon:'hard-hat'},{id:'pedidos',label:'Pedidos',icon:'clipboard-list',badge:4},{id:'cal',label:'Cronograma',icon:'calendar'}];
+const foot=[{id:'set',label:'Configurações',icon:'settings'},{id:'out',label:'Sair',icon:'log-out'}];
+return <div style={{display:'flex',gap:16,height:520}}>
+<Sidebar logoSrc="../../../assets/logo-negativo.svg" items={items} footerItems={foot} activeId={a} onSelect={setA} onToggle={()=>{}} style={{width:220}} />
+<Sidebar collapsed items={items} footerItems={foot} activeId={a} onSelect={setA} onToggle={()=>{}} />
+<div className="col" style={{flex:1,minWidth:0,gap:20}}>
+<Header title="Início" user={{name:'Marina Costa',role:'Admin'}} notifications={3} />
+<div style={{background:'#fff',borderRadius:16,padding:16}}><Stepper steps={4} current={2} /></div>
+<SegmentedTabs tabs={['Todas','Residencial','Comercial']} />
+<SegmentedTabs variant="light" tabs={[{value:'a',label:'Todos',count:8},{value:'b',label:'Clientes',count:3}]} />
+<div style={{marginTop:'auto',width:300}}><MobileTabBar activeId={a} onSelect={setA} items={[{id:'home',label:'Início',icon:'layout-grid'},{id:'obras',label:'Obras',icon:'building-2'},{id:'pedidos',label:'Pedidos',icon:'clipboard-list'},{id:'menu',label:'Menu',icon:'menu'}]} /></div>
+</div></div>; }
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script></body></html>

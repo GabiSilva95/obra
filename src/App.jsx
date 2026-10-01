@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback } from "react";
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import { C, F, FONT_URL } from "./constants/tokens";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
+import { Button, Header, MobileTabBar, useIsMobile } from "../design-system";
 import createApi from "./utils/api.js";
-import Sidebar from "./components/Sidebar";
+import AppSidebar, { MENU, TAB_IDS, allowedMenu } from "./components/Sidebar";
+import { PageActionsContext } from "./components/PageActions";
 import AvisoModal from "./components/AvisoModal";
+import { planoPorId } from "./constants/data";
 import { onLimiteAtingido, LABELS_RECURSO, ACAO_RECURSO } from "./utils/planoLimite";
 import { avisar } from "./utils/aviso";
-import BottomNav from "./components/BottomNav";
 import Notificacoes from "./components/Notificacoes";
 import Login from "./pages/Login";
 import Registro from "./pages/Registro";
@@ -21,6 +22,8 @@ import Usuarios from "./pages/Usuarios";
 import Diario from "./pages/Diario";
 import Financeiro from "./pages/Financeiro";
 import Compras from "./pages/Compras";
+
+const Showcase = lazy(() => import("../design-system/showcase/Showcase"));
 
 function normalizeData(raw) {
   const { obras, maquinas, funcionarios, insumos, estoques, alocacoes, tiposEtapa, users, diario, receitas, compras, categoriasMaquina, tiposObra, consumos, apontamentos, despesas, transferencias } = raw;
@@ -49,19 +52,6 @@ function normalizeData(raw) {
     despesas: despesas || [],
     transferencias: transferencias || [],
   };
-}
-
-function TopBar({ user, data, onLogout }) {
-  return (
-    <div style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(6,8,16,.9)", backdropFilter: "blur(12px)", borderBottom: `1px solid ${C.borderLight}`, padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
-      <Notificacoes data={data} />
-      <div style={{ width: 1, height: 20, background: C.borderLight }} />
-      <div style={{ fontSize: 12, color: C.muted, ...F }}>{user.nome}</div>
-      <button onClick={onLogout} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.dim} strokeWidth="2" strokeLinecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-      </button>
-    </div>
-  );
 }
 
 function AppShell({ session, setSession }) {
@@ -126,60 +116,92 @@ function AppShell({ session, setSession }) {
 
   const sharedProps = { data, setData, api, reloadData: loadData };
 
-  const styleInner = { maxWidth: 1280, margin: "0 auto", padding: "20px 24px", paddingBottom: 80 };
-  const denied = <div style={{ display: "flex", alignItems: "center", justifyContent: "center", paddingTop: 120, color: C.dim, fontSize: 13 }}>Acesso não permitido.</div>;
-  const loading = <div style={{ display: "flex", alignItems: "center", justifyContent: "center", paddingTop: 120, color: C.dim, fontSize: 13 }}>Carregando...</div>;
+  const isMobile = useIsMobile();
+  const { pathname } = useLocation();
+  const [collapsed, setCollapsed] = useState(false);
+  const [drawer, setDrawer] = useState(false);
+  const [actionsEl, setActionsEl] = useState(null);
+  const activeId = pathname.split("/")[2];
+  const title = MENU.find(m => m.id === activeId)?.title || "";
+  const plano = planoPorId(tenant?.plano) ? ` · Plano ${planoPorId(tenant.plano).nome}` : "";
+  const headerUser = { name: user.nome, role: (isAdmin ? "Administrador" : "Usuário") + plano };
+  const go = id => {
+    if (id === "menu") { setDrawer(true); return; }
+    setDrawer(false);
+    if (id === "sair") doLogout(); else navigate(`/app/${id}`);
+  };
+  const tabs = [...allowedMenu(user).filter(m => TAB_IDS.includes(m.id)), { id: "menu", label: "Menu", icon: "menu" }]
+    .map(({ id, label, icon }) => ({ id, label, icon }));
+
+  const message = (text, color = "var(--text-secondary)") => (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", paddingTop: "var(--space-12)", color, fontSize: "var(--fs-p5-5)" }}>{text}</div>
+  );
 
   if (loadErr) return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", color: C.red, fontSize: 13, flexDirection: "column", gap: 12 }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", color: "var(--status-danger)", fontSize: "var(--fs-p5-5)", flexDirection: "column", gap: "var(--space-3)" }}>
       <span>Erro ao carregar dados: {loadErr}</span>
-      <button onClick={loadData} style={{ color: C.orange, background: "none", border: "1px solid", borderRadius: 8, padding: "6px 16px", cursor: "pointer" }}>Tentar novamente</button>
+      <Button variant="secondary" iconLeft="clock" onClick={loadData}>Tentar novamente</Button>
     </div>
   );
 
+  const routes = !data ? message("Carregando…") : (
+    <Routes>
+      <Route index element={<Navigate to="dashboard" replace />} />
+      <Route path="dashboard"  element={<Dashboard data={data} userId={user.id} isMaster={isAdmin} />} />
+      <Route path="obras"      element={has("obras")       ? <Obras      {...sharedProps} canWrite={has("obras")}       /> : message("Acesso não permitido.")} />
+      <Route path="maquinas"   element={has("maquinas")    ? <Maquinas   {...sharedProps} canWrite={has("maquinas")}    /> : message("Acesso não permitido.")} />
+      <Route path="cadastros"  element={<Cadastros {...sharedProps} canWrite={has("cadastros")} />} />
+      <Route path="estoque"    element={has("estoque")     ? <Estoque    {...sharedProps} canWrite={has("estoque")}     /> : message("Acesso não permitido.")} />
+      <Route path="alocacao"   element={has("alocacao")    ? <Alocacao   {...sharedProps} canWrite={has("alocacao")}    /> : message("Acesso não permitido.")} />
+      <Route path="relatorios" element={has("relatorios")  ? <Relatorios data={data} />                                  : message("Acesso não permitido.")} />
+      <Route path="usuarios"   element={isAdmin            ? <Usuarios   {...sharedProps} tenant={tenant} setTenant={t => setSession(s => ({ ...s, tenant: t }))} /> : message("Acesso não permitido.")} />
+      <Route path="diario"     element={<Diario    {...sharedProps} canWrite={isAdmin || has("obras")} />} />
+      <Route path="financeiro" element={<Financeiro {...sharedProps} canWrite={isAdmin} />} />
+      <Route path="compras"    element={<Compras   {...sharedProps} canWrite={isAdmin || has("estoque")} />} />
+      <Route path="*"          element={<Navigate to="dashboard" replace />} />
+    </Routes>
+  );
+
+  const actionsSlot = <div ref={setActionsEl} style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexWrap: "wrap", justifyContent: isMobile ? "flex-start" : "flex-end", flex: "0 1 auto", minWidth: 0 }} />;
+  const header = (
+    <Header title={title} user={headerUser} search="none" messages={false} compact={isMobile}
+      onMenu={isMobile ? () => setDrawer(true) : undefined}
+      actions={isMobile ? undefined : actionsSlot}
+      notificationsSlot={<Notificacoes data={data} />} />
+  );
+
   return (
-    <>
-      <link href={FONT_URL} rel="stylesheet" />
-      <style>{`*{box-sizing:border-box;margin:0;padding:0}body{background:${C.bg}}::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:${C.border};border-radius:8px}::-webkit-scrollbar-thumb:hover{background:#383838}input[type=range]{accent-color:${C.orange}}option{background:#1a1a1a;color:#f0f0f0}`}</style>
-      <style>{`
-        @media(max-width:768px){
-          .app-sidebar{display:none!important}
-          .app-bottomnav{display:flex!important}
-          .app-topbar{display:flex!important}
-          .page-inner{padding:14px 12px 80px!important}
-        }
-        @media(min-width:769px){
-          .app-bottomnav{display:none!important}
-          .app-topbar{display:none!important}
-        }
-      `}</style>
-      <div style={{ display: "flex", minHeight: "100vh", background: C.bg, ...F }}>
-        <Sidebar user={user} onLogout={doLogout} tenant={tenant} className="app-sidebar" />
-        <BottomNav user={user} className="app-bottomnav" />
-        <main style={{ flex: 1, overflowY: "auto", minHeight: "100vh" }}>
-          <TopBar user={user} data={data} onLogout={doLogout} />
-          <div className="page-inner" style={styleInner}>
-            {!data ? loading : (
-              <Routes>
-                <Route index element={<Navigate to="dashboard" replace />} />
-                <Route path="dashboard"  element={<Dashboard data={data} userId={user.id} isMaster={isAdmin} />} />
-                <Route path="obras"      element={has("obras")       ? <Obras      {...sharedProps} canWrite={has("obras")}       /> : denied} />
-                <Route path="maquinas"   element={has("maquinas")    ? <Maquinas   {...sharedProps} canWrite={has("maquinas")}    /> : denied} />
-                <Route path="cadastros"  element={<Cadastros {...sharedProps} canWrite={has("cadastros")} />} />
-                <Route path="estoque"    element={has("estoque")     ? <Estoque    {...sharedProps} canWrite={has("estoque")}     /> : denied} />
-                <Route path="alocacao"   element={has("alocacao")    ? <Alocacao   {...sharedProps} canWrite={has("alocacao")}    /> : denied} />
-                <Route path="relatorios" element={has("relatorios")  ? <Relatorios data={data} />                                  : denied} />
-                <Route path="usuarios"   element={isAdmin            ? <Usuarios   {...sharedProps} tenant={tenant} setTenant={t => setSession(s => ({ ...s, tenant: t }))} /> : denied} />
-                <Route path="diario"     element={<Diario    {...sharedProps} canWrite={isAdmin || has("obras")} />} />
-                <Route path="financeiro" element={<Financeiro {...sharedProps} canWrite={isAdmin} />} />
-                <Route path="compras"    element={<Compras   {...sharedProps} canWrite={isAdmin || has("estoque")} />} />
-                <Route path="*"          element={<Navigate to="dashboard" replace />} />
-              </Routes>
-            )}
+    <PageActionsContext.Provider value={actionsEl}>
+      <style>{`*{margin:0;padding: 0}::-webkit-scrollbar{width:var(--space-1-5);height:var(--space-1-5)}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border-default);border-radius:var(--radius-sm)}::-webkit-scrollbar-thumb:hover{background:var(--border-strong)}input[type=range]{accent-color:var(--accent)}`}</style>
+      {isMobile ? (
+        <div style={{ minHeight: "100vh", paddingBottom: "calc(var(--mobile-tabbar-height) + var(--space-4))" }}>
+          <div style={{ position: "sticky", top: 0, zIndex: "var(--z-sticky)", background: "var(--bg-app)", padding: "0 var(--space-4)" }}>{header}</div>
+          <main style={{ padding: "var(--space-4)", display: "flex", flexDirection: "column", gap: "var(--space-4)", minWidth: 0 }}>
+            {actionsSlot}
+            {routes}
+          </main>
+          <MobileTabBar items={tabs} activeId={tabs.some(t => t.id === activeId) ? activeId : "menu"} onSelect={go}
+            style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: "var(--z-tabbar)" }} />
+          {drawer && (
+            <div onClick={() => setDrawer(false)} style={{ position: "fixed", inset: 0, zIndex: "var(--z-drawer)", background: "var(--scrim)", backdropFilter: "blur(var(--blur-scrim))" }}>
+              <div onClick={e => e.stopPropagation()} style={{ position: "absolute", top: "var(--space-2)", bottom: "var(--space-2)", left: "var(--space-2)" }}>
+                <AppSidebar user={user} tenant={tenant} activeId={activeId} onSelect={go} onClose={() => setDrawer(false)} style={{ width: "min(var(--sidebar-width), calc(100vw - var(--space-12)))" }} />
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div style={{ display: "flex", gap: "var(--space-8)", padding: "var(--space-4)", minHeight: "100vh", alignItems: "flex-start" }}>
+          <div style={{ position: "sticky", top: "var(--space-4)", height: "calc(100vh - 2 * var(--space-4))" }}>
+            <AppSidebar user={user} tenant={tenant} activeId={activeId} onSelect={go} collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} />
           </div>
-        </main>
-      </div>
-    </>
+          <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "var(--space-6)", paddingRight: "var(--space-4)", paddingBottom: "var(--space-8)" }}>
+            {header}
+            {routes}
+          </main>
+        </div>
+      )}
+    </PageActionsContext.Provider>
   );
 }
 
@@ -226,6 +248,7 @@ export default function App() {
       <Route path="/"        element={<PlanosPage onEscolher={id => navigate("/registro", { state: { planoId: id } })} onLogin={() => navigate("/login")} />} />
       <Route path="/login"   element={<Login onLogin={doLogin} onRegistro={() => navigate("/planos")} />} />
       <Route path="/planos"  element={<PlanosPage onEscolher={id => navigate("/registro", { state: { planoId: id } })} onLogin={() => navigate("/login")} />} />
+      <Route path="/showcase" element={<Suspense fallback={null}><Showcase /></Suspense>} />
       <Route path="/registro" element={<Registro onVoltar={() => navigate("/login")} onVerPlanos={() => navigate("/planos")} />} />
       <Route path="/app/*"   element={session ? <AppShell session={session} setSession={setSession} /> : <Navigate to="/login" replace />} />
       <Route path="*"        element={<Navigate to="/" replace />} />

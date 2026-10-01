@@ -1,0 +1,8 @@
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:var(--font-sans);color:var(--text-primary);background:var(--bg-app);-webkit-font-smoothing:antialiased;font-size:var(--fs-p5);font-weight:var(--fw-medium)}
+[data-theme]{color:var(--text-primary)}
+a{color:var(--text-accent);text-decoration:none}a:hover{color:var(--accent);text-decoration:underline}
+:focus-visible{outline:none;box-shadow:var(--ring-focus)}
+::selection{background:var(--accent-soft)}
+@keyframes ds-spin{to{transform:rotate(360deg)}}

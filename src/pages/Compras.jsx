@@ -1,12 +1,12 @@
-import { useState, useRef } from "react";
-import { C, F } from "../constants/tokens";
-import { fmt, validate, today } from "../utils/helpers";
+import { useState } from "react";
+import { fmt, validate } from "../utils/helpers";
 import { exportCsv } from "../utils/export";
-import { Icon, Badge, Card, Modal, Inp, Btn, Hdr, DSel, MoneyInp } from "../components/ui";
 import { avisarErro, avisarSucesso, confirmar } from "../utils/aviso";
+import { Badge, Banner, Button, Card, DataTable, IconButton, Input, Modal, MoneyInput, SegmentedTabs, Select, StatCard, Tag, Textarea, UploadBox, useIsMobile } from "../../design-system";
+import { PageActions } from "../components/PageActions";
 
 const STATUS_LIST = ["Pendente", "Aprovada", "Entregue", "Cancelada"];
-const STATUS_COLORS = { Pendente: "yellow", Aprovada: "blue", Entregue: "green", Cancelada: "red" };
+const STATUS_COLORS = { Pendente: "warning", Aprovada: "info", Entregue: "success", Cancelada: "error" };
 
 function totalOrdem(ordem) {
   if (ordem.itens?.length) {
@@ -17,87 +17,49 @@ function totalOrdem(ordem) {
 
 // ─── Linhas de itens do formulário ───────────────────────────────────────────
 
+const dataBR = d => new Date(d + "T12:00:00").toLocaleDateString("pt-BR");
+
 function LinhasItens({ itens, setItens, insumos }) {
+  const mobile = useIsMobile();
   const add = () => setItens(f => [...f, { insumoId: "", descricao: "", quantidade: 1, valorUnit: "" }]);
   const rem = i => setItens(f => f.filter((_, j) => j !== i));
   const upd = (i, k, v) => setItens(f => f.map((l, j) => j === i ? { ...l, [k]: v } : l));
+  const cols = mobile ? "1fr 1fr" : "minmax(0,1.3fr) minmax(0,1fr) var(--col-min-xs) var(--col-min-xs) var(--control-h-md)";
 
   return (
-    <div>
-      <div style={{ fontSize: 10, fontWeight: 700, color: C.dim, textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 8, ...F }}>
-        Itens da ordem
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {itens.map((ln, i) => (
-          <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 110px 110px 32px", gap: 8, alignItems: "end" }}>
-            {/* Insumo */}
-            <div>
-              {i === 0 && <div style={{ fontSize: 10, color: C.dim, fontWeight: 600, marginBottom: 4, ...F }}>Insumo</div>}
-              <select
-                value={ln.insumoId || ""}
-                onChange={e => {
-                  const ins = insumos.find(x => x.id === parseInt(e.target.value));
-                  upd(i, "insumoId", e.target.value ? parseInt(e.target.value) : "");
-                  if (ins) upd(i, "valorUnit", ins.custoUnit || "");
-                }}
-                style={{ width: "100%", background: "rgba(255,255,255,.04)", border: `1px solid ${C.border}`, borderRadius: 10, padding: "9px 10px", fontSize: 12, color: C.text, outline: "none", ...F }}
-              >
-                <option value="">Livre (descrição abaixo)</option>
-                {insumos.map(ins => <option key={ins.id} value={ins.id}>{ins.nome} ({ins.unidade})</option>)}
-              </select>
-            </div>
-            {/* Descrição */}
-            <Inp
-              label={i === 0 ? "Descrição" : undefined}
-              placeholder="Descrição do item"
-              value={ln.descricao || ""}
-              onChange={e => upd(i, "descricao", e.target.value)}
-            />
-            {/* Quantidade */}
-            <Inp
-              label={i === 0 ? "Qtd." : undefined}
-              type="number"
-              placeholder="0"
-              value={ln.quantidade || ""}
-              onChange={e => upd(i, "quantidade", e.target.value)}
-            />
-            {/* Valor unit. */}
-            <MoneyInp
-              label={i === 0 ? "Valor Unit." : undefined}
-              value={ln.valorUnit ?? ""}
-              onChange={e => upd(i, "valorUnit", e.target.value)}
-            />
-            {/* Remover */}
-            <button
-              onClick={() => rem(i)}
-              disabled={itens.length === 1}
-              style={{ height: 36, width: 32, border: `1px solid ${C.border}`, borderRadius: 9, background: "transparent", cursor: itens.length === 1 ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: itens.length === 1 ? 0.3 : 1, flexShrink: 0 }}
-            >
-              <Icon n="trash" size={13} color={C.dim} />
-            </button>
-          </div>
-        ))}
-      </div>
-      {/* Subtotal por linha */}
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+      <h3 style={{ margin: 0, font: "var(--type-card-title)", fontSize: "var(--fs-p4)" }}>Itens da ordem</h3>
+      {itens.map((ln, i) => (
+        <div key={i} style={{ display: "grid", gridTemplateColumns: cols, gap: "var(--space-2)", alignItems: "end" }}>
+          <Select label={i === 0 || mobile ? "Insumo" : undefined} aria-label="Insumo" value={ln.insumoId || ""}
+            onChange={e => {
+              const ins = insumos.find(x => x.id === parseInt(e.target.value));
+              upd(i, "insumoId", e.target.value ? parseInt(e.target.value) : "");
+              if (ins) upd(i, "valorUnit", ins.custoUnit || "");
+            }}>
+            <option value="">Livre (descrição ao lado)</option>
+            {insumos.map(ins => <option key={ins.id} value={ins.id}>{ins.nome} ({ins.unidade})</option>)}
+          </Select>
+          <Input label={i === 0 || mobile ? "Descrição" : undefined} aria-label="Descrição" placeholder="Descrição do item" value={ln.descricao || ""} onChange={e => upd(i, "descricao", e.target.value)} />
+          <Input label={i === 0 || mobile ? "Qtd." : undefined} aria-label="Quantidade" type="number" min="0" placeholder="0" value={ln.quantidade || ""} onChange={e => upd(i, "quantidade", e.target.value)} />
+          <MoneyInput label={i === 0 || mobile ? "Valor unit." : undefined} aria-label="Valor unitário" value={ln.valorUnit ?? ""} onChange={e => upd(i, "valorUnit", e.target.value)} />
+          <IconButton icon="trash-2" variant="outline" size={40} label="Remover item" disabled={itens.length === 1} onClick={() => rem(i)} />
+        </div>
+      ))}
       {itens.some(l => l.quantidade > 0 && l.valorUnit > 0) && (
-        <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 3 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-1)", fontSize: "var(--fs-p5-5)" }}>
           {itens.filter(l => l.quantidade > 0 && l.valorUnit > 0).map((l, i) => {
             const ins = insumos.find(x => x.id === parseInt(l.insumoId));
             return (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.muted }}>
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", color: "var(--text-secondary)" }}>
                 <span>{ins?.nome || l.descricao || `Item ${i + 1}`}</span>
-                <span style={{ fontWeight: 600, color: C.text }}>{fmt((l.quantidade || 0) * (l.valorUnit || 0))}</span>
+                <b style={{ color: "var(--text-primary)" }}>{fmt((l.quantidade || 0) * (l.valorUnit || 0))}</b>
               </div>
             );
           })}
         </div>
       )}
-      <button
-        onClick={add}
-        style={{ marginTop: 10, background: "none", border: `1px dashed ${C.border}`, borderRadius: 9, padding: "7px 14px", cursor: "pointer", fontSize: 11, color: C.muted, ...F, display: "flex", alignItems: "center", gap: 6, width: "100%", justifyContent: "center" }}
-      >
-        <Icon n="plus" size={12} color={C.muted} />Adicionar item
-      </button>
+      <Button variant="secondary" iconLeft="plus" fullWidth onClick={add}>Adicionar item</Button>
     </div>
   );
 }
@@ -117,7 +79,6 @@ export default function Compras({ data, setData, api, canWrite }) {
   const [expandido, setExpandido] = useState(null);
 
   // ── Importação NF ─────────────────────────────────────────────────────────
-  const fileRef = useRef();
   const [nfStep, setNfStep]     = useState(1); // 1=upload 2=vincular
   const [nfData, setNfData]     = useState(null);
   const [nfModal, setNfModal]   = useState(false);
@@ -258,322 +219,177 @@ export default function Compras({ data, setData, api, canWrite }) {
 
   const totalForm = itensForm.reduce((s, l) => s + (parseFloat(l.quantidade) || 0) * (parseFloat(l.valorUnit) || 0), 0);
 
-  return (
-    <div>
-      <Hdr
-        title="Compras"
-        sub="Ordens de compra e solicitações de materiais"
-        action={
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <DSel value={obraFiltro} onChange={e => setObraFiltro(e.target.value)}>
-              <option value="">Todas as obras</option>
-              {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
-            </DSel>
-            <DSel value={statusFiltro} onChange={e => setStatusFiltro(e.target.value)}>
-              <option value="">Todos os status</option>
-              {STATUS_LIST.map(s => <option key={s} value={s}>{s}</option>)}
-            </DSel>
-            <Btn v="outline" onClick={handleExport} sx={{ fontSize: 11, padding: "6px 11px" }}><Icon n="upload" size={12} />CSV</Btn>
-            {canWrite && <Btn v="outline" onClick={abrirNfModal} sx={{ fontSize: 11, padding: "6px 11px" }}><Icon n="file" size={12} />Importar NF</Btn>}
-            {canWrite && <Btn onClick={abrirNova}><Icon n="plus" size={13} />Nova Ordem</Btn>}
-          </div>
-        }
-      />
+  const mobile = useIsMobile();
+  const fecharOc = () => { setModal(false); setErros({}); };
+  const fecharNf = () => { setNfModal(false); setNfStep(1); setNfData(null); setNfOcId(""); };
+  const ocAberta = compras.find(c => c.id === expandido);
+  const nomeFornecedor = c => c.fornecedorPessoa?.nome || c.fornecedor || "Sem fornecedor";
+  const contar = st => compras.filter(c => c.status === st).length;
+  const statusCell = c => canWrite ? (
+    <div onClick={e => e.stopPropagation()}>
+      <Select aria-label={`Status da OC ${c.numero ?? c.id}`} style={{ height: "var(--control-h-sm)", minWidth: "var(--control-w-sm)" }} value={c.status} onChange={e => setStatus(c.id, e.target.value)} options={STATUS_LIST} />
+    </div>
+  ) : <Badge size="sm" tone={STATUS_COLORS[c.status]}>{c.status}</Badge>;
+  const acoes = c => canWrite && (
+    <div style={{ display: "flex", gap: "var(--space-1)" }} onClick={e => e.stopPropagation()}>
+      <IconButton icon="pencil" size={28} label="Editar" onClick={() => abrirEditar(c)} />
+      <IconButton icon="trash-2" variant="danger" size={28} label="Excluir" onClick={() => del(c.id)} />
+    </div>
+  );
 
-      {/* Stat row */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-        {[
-          { l: "Pendentes",  v: fmt(totalPendente), c: "#f59e0b", n: compras.filter(c => c.status === "Pendente").length },
-          { l: "Aprovadas",  v: fmt(totalAprovado), c: "#60a5fa", n: compras.filter(c => c.status === "Aprovada").length },
-          { l: "Entregues",  v: fmt(totalEntregue), c: "#22c55e", n: compras.filter(c => c.status === "Entregue").length },
-        ].map(k => (
-          <div key={k.l} style={{ flex: 1, minWidth: 140, background: "rgba(255,255,255,.025)", borderRadius: 12, padding: "13px 16px" }}>
-            <div style={{ fontSize: 10, color: C.dim, marginBottom: 5, ...F, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>{k.l}</div>
-            <div style={{ fontSize: 17, fontWeight: 800, color: k.c, letterSpacing: "-0.03em", ...F }}>{k.v}</div>
-            <div style={{ fontSize: 10, color: C.dim, marginTop: 2 }}>{k.n} ordem{k.n !== 1 ? "s" : ""}</div>
-          </div>
-        ))}
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)" }}>
+      <PageActions>
+        <Select aria-label="Filtrar obra" style={{ height: "var(--control-h-sm)", minWidth: "var(--control-w-md)" }} value={obraFiltro} onChange={e => setObraFiltro(e.target.value)}>
+          <option value="">Todas as obras</option>
+          {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
+        </Select>
+        <Button iconLeft="download" size="sm" variant="secondary" onClick={handleExport}>CSV</Button>
+        {canWrite && <Button iconLeft="file-text" size="sm" variant="secondary" onClick={abrirNfModal}>Importar NF</Button>}
+        {canWrite && <Button iconLeft="plus" onClick={abrirNova}>Nova ordem</Button>}
+      </PageActions>
+      <p style={{ color: "var(--text-secondary)" }}>Ordens de compra e solicitações de materiais.</p>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(var(--col-min-md),1fr))", gap: "var(--space-6)" }}>
+        <StatCard value={fmt(totalPendente)} label={`Pendentes · ${contar("Pendente")} ordem(ns)`} color="var(--stat-2)" />
+        <StatCard value={fmt(totalAprovado)} label={`Aprovadas · ${contar("Aprovada")} ordem(ns)`} color="var(--stat-1)" />
+        <StatCard value={fmt(totalEntregue)} label={`Entregues · ${contar("Entregue")} ordem(ns)`} color="var(--stat-3)" />
       </div>
 
-      {lista.length === 0 ? (
-        <Card style={{ textAlign: "center", padding: "48px 24px", color: C.dim }}>
-          <Icon n="checklist" size={32} color={C.border} />
-          <div style={{ marginTop: 12, fontSize: 13 }}>Nenhuma ordem de compra</div>
-        </Card>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {lista.map(c => {
-            const obra  = obras.find(o => o.id === c.obraId);
-            const total = totalOrdem(c);
-            const itens = c.itens?.length ? c.itens : [];
-            const aberto = expandido === c.id;
+      <SegmentedTabs variant="light" value={statusFiltro} onChange={setStatusFiltro}
+        tabs={[{ value: "", label: "Todos", count: compras.length }, ...STATUS_LIST.map(st => ({ value: st, label: st, count: contar(st) }))]} />
 
-            return (
-              <Card key={c.id} style={{ padding: 0, overflow: "hidden" }}>
-                {/* Cabeçalho */}
-                <div
-                  style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", cursor: "pointer" }}
-                  onClick={() => setExpandido(aberto ? null : c.id)}
-                >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: 10, color: C.orange, fontWeight: 800, ...F, letterSpacing: "0.04em" }}>
-                        OC #{c.numero ?? c.id}
-                      </span>
-                      <span style={{ fontWeight: 700, fontSize: 13, color: C.text, ...F }}>
-                        {c.fornecedorPessoa?.nome || c.fornecedor || "Sem fornecedor"}
-                      </span>
-                      {c.fornecedorPessoa && <span style={{ fontSize: 10, color: C.green, background: "rgba(34,197,94,.1)", borderRadius: 5, padding: "2px 6px" }}>cadastrado</span>}
-                      <Badge v={STATUS_COLORS[c.status]}>{c.status}</Badge>
-                    </div>
-                    <div style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>
-                      {obra?.nome} · {new Date(c.data + "T12:00:00").toLocaleDateString("pt-BR")}
-                      {itens.length > 0 && <span style={{ marginLeft: 8, color: C.dim }}>{itens.length} item{itens.length !== 1 ? "s" : ""}</span>}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: "right", flexShrink: 0 }}>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: C.text, ...F }}>{total > 0 ? fmt(total) : "—"}</div>
-                  </div>
-                  {canWrite && (
-                    <div style={{ display: "flex", gap: 4, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-                      <select
-                        value={c.status}
-                        onChange={e => setStatus(c.id, e.target.value)}
-                        style={{ background: "rgba(255,255,255,.04)", border: `1px solid ${C.border}`, borderRadius: 7, padding: "4px 8px", fontSize: 11, color: C.text, outline: "none", cursor: "pointer", ...F }}
-                      >
-                        {STATUS_LIST.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                      <button onClick={() => abrirEditar(c)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><Icon n="edit" size={12} color={C.dim} /></button>
-                      <button onClick={() => del(c.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><Icon n="trash" size={12} color={C.dim} /></button>
-                    </div>
-                  )}
-                  <Icon n={aberto ? "chevron-up" : "chevron-down"} size={12} color={C.dim} />
-                </div>
-
-                {/* Itens expandidos */}
-                {aberto && (
-                  <div style={{ borderTop: `1px solid ${C.borderLight}` }}>
-                    {itens.length > 0 ? (
-                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                        <thead>
-                          <tr style={{ background: "rgba(255,255,255,.015)" }}>
-                            {["Insumo / Descrição", "Qtd.", "Valor Unit.", "Total"].map(h => (
-                              <th key={h} style={{ padding: "8px 16px", textAlign: "left", color: C.dim, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.07em", ...F }}>{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {itens.map((item, idx) => {
-                            const ins = item.insumo || insumos.find(i => i.id === item.insumoId);
-                            return (
-                              <tr key={idx} style={{ borderTop: `1px solid ${C.borderLight}` }}>
-                                <td style={{ padding: "9px 16px", color: C.text, fontWeight: 500 }}>
-                                  {ins?.nome || item.descricao || "—"}
-                                  {item.descricao && ins && <span style={{ color: C.dim, fontSize: 10, marginLeft: 6 }}>{item.descricao}</span>}
-                                </td>
-                                <td style={{ padding: "9px 16px", color: C.muted }}>{item.quantidade} {ins?.unidade || ""}</td>
-                                <td style={{ padding: "9px 16px", color: C.muted }}>{item.valorUnit > 0 ? fmt(item.valorUnit) : "—"}</td>
-                                <td style={{ padding: "9px 16px", fontWeight: 700, color: C.text }}>{fmt(item.quantidade * item.valorUnit)}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    ) : (
-                      <div style={{ padding: "12px 16px", fontSize: 12, color: C.dim }}>Sem itens cadastrados.</div>
-                    )}
-                    {c.obs && (
-                      <div style={{ padding: "10px 16px", fontSize: 11, color: C.muted, borderTop: `1px solid ${C.borderLight}` }}>
-                        <span style={{ color: C.dim }}>Obs: </span>{c.obs}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </Card>
-            );
-          })}
+      {mobile ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+          {lista.length === 0 && <p style={{ color: "var(--text-secondary)", textAlign: "center" }}>Nenhuma ordem de compra.</p>}
+          {lista.map(c => (
+            <Card key={c.id} padding="var(--space-4)" onClick={() => setExpandido(c.id)}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--space-2)" }}>
+                <b>OC #{c.numero ?? c.id}</b><Badge size="sm" tone={STATUS_COLORS[c.status]}>{c.status}</Badge>
+              </div>
+              <span style={{ fontWeight: "var(--fw-semibold)" }}>{nomeFornecedor(c)}</span>
+              <span style={{ fontSize: "var(--fs-p5-5)", color: "var(--text-secondary)" }}>{obras.find(o => o.id === c.obraId)?.nome} · {dataBR(c.data)}</span>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <Tag tone="neutral">{(c.itens || []).length} item(ns)</Tag><b>{totalOrdem(c) > 0 ? fmt(totalOrdem(c)) : "—"}</b>
+              </div>
+            </Card>
+          ))}
         </div>
+      ) : (
+        <DataTable minWidth={980} rows={lista} rowKey={c => c.id} onRowClick={c => setExpandido(c.id)} empty="Nenhuma ordem de compra." columns={[
+          { key: "numero", label: "Pedido", render: c => <b>OC #{c.numero ?? c.id}</b> },
+          { key: "fornecedor", label: "Fornecedor", render: c => (
+            <span style={{ display: "flex", flexDirection: "column" }}>
+              <span style={{ fontWeight: "var(--fw-semibold)" }}>{nomeFornecedor(c)}</span>
+              {c.fornecedorPessoa && <span style={{ fontSize: "var(--fs-p6)", color: "var(--text-secondary)" }}>Cadastrado</span>}
+            </span>
+          ) },
+          { key: "obra", label: "Obra", render: c => obras.find(o => o.id === c.obraId)?.nome || "—" },
+          { key: "itens", label: "Itens", render: c => <Tag tone="neutral">{(c.itens || []).length} item(ns)</Tag> },
+          { key: "data", label: "Data", render: c => dataBR(c.data) },
+          { key: "valor", label: "Valor", align: "right", render: c => <b>{totalOrdem(c) > 0 ? fmt(totalOrdem(c)) : "—"}</b> },
+          { key: "status", label: "Status", render: statusCell },
+          ...(canWrite ? [{ key: "acoes", label: "", width: "var(--space-24)", render: acoes }] : []),
+        ]} />
       )}
 
-      {/* ── Modal Importar NF ──────────────────────────────────────────────────── */}
-      {nfModal && (
-        <Modal title="Importar Nota Fiscal" onClose={() => { setNfModal(false); setNfStep(1); setNfData(null); setNfOcId(""); }} wide>
-          {nfStep === 1 && (
-            <div>
-              <div style={{ border: `2px dashed ${C.border}`, borderRadius: 14, padding: "52px 40px", textAlign: "center", cursor: "pointer" }} onClick={() => fileRef.current?.click()}>
-                <input ref={fileRef} type="file" accept=".xml" style={{ display: "none" }} onChange={onNfFile} />
-                {nfLoading ? (
-                  <div style={{ color: C.muted, fontSize: 13, ...F }}>Processando...</div>
-                ) : (
-                  <div>
-                    <div style={{ width: 48, height: 48, borderRadius: 12, background: C.orangeDim, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}><Icon n="file" size={20} color={C.orange} /></div>
-                    <div style={{ fontWeight: 700, color: C.text, fontSize: 13, ...F, marginBottom: 4 }}>Clique para selecionar o XML</div>
-                    <div style={{ color: C.dim, fontSize: 11 }}>Apenas NF-e (.xml)</div>
-                  </div>
-                )}
-              </div>
+      {ocAberta && (
+        <Modal title={`OC #${ocAberta.numero ?? ocAberta.id} · ${nomeFornecedor(ocAberta)}`} onClose={() => setExpandido(null)} wide
+          footer={canWrite ? <><Button variant="secondary" iconLeft="pencil" onClick={() => { setExpandido(null); abrirEditar(ocAberta); }}>Editar</Button><Button onClick={() => setExpandido(null)}>Fechar</Button></> : <Button onClick={() => setExpandido(null)}>Fechar</Button>}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2) var(--space-10)" }}>
+              {[["Obra", obras.find(o => o.id === ocAberta.obraId)?.nome || "—"], ["Data", dataBR(ocAberta.data)], ["Status", <Badge key="s" size="sm" tone={STATUS_COLORS[ocAberta.status]}>{ocAberta.status}</Badge>], ["Total", fmt(totalOrdem(ocAberta))]].map(([l, v]) => (
+                <div key={l} style={{ display: "flex", flexDirection: "column", gap: "var(--space-0-5)" }}><span style={{ fontSize: "var(--fs-p5-5)", color: "var(--text-secondary)" }}>{l}:</span><span style={{ fontWeight: "var(--fw-semibold)" }}>{v}</span></div>
+              ))}
             </div>
+            <DataTable dense minWidth={0} rows={ocAberta.itens || []} rowKey={(r, i) => i} empty="Sem itens cadastrados." columns={[
+              { key: "item", label: "Insumo / descrição", render: item => { const ins = item.insumo || insumos.find(i => i.id === item.insumoId); return <span>{ins?.nome || item.descricao || "—"}{item.descricao && ins && <span style={{ color: "var(--text-secondary)" }}> · {item.descricao}</span>}</span>; } },
+              { key: "qtd", label: "Qtd.", render: item => `${item.quantidade} ${(item.insumo || insumos.find(i => i.id === item.insumoId))?.unidade || ""}` },
+              { key: "vu", label: "Valor unit.", align: "right", render: item => item.valorUnit > 0 ? fmt(item.valorUnit) : "—" },
+              { key: "tot", label: "Total", align: "right", render: item => <b>{fmt(item.quantidade * item.valorUnit)}</b> },
+            ]} />
+            {ocAberta.obs && <p style={{ margin: 0 }}><b>Obs.:</b> {ocAberta.obs}</p>}
+          </div>
+        </Modal>
+      )}
+
+      {nfModal && (
+        <Modal title="Importar nota fiscal" onClose={fecharNf} wide
+          footer={nfStep === 2 ? <><Button variant="secondary" iconLeft="chevron-left" onClick={() => setNfStep(1)}>Voltar</Button><Button iconLeft="check" disabled={!nfOcId} loading={vinculando} onClick={vincularNf}>Confirmar e dar entrada</Button></> : undefined}>
+          {nfStep === 1 && (
+            <UploadBox title="Selecionar XML" hint="Escolha o XML da NF-e ou arraste aqui." formats="Apenas NF-e (.xml)" accept=".xml" busy={nfLoading}
+              onFiles={files => onNfFile({ target: { files } })} />
           )}
           {nfStep === 2 && nfData && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {/* Dados da NF */}
-              <div style={{ background: "rgba(34,197,94,.05)", border: "1px solid rgba(34,197,94,.18)", borderRadius: 10, padding: "11px 14px" }}>
-                <div style={{ fontWeight: 700, fontSize: 12, color: C.green, marginBottom: 4 }}><Icon n="check" size={12} color={C.green} /> {nfData.arquivo}</div>
-                <div style={{ fontSize: 11, color: "rgba(34,197,94,.75)", display: "flex", flexWrap: "wrap", gap: 10 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+              <Banner tone="success" title={nfData.arquivo}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-1) var(--space-4)" }}>
                   {nfData.fornecedor && <span>Fornecedor: <b>{nfData.fornecedor}</b></span>}
-                  {nfData.nfe        && <span>NF: <b>{nfData.nfe}</b></span>}
-                  {nfData.data       && <span>Emissão: <b>{new Date(nfData.data + "T12:00:00").toLocaleDateString("pt-BR")}</b></span>}
+                  {nfData.nfe && <span>NF: <b>{nfData.nfe}</b></span>}
+                  {nfData.data && <span>Emissão: <b>{dataBR(nfData.data)}</b></span>}
                 </div>
-              </div>
-
-              {/* Itens da NF */}
-              <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, maxHeight: 180, overflowY: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                  <thead><tr style={{ background: "rgba(255,255,255,.02)" }}>
-                    {["Produto","Un.","Qtd.","Valor Unit."].map(h => <th key={h} style={{ padding: "7px 12px", textAlign: "left", color: C.dim, fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.07em", ...F }}>{h}</th>)}
-                  </tr></thead>
-                  <tbody>
-                    {nfData.itens.map((item, i) => (
-                      <tr key={i} style={{ borderTop: `1px solid ${C.borderLight}` }}>
-                        <td style={{ padding: "7px 12px", color: C.text }}>{item.nome}</td>
-                        <td style={{ padding: "7px 12px", color: C.muted }}>{item.unidade}</td>
-                        <td style={{ padding: "7px 12px", color: C.text }}>{item.quantidade}</td>
-                        <td style={{ padding: "7px 12px", color: C.muted }}>{fmt(item.valorUnit)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Vinculação a OC Aprovada */}
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.dim, textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 8, ...F }}>
-                  Vincular a Ordem de Compra Aprovada
+              </Banner>
+              <DataTable dense minWidth={0} rows={nfData.itens} rowKey={(r, i) => i} columns={[
+                { key: "nome", label: "Produto" }, { key: "unidade", label: "Un." }, { key: "quantidade", label: "Qtd.", align: "right" },
+                { key: "valorUnit", label: "Valor unit.", align: "right", render: item => fmt(item.valorUnit) },
+              ]} />
+              <h3 style={{ margin: 0, font: "var(--type-card-title)", fontSize: "var(--fs-p4)" }}>Vincular a uma ordem aprovada</h3>
+              {!ocAprovadas.length ? (
+                <Banner tone="warning">Não há ordens com status <b>Aprovada</b>. Aprove uma OC antes de importar a NF.</Banner>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                  {ocAprovadas.map(oc => (
+                    <Card key={oc.id} padding="var(--space-3) var(--space-4)" selected={nfOcId === String(oc.id)} onClick={() => setNfOcId(String(oc.id))} style={{ gap: "var(--space-1)" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: "var(--space-2)", flexWrap: "wrap" }}>
+                        <span><b>OC #{oc.numero ?? oc.id}</b> <span style={{ color: "var(--text-secondary)" }}>· {nomeFornecedor(oc)}</span></span>
+                        <span style={{ color: "var(--text-secondary)" }}>{obras.find(o => o.id === oc.obraId)?.nome} · {dataBR(oc.data)}</span>
+                      </div>
+                      <span style={{ fontSize: "var(--fs-p6)", color: "var(--text-secondary)" }}>{oc.itens?.length ?? 0} item(ns) · {fmt(totalOrdem(oc))}</span>
+                    </Card>
+                  ))}
                 </div>
-                {!ocAprovadas.length ? (
-                  <div style={{ fontSize: 12, color: C.muted, background: C.orangeDim, borderRadius: 9, padding: "10px 13px" }}>
-                    Não há ordens com status <b>Aprovada</b>. Aprove uma OC antes de importar a NF.
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {ocAprovadas.map(oc => {
-                      const obra = obras.find(o => o.id === oc.obraId);
-                      const sel  = nfOcId === String(oc.id);
-                      return (
-                        <div
-                          key={oc.id}
-                          onClick={() => setNfOcId(String(oc.id))}
-                          style={{ cursor: "pointer", border: `1px solid ${sel ? C.orange : C.border}`, borderRadius: 10, padding: "10px 14px", background: sel ? C.orangeDim : "transparent", transition: "all .15s" }}
-                        >
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <div>
-                              <span style={{ fontSize: 11, fontWeight: 800, color: sel ? C.orange : C.text, ...F }}>OC #{oc.numero ?? oc.id}</span>
-                              <span style={{ fontSize: 11, color: C.muted, marginLeft: 8 }}>{oc.fornecedorPessoa?.nome || oc.fornecedor || "Sem fornecedor"}</span>
-                            </div>
-                            <div style={{ fontSize: 11, color: C.muted }}>{obra?.nome} · {new Date(oc.data + "T12:00:00").toLocaleDateString("pt-BR")}</div>
-                          </div>
-                          <div style={{ fontSize: 10, color: C.dim, marginTop: 3 }}>
-                            {oc.itens?.length ?? 0} item{oc.itens?.length !== 1 ? "s" : ""} · {fmt(totalOrdem(oc))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              <div style={{ display: "flex", gap: 9, justifyContent: "flex-end", borderTop: `1px solid ${C.borderLight}`, paddingTop: 12 }}>
-                <Btn v="secondary" onClick={() => setNfStep(1)}>← Voltar</Btn>
-                <Btn disabled={!nfOcId || vinculando} onClick={vincularNf}><Icon n="check" size={13} />{vinculando ? "Vinculando..." : "Confirmar e Dar Entrada"}</Btn>
-              </div>
+              )}
             </div>
           )}
         </Modal>
       )}
 
       {modal && (
-        <Modal title={form.id ? "Editar Ordem de Compra" : "Nova Ordem de Compra"} onClose={() => { setModal(false); setErros({}); }} wide>
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.dim, textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 6, ...F }}>Obra *</div>
-                <select
-                  value={form.obraId || ""}
-                  onChange={e => setForm(f => ({ ...f, obraId: parseInt(e.target.value) }))}
-                  style={{ width: "100%", background: "rgba(255,255,255,.04)", border: `1px solid ${erros.obraId ? "#ef4444" : C.border}`, borderRadius: 10, padding: "10px 12px", fontSize: 12, color: C.text, outline: "none", ...F }}
-                >
-                  <option value="">Selecione...</option>
-                  {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
-                </select>
-              </div>
-              <Inp label="Data *" type="date" error={erros.data} value={form.data || ""} onChange={e => setForm(f => ({ ...f, data: e.target.value }))} />
+        <Modal title={form.id ? "Editar ordem de compra" : "Nova ordem de compra"} onClose={fecharOc} wide
+          footer={<><Button variant="secondary" onClick={fecharOc}>Cancelar</Button><Button iconLeft="check" loading={salvando} onClick={save}>Salvar ordem</Button></>}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(var(--col-min-md),1fr))", gap: "var(--space-4)" }}>
+              <Select label="Obra" required error={erros.obraId} value={form.obraId || ""} onChange={e => setForm(f => ({ ...f, obraId: parseInt(e.target.value) }))}>
+                <option value="">Selecione…</option>
+                {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
+              </Select>
+              <Input label="Data" required type="date" error={erros.data} value={form.data || ""} onChange={e => setForm(f => ({ ...f, data: e.target.value }))} />
+              {fornecedores.length > 0 && (
+                <Select label="Fornecedor cadastrado" value={form.fornecedorId || ""}
+                  onChange={e => {
+                    const fId = e.target.value ? parseInt(e.target.value) : null;
+                    const fObj = fornecedores.find(f => f.id === fId);
+                    setForm(f => ({ ...f, fornecedorId: fId, fornecedor: fObj ? fObj.nome : f.fornecedor }));
+                  }}>
+                  <option value="">Selecionar do cadastro…</option>
+                  {fornecedores.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                </Select>
+              )}
+              <Input label={fornecedores.length > 0 ? "Ou fornecedor livre" : "Fornecedor"} placeholder="Nome do fornecedor" value={form.fornecedor || ""}
+                onChange={e => setForm(f => ({ ...f, fornecedor: e.target.value, fornecedorId: null }))} />
+              <Select label="Etapa (opcional)" value={form.etapaId || ""} onChange={e => setForm(f => ({ ...f, etapaId: e.target.value ? parseInt(e.target.value) : null }))}>
+                <option value="">Sem etapa</option>
+                {etapasObra.filter(e => e.obraId === parseInt(form.obraId || 0)).map(et => {
+                  const tp = tiposEtapa.find(t => t.id === et.tipoEtapaId);
+                  return <option key={et.id} value={et.id}>{tp?.nome || `Etapa ${et.id}`}</option>;
+                })}
+              </Select>
+              <Select label="Status" value={form.status || "Pendente"} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} options={STATUS_LIST} />
             </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.dim, textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 6, ...F }}>Fornecedor</div>
-                {fornecedores.length > 0 ? (
-                  <select
-                    value={form.fornecedorId || ""}
-                    onChange={e => {
-                      const fId = e.target.value ? parseInt(e.target.value) : null;
-                      const fObj = fornecedores.find(f => f.id === fId);
-                      setForm(f => ({ ...f, fornecedorId: fId, fornecedor: fObj ? fObj.nome : f.fornecedor }));
-                    }}
-                    style={{ width: "100%", background: "rgba(255,255,255,.04)", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px", fontSize: 12, color: C.text, outline: "none", ...F, marginBottom: 6 }}
-                  >
-                    <option value="">— Selecionar do cadastro —</option>
-                    {fornecedores.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
-                  </select>
-                ) : null}
-                <Inp
-                  placeholder={fornecedores.length > 0 ? "Ou digite nome livre" : "Nome do fornecedor"}
-                  value={form.fornecedor || ""}
-                  onChange={e => setForm(f => ({ ...f, fornecedor: e.target.value, fornecedorId: null }))}
-                />
-              </div>
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.dim, textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 6, ...F }}>Etapa (opcional)</div>
-                <select
-                  value={form.etapaId || ""}
-                  onChange={e => setForm(f => ({ ...f, etapaId: e.target.value ? parseInt(e.target.value) : null }))}
-                  style={{ width: "100%", background: "rgba(255,255,255,.04)", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px", fontSize: 12, color: C.text, outline: "none", ...F }}
-                >
-                  <option value="">Sem etapa</option>
-                  {etapasObra.filter(e => e.obraId === parseInt(form.obraId || 0)).map(et => {
-                    const tp = tiposEtapa.find(t => t.id === et.tipoEtapaId);
-                    return <option key={et.id} value={et.id}>{tp?.nome || `Etapa ${et.id}`}</option>;
-                  })}
-                </select>
-              </div>
-            </div>
-
             <LinhasItens itens={itensForm} setItens={setItensForm} insumos={insumos} />
-            {erros.itens && <div style={{ fontSize: 11, color: "#ef4444" }}>{erros.itens}</div>}
-
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.dim, textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 6, ...F }}>Observações</div>
-              <textarea value={form.obs || ""} onChange={e => setForm(f => ({ ...f, obs: e.target.value }))} rows={2} style={{ width: "100%", background: "rgba(255,255,255,.04)", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px", fontSize: 12, color: C.text, outline: "none", resize: "vertical", ...F, fontFamily: "inherit" }} />
-            </div>
-
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.dim, textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 6, ...F }}>Status</div>
-              <select value={form.status || "Pendente"} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} style={{ width: "100%", background: "rgba(255,255,255,.04)", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px", fontSize: 12, color: C.text, outline: "none", ...F }}>
-                {STATUS_LIST.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-
-            {totalForm > 0 && (
-              <div style={{ background: C.orangeDim, border: `1px solid ${C.orange}22`, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 11, color: C.muted }}>Total da ordem</span>
-                <span style={{ fontSize: 15, fontWeight: 800, color: C.orange, ...F }}>{fmt(totalForm)}</span>
-              </div>
-            )}
-
-            <div style={{ display: "flex", gap: 9, justifyContent: "flex-end", borderTop: `1px solid ${C.borderLight}`, paddingTop: 14 }}>
-              <Btn v="secondary" onClick={() => { setModal(false); setErros({}); }}>Cancelar</Btn>
-              <Btn disabled={salvando} onClick={save}><Icon n="check" size={13} />{salvando ? "Salvando..." : "Salvar Ordem"}</Btn>
-            </div>
+            {erros.itens && <Banner tone="danger">{erros.itens}</Banner>}
+            <Textarea label="Observações" rows={2} maxLength={1000} value={form.obs || ""} onChange={e => setForm(f => ({ ...f, obs: e.target.value }))} />
+            {totalForm > 0 && <Banner tone="accent" title="Total da ordem">{fmt(totalForm)}</Banner>}
           </div>
         </Modal>
       )}

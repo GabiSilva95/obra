@@ -1,0 +1,25 @@
+<!-- @dsCard group="Components" viewport="700x520" name="Forms" subtitle="Input, Select, Textarea, Checkbox, OptionRow, FilterPill, UploadBox" -->
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{background:var(--bg-app);padding:20px}.lbl{font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.06em}.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}.col{display:flex;flex-direction:column;gap:12px}</style></head><body><div id="root"></div>
+<script type="text/babel">
+const { Input, Select, Textarea, Checkbox, OptionRow, FilterPill, UploadBox } = window.ConstruktProDesignSystem_8956f7;
+function Demo(){ return <div className="col" style={{background:'#fff',padding:20,borderRadius:16}}>
+<div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16}}>
+<Input label="Nome da obra" required info="Como aparece no relatório" placeholder="Ex.: Residencial Vila Nova" helper="Mensagem informativa" />
+<Input label="Senha" type="password" defaultValue="canteiro123" />
+<Select label="Tipo" placeholder="Selecione" options={['Residencial','Comercial','Industrial']} />
+<Input label="Telefone" prefix="+55" placeholder="(41) 99999-0000" />
+<Input label="Valor do m²" prefix="R$" defaultValue="4.250,00" error="Valor acima do orçamento" />
+<Input label="Inativo" placeholder="Desabilitado" disabled />
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,alignItems:'start'}}>
+<Textarea label="Observações" placeholder="Detalhes para a equipe" rows={3} />
+<div className="col"><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',columnGap:24}}><OptionRow icon="shovel" label="Fundação" defaultChecked /><OptionRow icon="hammer" label="Alvenaria" /><OptionRow icon="zap" label="Elétrica" defaultChecked /><OptionRow icon="droplets" label="Hidráulica" /></div>
+<div className="row"><Checkbox label="Checkbox" defaultChecked /><Checkbox label="Desmarcado" /><FilterPill options={['Últimos 6 meses','Último ano']} /></div></div></div>
+<UploadBox title="Enviar fotos" formats="JPG, PNG até 5 MB" height={110} /></div>; }
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script></body></html>

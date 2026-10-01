@@ -1,0 +1,262 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "react",
+    "import"
+  ],
+  "jsPlugins": [
+    "./design-system/lint/adherence-plugin.js"
+  ],
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2024": true
+  },
+  "ignorePatterns": [
+    "dist/**",
+    "node_modules/**",
+    "design-system/reference/**",
+    "src/generated/**",
+    "gestao-obras-v2.jsx"
+  ],
+  "rules": {
+    "react/forbid-elements": [
+      "warn",
+      {
+        "forbid": []
+      }
+    ],
+    "no-restricted-imports": [
+      "warn",
+      {
+        "patterns": [
+          {
+            "group": [
+              "**/design-system/components/**",
+              "**/design-system/templates/admin/**"
+            ],
+            "message": "Import design-system components from the design-system barrel (index.ts), not component internals."
+          }
+        ]
+      }
+    ],
+    "ds/restricted-syntax": [
+      "warn",
+      {
+        "selector": "Literal[value=/#[0-9a-fA-F]{3,8}\\b/]",
+        "message": "Raw hex color — use a design-system color token via var()."
+      },
+      {
+        "selector": "Literal[value=/\\b\\d+px\\b/]",
+        "message": "Raw px value — use a design-system spacing token via var()."
+      },
+      {
+        "selector": "TemplateElement[value.raw=/#[0-9a-fA-F]{3,8}\\b|\\b\\d+px\\b/]",
+        "message": "Raw hex/px in a template literal — use design-system tokens via var()."
+      },
+      {
+        "selector": "Literal[value=/font-family\\s*:\\s*(?!['\\\"]?(?:Nunito|var\\(--font))/i]",
+        "message": "Font not provided by the design system. Available: Nunito (var(--font-sans))."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AlertDialog'] > JSXAttribute > JSXIdentifier[name!=/^(?:tone|title|message|confirmLabel|cancelLabel|danger|onConfirm|onCancel|key|ref|className|aria-label)$/]",
+        "message": "<AlertDialog> doesn't accept that prop. Declared props: tone, title, message, confirmLabel, cancelLabel, danger, onConfirm, onCancel."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AlertDialog'] > JSXAttribute[name.name='tone'] > Literal[value!=/^(?:success|error|warning|info)$/]",
+        "message": "<AlertDialog> tone must be one of 'success' | 'error' | 'warning' | 'info'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AreaChart'] > JSXAttribute > JSXIdentifier[name!=/^(?:data|labels|max|ticks|height|highlight|format|color|key|ref|className|aria-label)$/]",
+        "message": "<AreaChart> doesn't accept that prop. Declared props: data, labels, max, ticks, height, highlight, format, color."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Avatar'] > JSXAttribute > JSXIdentifier[name!=/^(?:src|name|size|online|style|key|ref|className|aria-label)$/]",
+        "message": "<Avatar> doesn't accept that prop. Declared props: src, name, size, online, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Badge'] > JSXAttribute > JSXIdentifier[name!=/^(?:tone|size|style|children|key|ref|className|aria-label)$/]",
+        "message": "<Badge> doesn't accept that prop. Declared props: tone, size, style, children."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Badge'] > JSXAttribute[name.name='tone'] > Literal[value!=/^(?:danger|error|neutral|warning|info|cyan|success|electric|orange|accent|dark)$/]",
+        "message": "<Badge> tone must be one of 'danger' | 'error' | 'neutral' | 'warning' | 'info' | 'cyan' | 'success' | 'electric' | 'orange' | 'accent' | 'dark'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Badge'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:sm|md)$/]",
+        "message": "<Badge> size must be one of 'sm' | 'md'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Banner'] > JSXAttribute > JSXIdentifier[name!=/^(?:tone|title|icon|action|style|children|key|ref|className|aria-label)$/]",
+        "message": "<Banner> doesn't accept that prop. Declared props: tone, title, icon, action, style, children."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Banner'] > JSXAttribute[name.name='tone'] > Literal[value!=/^(?:info|success|warning|danger|accent)$/]",
+        "message": "<Banner> tone must be one of 'info' | 'success' | 'warning' | 'danger' | 'accent'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='BarChart'] > JSXAttribute > JSXIdentifier[name!=/^(?:data|series|max|ticks|height|key|ref|className|aria-label)$/]",
+        "message": "<BarChart> doesn't accept that prop. Declared props: data, series, max, ticks, height."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Button'] > JSXAttribute > JSXIdentifier[name!=/^(?:variant|size|iconLeft|iconRight|fullWidth|disabled|loading|type|onClick|title|style|children|key|ref|className|aria-label)$/]",
+        "message": "<Button> doesn't accept that prop. Declared props: variant, size, iconLeft, iconRight, fullWidth, disabled, loading, type, onClick, title, style, children."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Button'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:primary|accent|secondary|ghost|link|danger)$/]",
+        "message": "<Button> variant must be one of 'primary' | 'accent' | 'secondary' | 'ghost' | 'link' | 'danger'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Button'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:sm|md|lg)$/]",
+        "message": "<Button> size must be one of 'sm' | 'md' | 'lg'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Button'] > JSXAttribute[name.name='type'] > Literal[value!=/^(?:button|submit)$/]",
+        "message": "<Button> type must be one of 'button' | 'submit'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Card'] > JSXAttribute > JSXIdentifier[name!=/^(?:title|icon|action|padding|onClick|selected|style|children|key|ref|className|aria-label)$/]",
+        "message": "<Card> doesn't accept that prop. Declared props: title, icon, action, padding, onClick, selected, style, children."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ChatBubble'] > JSXAttribute > JSXIdentifier[name!=/^(?:text|time|mine|key|ref|className|aria-label)$/]",
+        "message": "<ChatBubble> doesn't accept that prop. Declared props: text, time, mine."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Checkbox'] > JSXAttribute > JSXIdentifier[name!=/^(?:checked|defaultChecked|onChange|label|disabled|size|key|ref|className|aria-label)$/]",
+        "message": "<Checkbox> doesn't accept that prop. Declared props: checked, defaultChecked, onChange, label, disabled, size."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='DataTable'] > JSXAttribute > JSXIdentifier[name!=/^(?:columns|rows|rowKey|onRowClick|minWidth|dense|empty|key|ref|className|aria-label)$/]",
+        "message": "<DataTable> doesn't accept that prop. Declared props: columns, rows, rowKey, onRowClick, minWidth, dense, empty."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Field'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|required|info|helper|error|style|children|key|ref|className|aria-label)$/]",
+        "message": "<Field> doesn't accept that prop. Declared props: label, required, info, helper, error, style, children."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='FilterPill'] > JSXAttribute > JSXIdentifier[name!=/^(?:options|value|defaultValue|onChange|label|key|ref|className|aria-label)$/]",
+        "message": "<FilterPill> doesn't accept that prop. Declared props: options, value, defaultValue, onChange, label."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Header'] > JSXAttribute > JSXIdentifier[name!=/^(?:title|user|search|onMenu|compact|notifications|messages|actions|notificationsSlot|style|key|ref|className|aria-label)$/]",
+        "message": "<Header> doesn't accept that prop. Declared props: title, user, search, onMenu, compact, notifications, messages, actions, notificationsSlot, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Header'] > JSXAttribute[name.name='search'] > Literal[value!=/^(?:icon|field|none)$/]",
+        "message": "<Header> search must be one of 'icon' | 'field' | 'none'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Icon'] > JSXAttribute > JSXIdentifier[name!=/^(?:name|size|stroke|color|style|key|ref|className|aria-label)$/]",
+        "message": "<Icon> doesn't accept that prop. Declared props: name, size, stroke, color, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='IconButton'] > JSXAttribute > JSXIdentifier[name!=/^(?:icon|variant|size|iconSize|badge|label|round|disabled|onClick|style|key|ref|className|aria-label)$/]",
+        "message": "<IconButton> doesn't accept that prop. Declared props: icon, variant, size, iconSize, badge, label, round, disabled, onClick, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='IconButton'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:ghost|outline|dark|danger|inverse)$/]",
+        "message": "<IconButton> variant must be one of 'ghost' | 'outline' | 'dark' | 'danger' | 'inverse'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ListingCard'] > JSXAttribute > JSXIdentifier[name!=/^(?:images|title|status|attrs|featuresLabel|features|onMore|onClick|stacked|key|ref|className|aria-label)$/]",
+        "message": "<ListingCard> doesn't accept that prop. Declared props: images, title, status, attrs, featuresLabel, features, onMore, onClick, stacked."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='MessageItem'] > JSXAttribute > JSXIdentifier[name!=/^(?:name|preview|time|unread|active|avatar|online|onClick|key|ref|className|aria-label)$/]",
+        "message": "<MessageItem> doesn't accept that prop. Declared props: name, preview, time, unread, active, avatar, online, onClick."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='MiniCalendar'] > JSXAttribute > JSXIdentifier[name!=/^(?:year|month|marked|alert|today|onPrev|onNext|onSelect|key|ref|className|aria-label)$/]",
+        "message": "<MiniCalendar> doesn't accept that prop. Declared props: year, month, marked, alert, today, onPrev, onNext, onSelect."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='MobileTabBar'] > JSXAttribute > JSXIdentifier[name!=/^(?:items|activeId|onSelect|style|key|ref|className|aria-label)$/]",
+        "message": "<MobileTabBar> doesn't accept that prop. Declared props: items, activeId, onSelect, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Modal'] > JSXAttribute > JSXIdentifier[name!=/^(?:title|onClose|wide|footer|children|key|ref|className|aria-label)$/]",
+        "message": "<Modal> doesn't accept that prop. Declared props: title, onClose, wide, footer, children."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='MonthCalendar'] > JSXAttribute > JSXIdentifier[name!=/^(?:year|month|events|today|onPrev|onNext|onEventClick|compact|key|ref|className|aria-label)$/]",
+        "message": "<MonthCalendar> doesn't accept that prop. Declared props: year, month, events, today, onPrev, onNext, onEventClick, compact."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='OptionRow'] > JSXAttribute > JSXIdentifier[name!=/^(?:icon|label|checked|defaultChecked|onChange|key|ref|className|aria-label)$/]",
+        "message": "<OptionRow> doesn't accept that prop. Declared props: icon, label, checked, defaultChecked, onChange."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Photo'] > JSXAttribute > JSXIdentifier[name!=/^(?:src|alt|style|key|ref|className|aria-label)$/]",
+        "message": "<Photo> doesn't accept that prop. Declared props: src, alt, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='PieChart'] > JSXAttribute > JSXIdentifier[name!=/^(?:data|size|donut|key|ref|className|aria-label)$/]",
+        "message": "<PieChart> doesn't accept that prop. Declared props: data, size, donut."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ProductCard'] > JSXAttribute > JSXIdentifier[name!=/^(?:image|title|price|onEdit|editLabel|key|ref|className|aria-label)$/]",
+        "message": "<ProductCard> doesn't accept that prop. Declared props: image, title, price, onEdit, editLabel."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ProgressBar'] > JSXAttribute > JSXIdentifier[name!=/^(?:value|color|height|label|key|ref|className|aria-label)$/]",
+        "message": "<ProgressBar> doesn't accept that prop. Declared props: value, color, height, label."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SegmentedTabs'] > JSXAttribute > JSXIdentifier[name!=/^(?:tabs|value|defaultValue|onChange|variant|fullWidth|key|ref|className|aria-label)$/]",
+        "message": "<SegmentedTabs> doesn't accept that prop. Declared props: tabs, value, defaultValue, onChange, variant, fullWidth."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SegmentedTabs'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:dark|light)$/]",
+        "message": "<SegmentedTabs> variant must be one of 'dark' | 'light'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Sidebar'] > JSXAttribute > JSXIdentifier[name!=/^(?:items|footerItems|activeId|onSelect|collapsed|onToggle|onClose|logoSrc|brand|compactLabel|footer|height|style|key|ref|className|aria-label)$/]",
+        "message": "<Sidebar> doesn't accept that prop. Declared props: items, footerItems, activeId, onSelect, collapsed, onToggle, onClose, logoSrc, brand, compactLabel, footer, height, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='StatCard'] > JSXAttribute > JSXIdentifier[name!=/^(?:value|label|color|icon|style|key|ref|className|aria-label)$/]",
+        "message": "<StatCard> doesn't accept that prop. Declared props: value, label, color, icon, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Stepper'] > JSXAttribute > JSXIdentifier[name!=/^(?:steps|current|label|progressLabel|key|ref|className|aria-label)$/]",
+        "message": "<Stepper> doesn't accept that prop. Declared props: steps, current, label, progressLabel."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Tag'] > JSXAttribute > JSXIdentifier[name!=/^(?:tone|dot|count|active|onClick|style|children|key|ref|className|aria-label)$/]",
+        "message": "<Tag> doesn't accept that prop. Declared props: tone, dot, count, active, onClick, style, children."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Tag'] > JSXAttribute[name.name='tone'] > Literal[value!=/^(?:accent|neutral|success|danger|dark)$/]",
+        "message": "<Tag> tone must be one of 'accent' | 'neutral' | 'success' | 'danger' | 'dark'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='UploadBox'] > JSXAttribute > JSXIdentifier[name!=/^(?:title|hint|formats|height|onClick|onFiles|accept|multiple|busy|disabled|key|ref|className|aria-label)$/]",
+        "message": "<UploadBox> doesn't accept that prop. Declared props: title, hint, formats, height, onClick, onFiles, accept, multiple, busy, disabled."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "design-system/**"
+      ],
+      "rules": {
+        "ds/restricted-syntax": "off",
+        "no-restricted-imports": "off"
+      }
+    },
+    {
+      "files": [
+        "server/**",
+        "prisma/**",
+        "*.config.*",
+        "scripts/**"
+      ],
+      "rules": {
+        "ds/restricted-syntax": "off",
+        "react/forbid-elements": "off"
+      }
+    }
+  ]
+}

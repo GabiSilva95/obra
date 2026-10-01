@@ -25,7 +25,7 @@ export function avisar(opcoes) {
 }
 
 /** Atalhos por tipo — títulos padrão evitam repetição nas telas. */
-export const avisarSucesso = (mensagem, titulo = "Tudo certo!") =>
+export const avisarSucesso = (mensagem, titulo = "Tudo certo") =>
   avisar({ tipo: "sucesso", titulo, mensagem });
 
 export const avisarErro = (mensagem, titulo = "Não foi possível concluir") =>

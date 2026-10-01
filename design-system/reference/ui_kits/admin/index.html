@@ -1,0 +1,232 @@
+<!-- @dsCard group="ConstruktPro Admin" viewport="1440x900" name="Admin dashboard (desktop)" subtitle="Click-through: Início, Obras, Nova obra, Pedidos, Cronograma, Mensagens" -->
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ConstruktPro · Admin</title>
+<link rel="stylesheet" href="../../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{min-height:100vh}#root{min-height:100vh}</style></head><body><div id="root"></div>
+<script>window.DS = window.ConstruktProDesignSystem_8956f7;</script>
+<script type="text/babel" data-src="data.jsx">
+const USER = { name: 'Marina Costa', role: 'Admin' };
+const NAV = [
+  { id: 'home', label: 'Início', icon: 'layout-grid' },
+  { id: 'perfil', label: 'Meu perfil', icon: 'user' },
+  { id: 'obras', label: 'Obras', icon: 'building-2' },
+  { id: 'pedidos', label: 'Pedidos', icon: 'clipboard-list', badge: 4 },
+  { id: 'equipes', label: 'Equipes', icon: 'hard-hat' },
+  { id: 'cronograma', label: 'Cronograma', icon: 'calendar' },
+  { id: 'financeiro', label: 'Financeiro', icon: 'wallet' },
+  { id: 'mensagens', label: 'Mensagens', icon: 'message-circle', badge: 3 },
+];
+const NAV_FOOT = [
+  { id: 'idioma', label: 'Idioma', icon: 'globe', children: [{ id: 'pt', label: 'Português' }, { id: 'en', label: 'English' }, { id: 'es', label: 'Español' }] },
+  { id: 'config', label: 'Configurações', icon: 'settings' },
+  { id: 'sair', label: 'Sair', icon: 'log-out' },
+];
+const TABS = [{ id: 'home', label: 'Início', icon: 'layout-grid' }, { id: 'obras', label: 'Obras', icon: 'building-2' }, { id: 'pedidos', label: 'Pedidos', icon: 'clipboard-list' }, { id: 'cronograma', label: 'Agenda', icon: 'calendar' }, { id: 'menu', label: 'Menu', icon: 'menu' }];
+const OBRAS = [
+  { id: 1, title: 'Residencial Vila Nova — Bloco B', status: 'var(--cp-success-strong)', prazo: '14 meses', local: 'Curitiba | PR', area: '4.200 m²', etapas: [['shovel', 'Fundação'], ['hammer', 'Alvenaria'], ['zap', 'Elétrica']] },
+  { id: 2, title: 'Edifício Comercial Aurora', status: 'var(--cp-data-yellow)', prazo: '20 meses', local: 'Joinville | SC', area: '9.800 m²', etapas: [['construction', 'Estrutura'], ['droplets', 'Hidráulica'], ['layers', 'Laje']] },
+  { id: 3, title: 'Galpão Logístico Rota 101', status: 'var(--cp-error)', prazo: '8 meses', local: 'Itajaí | SC', area: '12.500 m²', etapas: [['shovel', 'Terraplenagem'], ['wrench', 'Estrutura metálica'], ['paintbrush', 'Acabamento']] },
+];
+const STATUS = { 'Novo pedido': 'danger', 'Em trânsito': 'neutral', 'Pendente': 'warning', 'Recebido': 'info', 'Pago 100%': 'success', 'Pago 25%': 'success', 'Falhou': 'error' };
+const PEDIDOS = [
+  { id: 'PC-2052', fornecedor: 'Votoran Materiais', contato: 'vendas@votoran.com.br', obra: 'Vila Nova · Bloco B', item: 'Cimento CP-II 50kg × 400', cat: 'Estrutural', data: '26 nov', valor: 'R$ 15.200', status: 'Pago 100%' },
+  { id: 'PC-2053', fornecedor: 'Aço Forte', contato: 'pedidos@acoforte.com', obra: 'Ed. Aurora', item: 'Vergalhão 10mm × 1.200', cat: 'Estrutural', data: '26 nov', valor: 'R$ 62.400', status: 'Pendente' },
+  { id: 'PC-2054', fornecedor: 'Cerâmica Sul', contato: 'comercial@ceramicasul.com', obra: 'Vila Nova · Bloco B', item: 'Bloco cerâmico × 18.000', cat: 'Alvenaria', data: '27 nov', valor: 'R$ 21.600', status: 'Em trânsito' },
+  { id: 'PC-2055', fornecedor: 'HidroMax', contato: 'contato@hidromax.com', obra: 'Galpão Rota 101', item: 'Tubo PVC 100mm × 300', cat: 'Hidráulica', data: '28 nov', valor: 'R$ 8.940', status: 'Novo pedido' },
+  { id: 'PC-2056', fornecedor: 'Elétrica Brasil', contato: 'vendas@eletbr.com', obra: 'Ed. Aurora', item: 'Cabo 6mm × 5.000 m', cat: 'Elétrica', data: '28 nov', valor: 'R$ 17.500', status: 'Recebido' },
+  { id: 'PC-2057', fornecedor: 'Areial Itajaí', contato: 'areial@itajai.com', obra: 'Galpão Rota 101', item: 'Areia média × 80 m³', cat: 'Agregados', data: '29 nov', valor: 'R$ 11.200', status: 'Falhou' },
+];
+const MSGS = [
+  { id: 1, name: 'Carlos Mendes', preview: 'Olá! Gostaria de confirmar a entrega do concreto…', time: 'Agora', unread: 3, online: true },
+  { id: 2, name: 'Ana Ribeiro', preview: 'Segue a medição do bloco B em anexo.', time: '14:36', unread: 1 },
+  { id: 3, name: 'João Pereira', preview: 'A equipe de elétrica chega às 8h.', time: 'Ontem' },
+  { id: 4, name: 'Fernanda Lima', preview: 'Podemos antecipar a vistoria?', time: 'Terça' },
+];
+Object.assign(window, { USER, NAV, NAV_FOOT, TABS, OBRAS, STATUS, PEDIDOS, MSGS });
+
+</script>
+<script type="text/babel" data-src="HomeScreen.jsx">
+function HomeScreen({ mobile, narrow, go }) {
+  const { StatCard, Card, AreaChart, BarChart, MiniCalendar, MessageItem, FilterPill, Button } = window.DS;
+  return <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: mobile || narrow ? 'repeat(2,minmax(0,1fr))' : 'repeat(4,minmax(0,1fr))', gap: mobile ? 12 : 24 }}>
+      <StatCard value="24" label="Obras ativas" color="var(--stat-1)" />
+      <StatCard value="103" label="Entregas na semana" color="var(--stat-2)" />
+      <StatCard value="86" label="Equipes em campo" color="var(--stat-3)" />
+      <StatCard value="R$ 342k" label="Receita do mês" color="var(--stat-4)" />
+    </div>
+    <div style={{ display: 'grid', gridTemplateColumns: mobile || narrow ? 'minmax(0,1fr)' : 'minmax(0,2fr) minmax(300px,1fr)', gap: 24, alignItems: 'start' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0 }}>
+        <Card title="Receita" action={<FilterPill options={['Últimos 6 meses', 'Último ano', 'Este mês']} />}>
+          <AreaChart height={mobile ? 160 : 220} data={[180, 240, 150, 420, 300, 240, 380, 460]} labels={mobile ? ['Abr', 'Jun', 'Ago', 'Nov'] : ['Abr 2025', 'Mai 2025', 'Jun 2025', 'Jul 2025', 'Ago 2025', 'Set 2025', 'Out 2025', 'Nov 2025']} max={500} highlight={3} format={v => 'R$' + v + 'k'} />
+        </Card>
+        <Card title="Medições" action={<FilterPill options={['Última semana', 'Último mês']} />}>
+          <BarChart height={180} max={250} series={[{ key: 'a', label: 'Previsto', color: 'var(--accent)' }, { key: 'b', label: 'Realizado', color: 'var(--cp-black)' }]}
+            data={[{ label: '29 out', a: 220, b: 120 }, { label: '30 out', a: 170, b: 60 }, { label: '31 out', a: 200, b: 110 }, { label: '1 nov', a: 150, b: 70 }, { label: '2 nov', a: 190, b: 90 }, { label: '3 nov', a: 140, b: 40 }, { label: '4 nov', a: 160, b: 70 }].slice(0, mobile ? 5 : 7)} />
+        </Card>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0 }}>
+        <Card><MiniCalendar year={2025} month={10} today={12} marked={[13, 16, 17, 19, 26]} alert={[20]} onSelect={() => go('cronograma')} /></Card>
+        <Card title="Mensagens recentes" action={<Button variant="link" size="sm" onClick={() => go('mensagens')}>Ver tudo</Button>} padding={16}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, margin: '-8px -4px 0' }}>{MSGS.map(m => <MessageItem key={m.id} {...m} onClick={() => go('mensagens')} />)}</div>
+        </Card>
+      </div>
+    </div>
+  </div>;
+}
+window.HomeScreen = HomeScreen;
+
+</script>
+<script type="text/babel" data-src="ObrasScreen.jsx">
+function ObrasScreen({ mobile, go }) {
+  const { ListingCard, Button, SegmentedTabs } = window.DS;
+  return <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+      <SegmentedTabs tabs={['Todas', 'Em andamento', 'Planejadas', 'Concluídas']} variant="light" />
+      <Button iconLeft="plus" onClick={() => go('nova')}>Nova obra</Button>
+    </div>
+    {OBRAS.map(o => <ListingCard key={o.id} stacked={mobile} title={o.title} status={o.status} onMore={() => {}}
+      attrs={[{ label: 'Prazo', value: o.prazo }, { label: 'Local', value: o.local }, { label: 'Área', value: o.area }]}
+      featuresLabel="Etapas" features={o.etapas.map(([icon, label]) => ({ icon, label }))} />)}
+  </div>;
+}
+function NovaObraScreen({ mobile, go }) {
+  const { Card, Stepper, OptionRow, Input, Select, Button, UploadBox } = window.DS;
+  const cats = [['shovel', 'Terraplenagem'], ['construction', 'Estrutura'], ['hammer', 'Alvenaria'], ['zap', 'Elétrica'], ['droplets', 'Hidráulica'], ['layers', 'Laje'], ['paintbrush', 'Acabamento'], ['wrench', 'Estrutura metálica'], ['shield-check', 'Segurança do trabalho']];
+  const incl = [['truck', 'Transporte'], ['hard-hat', 'Mão de obra'], ['package', 'Materiais'], ['ruler', 'Projeto executivo'], ['shield-check', 'Seguro'], ['file-text', 'Licenças']];
+  const grid = { display: 'grid', gridTemplateColumns: mobile ? '1fr' : 'repeat(3,minmax(0,1fr))', columnGap: 48 };
+  return <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <Card><Stepper steps={4} current={2} /><h2 style={{ margin: 0, fontSize: 24, fontWeight: 700 }}>Sobre esta obra</h2></Card>
+    <Card title="Etapas contratadas"><div style={grid}>{cats.map(([i, l], k) => <OptionRow key={l} icon={i} label={l} defaultChecked={k === 1 || k === 2} />)}</div></Card>
+    <Card title="Orçamento">
+      <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : '1fr 1fr', gap: 16 }}>
+        <Input label="Valor por m²" required prefix="R$" placeholder="0,00" defaultValue="4.250,00" />
+        <Select label="Tipo de obra" required placeholder="Selecione" options={['Residencial', 'Comercial', 'Industrial']} />
+      </div>
+      <h3 style={{ margin: '8px 0 0', font: 'var(--type-card-title)' }}>O que está incluído no valor?</h3>
+      <div style={grid}>{incl.map(([i, l], k) => <OptionRow key={l} icon={i} label={l} defaultChecked={k < 2} />)}</div>
+    </Card>
+    <Card title="Fotos do terreno"><UploadBox title="Enviar fotos" formats="JPG ou PNG, até 6 imagens de 5 MB" height={150} /></Card>
+    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, paddingBottom: 8 }}>
+      <Button variant="secondary" iconLeft="chevron-left" onClick={() => go('obras')}>Voltar</Button>
+      <Button iconRight="chevron-right" onClick={() => go('obras')}>Próxima etapa</Button>
+    </div>
+  </div>;
+}
+Object.assign(window, { ObrasScreen, NovaObraScreen });
+
+</script>
+<script type="text/babel" data-src="PedidosScreen.jsx">
+function PedidosScreen({ mobile }) {
+  const { DataTable, Badge, Tag, IconButton, SegmentedTabs, Button } = window.DS;
+  const [f, setF] = React.useState('Todos');
+  const rows = PEDIDOS.filter(p => f === 'Todos' || (f === 'Pendentes' ? ['Pendente', 'Novo pedido'].includes(p.status) : f === 'Pagos' ? p.status.startsWith('Pago') : p.status === 'Em trânsito'));
+  return <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+      <SegmentedTabs variant="light" value={f} onChange={setF} tabs={[{ value: 'Todos', label: 'Todos', count: PEDIDOS.length }, { value: 'Pendentes', label: 'Pendentes' }, { value: 'Em trânsito', label: 'Em trânsito' }, { value: 'Pagos', label: 'Pagos' }]} />
+      <div style={{ display: 'flex', gap: 8 }}><IconButton icon="sliders-horizontal" variant="outline" label="Filtros" /><Button iconLeft="plus">Novo pedido</Button></div>
+    </div>
+    {mobile ? <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>{rows.map(p => <div key={p.id} style={{ background: '#fff', borderRadius: 16, boxShadow: 'var(--shadow-card)', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ fontWeight: 700 }}>{p.id}</span><Badge size="sm" tone={STATUS[p.status]}>{p.status}</Badge></div>
+        <span style={{ fontSize: 15, fontWeight: 600 }}>{p.item}</span>
+        <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{p.fornecedor} · {p.obra}</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><Tag>{p.cat}</Tag><span style={{ fontWeight: 700 }}>{p.valor}</span></div>
+      </div>)}</div>
+    : <DataTable rows={rows} rowKey={r => r.id} minWidth={980} columns={[
+      { key: 'fornecedor', label: 'Fornecedor', render: r => <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontWeight: 600 }}>{r.fornecedor}</span><span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{r.contato}</span></div> },
+      { key: 'id', label: 'Pedido' }, { key: 'obra', label: 'Obra' }, { key: 'item', label: 'Item' },
+      { key: 'cat', label: 'Categoria', render: r => <Tag>{r.cat}</Tag> }, { key: 'data', label: 'Data' }, { key: 'valor', label: 'Valor', align: 'right' },
+      { key: 'status', label: 'Status', render: r => <Badge size="sm" tone={STATUS[r.status]}>{r.status}</Badge> },
+      { key: 'acoes', label: '', render: () => <div style={{ display: 'flex', gap: 4 }}><IconButton icon="pencil" size={28} label="Editar" /><IconButton icon="trash-2" variant="danger" size={28} label="Excluir" /></div> }]} />}
+  </div>;
+}
+window.PedidosScreen = PedidosScreen;
+
+</script>
+<script type="text/babel" data-src="CronogramaScreen.jsx">
+function CronogramaScreen({ mobile, narrow }) {
+  const { MonthCalendar, Card, Button, Textarea } = window.DS;
+  const [notes, setNotes] = React.useState([{ who: 'Carlos Mendes', txt: 'Concretagem do bloco B depende de liberação da vistoria. Confirmar com engenheiro responsável.' }, { who: 'Ana Ribeiro', txt: 'Entrega de vergalhões precisa de guindaste no portão 2.' }]);
+  const [adding, setAdding] = React.useState(false); const [draft, setDraft] = React.useState('');
+  const events = [{ start: 3, end: 5, title: 'Fundação · Rota 101', sub: 'Equipe 3', color: 'var(--cp-data-pink)' }, { start: 13, end: 16, title: 'Concretagem', sub: 'Vila Nova · Bloco B', color: 'var(--cp-data-purple)' }, { start: 19, end: 22, title: 'Entrega de aço', sub: 'Ed. Aurora', color: 'var(--cp-data-yellow)', textColor: 'var(--cp-black)' }, { start: 25, end: 27, title: 'Vistoria', sub: 'Prefeitura', color: 'var(--cp-data-turquoise)', textColor: 'var(--cp-black)' }];
+  return <div style={{ display: 'grid', gridTemplateColumns: mobile || narrow ? 'minmax(0,1fr)' : 'minmax(0,1fr) 300px', gap: 24, alignItems: 'start' }}>
+    <MonthCalendar year={2025} month={10} today={1} events={events} compact={mobile} />
+    <Card title="Anotações" padding={16}>
+      {notes.map((n, i) => <div key={i} style={{ background: 'var(--cp-gray-50)', borderRadius: 12, padding: 12, fontSize: 12, lineHeight: 1.5, display: 'flex', flexDirection: 'column', gap: 6 }}><b style={{ fontSize: 13 }}>{n.who}</b><span><b>Nota:</b> {n.txt}</span></div>)}
+      {adding && <Textarea placeholder="Escreva a anotação" rows={3} maxLength={300} value={draft} onChange={e => setDraft(e.target.value)} />}
+      <Button fullWidth size="sm" iconLeft={adding ? 'check' : 'plus'} onClick={() => { if (adding && draft.trim()) { setNotes([...notes, { who: USER.name, txt: draft }]); setDraft(''); } setAdding(!adding); }}>{adding ? 'Salvar anotação' : 'Nova anotação'}</Button>
+    </Card>
+  </div>;
+}
+window.CronogramaScreen = CronogramaScreen;
+
+</script>
+<script type="text/babel" data-src="MensagensScreen.jsx">
+function MensagensScreen({ mobile, narrow }) {
+  const { MessageItem, ChatBubble, Avatar, Icon, IconButton, SegmentedTabs } = window.DS;
+  const [sel, setSel] = React.useState(mobile ? null : 1);
+  const [thread, setThread] = React.useState([{ t: 'Bom dia! O concreto usinado chega amanhã às 7h?', m: false, time: 'Qui 11:40' }, { t: 'Bom dia, Carlos. Sim, confirmado com a usina — 3 caminhões.', m: true, time: 'Qui 11:45' }, { t: 'Perfeito. A bomba já está reservada?', m: false, time: 'Qui 11:46' }]);
+  const [draft, setDraft] = React.useState('');
+  const send = () => { if (!draft.trim()) return; setThread([...thread, { t: draft, m: true, time: 'Agora' }]); setDraft(''); };
+  const cur = MSGS.find(m => m.id === sel);
+  const list = <div style={{ background: '#fff', borderRadius: 16, boxShadow: 'var(--shadow-card)', padding: 12, display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 40, padding: '0 12px', background: 'var(--cp-gray-100)', borderRadius: 8, color: 'var(--text-secondary)' }}><Icon name="search" size={16} /><input placeholder="Buscar conversas" style={{ border: 0, outline: 0, background: 'transparent', font: 'inherit', fontSize: 13, flex: 1 }} /></div>
+    <SegmentedTabs variant="light" fullWidth tabs={[{ value: 'all', label: 'Todas', count: 4 }, { value: 'f', label: 'Fornecedores' }, { value: 'c', label: 'Clientes' }]} />
+    {MSGS.map(m => <MessageItem key={m.id} {...m} active={m.id === sel} onClick={() => setSel(m.id)} />)}
+  </div>;
+  const chat = cur && <div style={{ background: '#fff', borderRadius: 16, boxShadow: 'var(--shadow-card)', display: 'flex', flexDirection: 'column', minHeight: mobile ? 'calc(100vh - 220px)' : 560, minWidth: 0 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 16, borderBottom: '1px solid var(--border-subtle)' }}>
+      {mobile && <IconButton icon="arrow-left" label="Voltar" onClick={() => setSel(null)} />}
+      <Avatar name={cur.name} online={cur.online} /><div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}><b style={{ fontSize: 15 }}>{cur.name}</b><span style={{ fontSize: 11, color: 'var(--cp-success-strong)', fontWeight: 600 }}>{cur.online ? '● Online' : 'Visto por último ontem'}</span></div>
+      <IconButton icon="phone" label="Ligar" /><IconButton icon="ellipsis" label="Mais" />
+    </div>
+    <div style={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto' }}>{thread.map((b, i) => <ChatBubble key={i} text={b.t} mine={b.m} time={b.time} />)}</div>
+    <div style={{ display: 'flex', gap: 8, padding: 12, borderTop: '1px solid var(--border-subtle)' }}>
+      <input value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => e.key === 'Enter' && send()} placeholder="Escreva uma mensagem" style={{ flex: 1, height: 44, border: '1px solid var(--border-default)', borderRadius: 8, padding: '0 14px', font: 'inherit', fontSize: 14, outline: 0 }} />
+      <IconButton icon="send" variant="dark" size={44} label="Enviar" onClick={send} />
+    </div>
+  </div>;
+  if (mobile) return sel ? chat : list;
+  return <div style={{ display: 'grid', gridTemplateColumns: narrow ? '280px minmax(0,1fr)' : '340px minmax(0,1fr)', gap: 24, alignItems: 'start' }}>{list}{chat}</div>;
+}
+window.MensagensScreen = MensagensScreen;
+
+</script>
+<script type="text/babel" data-src="Shell.jsx">
+function useWidth() { const [w, setW] = React.useState(window.innerWidth); React.useEffect(() => { const h = () => setW(window.innerWidth); window.addEventListener('resize', h); return () => window.removeEventListener('resize', h); }, []); return w; }
+function useMobile() { const q = () => window.innerWidth < 900; const [m, setM] = React.useState(q()); React.useEffect(() => { const h = () => setM(q()); window.addEventListener('resize', h); return () => window.removeEventListener('resize', h); }, []); return m; }
+const TITLES = { home: 'Início', obras: 'Obras', nova: 'Nova obra', pedidos: 'Pedidos de material', cronograma: 'Cronograma', mensagens: 'Mensagens', perfil: 'Meu perfil', equipes: 'Equipes', financeiro: 'Financeiro', config: 'Configurações' };
+function Placeholder({ title }) { return <div style={{ background: '#fff', borderRadius: 16, padding: 48, textAlign: 'center', color: 'var(--text-secondary)', boxShadow: 'var(--shadow-card)' }}>A tela “{title}” não faz parte deste UI kit.</div>; }
+function App() {
+  const { Sidebar, Header, MobileTabBar } = window.DS;
+  const mobile = useMobile(); const narrow = useWidth() < 1200;
+  const init = new URLSearchParams(location.search).get('screen') || localStorage.getItem('cp-admin-screen') || 'home';
+  const [page, setPage] = React.useState(init); const [collapsed, setCollapsed] = React.useState(false); const [drawer, setDrawer] = React.useState(false);
+  const go = p => { if (p === 'menu') { setDrawer(true); return; } if (['pt', 'en', 'es', 'sair', 'idioma'].includes(p)) return; setPage(p); setDrawer(false); localStorage.setItem('cp-admin-screen', p); window.scrollTo(0, 0); };
+  const S = { home: HomeScreen, obras: ObrasScreen, nova: NovaObraScreen, pedidos: PedidosScreen, cronograma: CronogramaScreen, mensagens: MensagensScreen }[page];
+  const active = page === 'nova' ? 'obras' : page;
+  const body = S ? <S mobile={mobile} narrow={narrow} go={go} /> : <Placeholder title={TITLES[page] || page} />;
+  const logo = '../../../assets/logo-negativo.svg';
+  if (mobile) return <div style={{ minHeight: '100vh', paddingBottom: 'calc(var(--mobile-tabbar-height) + 16px)' }}>
+    <div style={{ position: 'sticky', top: 0, zIndex: 5, background: 'var(--bg-app)', padding: '0 16px' }}><Header title={TITLES[page] || ''} user={USER} compact search="none" messages={false} notifications={3} onMenu={() => setDrawer(true)} /></div>
+    <main style={{ padding: 16 }}>{body}</main>
+    <MobileTabBar items={TABS} activeId={TABS.some(t => t.id === active) ? active : 'menu'} onSelect={go} style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 6 }} />
+    {drawer && <div onClick={() => setDrawer(false)} style={{ position: 'fixed', inset: 0, zIndex: 10, background: 'var(--scrim)', backdropFilter: 'blur(4px)' }}>
+      <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', top: 8, bottom: 8, left: 8 }}><Sidebar logoSrc={logo} items={NAV} footerItems={NAV_FOOT} activeId={active} onSelect={go} onClose={() => setDrawer(false)} style={{ width: 'min(280px, calc(100vw - 48px))' }} /></div>
+    </div>}
+  </div>;
+  return <div style={{ display: 'flex', gap: 32, padding: 16, minHeight: '100vh', alignItems: 'flex-start' }}>
+    <div style={{ position: 'sticky', top: 16, height: 'calc(100vh - 32px)' }}><Sidebar logoSrc={logo} items={NAV} footerItems={NAV_FOOT} activeId={active} onSelect={go} collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} /></div>
+    <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 24, paddingRight: 16, paddingBottom: 32 }}>
+      <Header title={TITLES[page] || ''} user={USER} notifications={3} messages={3} />
+      {body}
+    </main>
+  </div>;
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+
+</script>
+</body></html>

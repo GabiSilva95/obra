@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { C, F } from "../constants/tokens";
 import { today, fmt, validate } from "../utils/helpers";
-import { Icon, Card, Modal, Inp, Sel, Txta, Btn, Hdr, DSel } from "../components/ui";
 import { avisarErro, confirmar } from "../utils/aviso";
+import { Banner, Button, DataTable, Icon, IconButton, Input, Modal, Select, StatCard, Tag, Textarea } from "../../design-system";
+import { PageActions } from "../components/PageActions";
 
 export default function Alocacao({ data, setData, api, canWrite }) {
   const { obras, maquinas, insumos, alocacoes, etapasObra = [], tiposEtapa = [] } = data;
@@ -11,6 +11,7 @@ export default function Alocacao({ data, setData, api, canWrite }) {
   const [form, setForm]     = useState({ tipo: "maquina" });
   const etapasDaObra = etapasObra.filter(e => e.obraId === obraId);
   const [erros, setErros]   = useState({});
+  const [salvando, setSalvando] = useState(false);
 
   const itens = alocacoes.filter(a => a.obraId === obraId).sort((a, b) => b.data.localeCompare(a.data));
 
@@ -38,6 +39,8 @@ export default function Alocacao({ data, setData, api, canWrite }) {
       data:         { required: true, label: "Data" },
     });
     if (!ok) { setErros(e); return; }
+    if (salvando) return;
+    setSalvando(true);
     try {
       const nova = await api.post("/alocacao", {
         obraId,
@@ -57,6 +60,7 @@ export default function Alocacao({ data, setData, api, canWrite }) {
       }));
       setErros({}); setModal(false); setForm({ tipo: "maquina" });
     } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
+    finally { setSalvando(false); }
   };
 
   const del = async id => {
@@ -76,140 +80,72 @@ export default function Alocacao({ data, setData, api, canWrite }) {
     ? maqSelecionada.custoHora * parseFloat(form.quantidade)
     : null;
 
+  const fechar = () => { setModal(false); setErros({}); };
+  const linhas = itens.map(a => {
+    const iM = a.tipo === "maquina";
+    const ref = iM ? maquinas.find(m => m.id === a.referenciaId) : insumos.find(i => i.id === a.referenciaId);
+    return { ...a, iM, ref, custo: custoAlocacao(a), taxa: iM ? (a.custoUnitario ?? ref?.custoHora ?? 0) : (ref?.custoUnit ?? 0), snapshot: iM && a.custoUnitario != null };
+  });
+
   return (
-    <div>
-      <Hdr
-        title="Alocação de Máquinas"
-        sub="Horas de equipamento por obra — material é lançado em Estoque › Baixa"
-        action={
-          <div style={{ display: "flex", gap: 9, alignItems: "center" }}>
-            <DSel value={obraId} onChange={e => setObraId(parseInt(e.target.value))}>
-              {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
-            </DSel>
-            {canWrite && <Btn onClick={() => { setForm({ tipo: "maquina" }); setModal(true); }}><Icon n="plus" size={13} />Nova Alocação</Btn>}
-          </div>
-        }
-      />
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)" }}>
+      <PageActions>
+        <Select aria-label="Obra" style={{ height: "var(--control-h-sm)", minWidth: "var(--control-w-md)" }} value={obraId ?? ""} onChange={e => setObraId(parseInt(e.target.value))}>
+          {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
+        </Select>
+        {canWrite && <Button iconLeft="plus" onClick={() => { setForm({ tipo: "maquina" }); setModal(true); }}>Nova alocação</Button>}
+      </PageActions>
+      <p style={{ color: "var(--text-secondary)" }}>Horas de equipamento por obra. Material é lançado em Estoque › Baixa.</p>
 
-      {/* Totais */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 18 }}>
-        <Card style={{ background: "rgba(96,165,250,.04)", borderColor: "rgba(96,165,250,.12)", padding: 16 }}>
-          <div style={{ fontSize: 11, color: C.blue, marginBottom: 6, display: "flex", alignItems: "center", gap: 5 }}>
-            <Icon n="excavator" size={13} color={C.blue} />Custo de Máquinas
-          </div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: C.blue, ...F, letterSpacing: "-0.04em" }}>{fmt(tMaq)}</div>
-        </Card>
-        <Card style={{ background: C.orangeDim, borderColor: "rgba(249,115,22,.18)", padding: 16 }}>
-          <div style={{ fontSize: 11, color: C.orange, marginBottom: 6, display: "flex", alignItems: "center", gap: 5 }}>
-            <Icon n="cube" size={13} color={C.orange} />Insumos (lançamentos antigos)
-          </div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: C.orange, ...F, letterSpacing: "-0.04em" }}>{fmt(tIns)}</div>
-          <div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>
-            Histórico anterior à unificação — o custo de material vem da baixa de estoque.
-          </div>
-        </Card>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(var(--col-min-md),1fr))", gap: "var(--space-6)" }}>
+        <StatCard value={fmt(tMaq)} label="Custo de máquinas" color="var(--stat-1)" icon={<Icon name="construction" color="var(--stat-1)" />} />
+        <StatCard value={fmt(tIns)} label="Insumos (lançamentos antigos)" color="var(--stat-4)" icon={<Icon name="box" color="var(--stat-4)" />} />
       </div>
+      {tIns > 0 && <Banner tone="info">Insumos exibidos como histórico anterior à unificação. O custo de material vem da baixa de estoque.</Banner>}
 
-      {/* Lista de alocações */}
-      <Card style={{ padding: 0, overflow: "hidden" }}>
-        <div style={{ padding: "11px 14px", borderBottom: `1px solid ${C.borderLight}`, fontSize: 10, fontWeight: 700, color: C.dim, textTransform: "uppercase", letterSpacing: "0.08em", ...F }}>
-          Alocações — {obras.find(o => o.id === obraId)?.nome}
-        </div>
-        {!itens.length && <div style={{ padding: "48px", textAlign: "center", color: C.dim, fontSize: 12 }}>Nenhuma alocação para esta obra.</div>}
-        {itens.map(a => {
-          const iM  = a.tipo === "maquina";
-          const ref = iM ? maquinas.find(m => m.id === a.referenciaId) : insumos.find(i => i.id === a.referenciaId);
-          const custo = custoAlocacao(a);
-          // Taxa unitária exibida: snapshot salvo ou valor atual
-          const taxaDisplay = iM
-            ? (a.custoUnitario ?? ref?.custoHora ?? 0)
-            : (ref?.custoUnit ?? 0);
-          const isSnapshot = iM && a.custoUnitario != null;
+      <DataTable minWidth={760} rows={linhas} rowKey={r => r.id} empty="Nenhuma alocação para esta obra." columns={[
+        { key: "ref", label: "Recurso", render: r => (
+          <span style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+            <Icon name={r.iM ? "construction" : "box"} size={20} />
+            <span style={{ display: "flex", flexDirection: "column" }}>
+              <b>{r.ref?.nome || "—"}</b>
+              {r.obs && <span style={{ fontSize: "var(--fs-p6)", color: "var(--text-secondary)" }}>{r.obs}</span>}
+            </span>
+          </span>
+        ) },
+        { key: "tipo", label: "Tipo", render: r => <Tag tone={r.iM ? "neutral" : "accent"}>{r.iM ? "Máquina" : "Insumo"}</Tag> },
+        { key: "quantidade", label: "Quantidade", render: r => r.iM ? `${r.quantidade} h` : `${r.quantidade} ${r.ref?.unidade || ""}` },
+        { key: "data", label: "Data" },
+        { key: "taxa", label: "Valor unitário", align: "right", render: r => (
+          <span title={r.snapshot ? "Custo registrado no momento da alocação" : undefined}>{fmt(r.taxa)}{r.iM ? "/h" : "/un"}{r.snapshot && " •"}</span>
+        ) },
+        { key: "custo", label: "Custo", align: "right", render: r => <b>{fmt(r.custo)}</b> },
+        ...(canWrite ? [{ key: "acoes", label: "", width: "var(--space-14)", render: r => <IconButton icon="trash-2" variant="danger" size={28} label="Excluir" onClick={() => del(r.id)} /> }] : []),
+      ]} />
 
-          return (
-            <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 13, padding: "13px 14px", borderBottom: `1px solid ${C.borderLight}` }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: iM ? "rgba(96,165,250,.08)" : C.orangeDim, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <Icon n={iM ? "excavator" : "cube"} size={15} color={iM ? C.blue : C.orange} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600, fontSize: 12, color: C.text, ...F, letterSpacing: "-0.01em" }}>{ref?.nome || "—"}</div>
-                <div style={{ fontSize: 11, color: C.muted, display: "flex", gap: 10, marginTop: 2, flexWrap: "wrap" }}>
-                  <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                    <Icon n="clock" size={10} color={C.dim} />
-                    {iM ? `${a.quantidade}h` : `${a.quantidade} ${ref?.unidade || ""}`}
-                  </span>
-                  <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                    <Icon n="cal" size={10} color={C.dim} />{a.data}
-                  </span>
-                  {a.obs && <span style={{ display: "flex", alignItems: "center", gap: 3 }}><Icon n="file" size={10} color={C.dim} />{a.obs}</span>}
-                </div>
-              </div>
-              <div style={{ textAlign: "right", flexShrink: 0 }}>
-                <div style={{ fontWeight: 800, fontSize: 13, color: C.text, ...F }}>{fmt(custo)}</div>
-                <div style={{ fontSize: 10, color: C.dim, display: "flex", alignItems: "center", gap: 3, justifyContent: "flex-end" }}>
-                  {iM ? `${fmt(taxaDisplay)}/h` : `${fmt(taxaDisplay)}/un`}
-                  {isSnapshot && (
-                    <span title="Custo registrado no momento da alocação" style={{ color: C.orange, marginLeft: 3 }}>●</span>
-                  )}
-                </div>
-              </div>
-              {canWrite && (
-                <button onClick={() => del(a.id)} style={{ background: "none", border: "none", cursor: "pointer", color: C.dim, display: "flex", padding: 3, flexShrink: 0 }}>
-                  <Icon n="trash" size={13} color={C.dim} />
-                </button>
-              )}
-            </div>
-          );
-        })}
-      </Card>
-
-      {/* ── Modal Nova Alocação ──────────────────────────────────────────────── */}
       {modal && (
-        <Modal title="Nova Alocação" onClose={() => { setModal(false); setErros({}); }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <Sel
-              label="Máquina"
-              error={erros.referenciaId}
-              value={form.referenciaId || ""}
-              onChange={e => setForm(f => ({ ...f, referenciaId: e.target.value }))}>
-              <option value="">Selecione...</option>
+        <Modal title="Nova alocação" onClose={fechar}
+          footer={<><Button variant="secondary" onClick={fechar}>Cancelar</Button><Button iconLeft="check" loading={salvando} onClick={save}>Lançar</Button></>}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+            <Select label="Máquina" required error={erros.referenciaId} value={form.referenciaId || ""} onChange={e => setForm(f => ({ ...f, referenciaId: e.target.value }))}>
+              <option value="">Selecione…</option>
               {maquinas.map(m => (
                 <option key={m.id} value={m.id}>
-                  {m.nome} — {fmt(m.custoHora)}/h
-                  {m.tipoPropriedade === "propria" ? " (própria)" : m.tipoPropriedade === "alugada" ? " (alugada)" : ""}
+                  {m.nome} · {fmt(m.custoHora)}/h{m.tipoPropriedade === "propria" ? " (própria)" : m.tipoPropriedade === "alugada" ? " (alugada)" : ""}
                 </option>
               ))}
-            </Sel>
-
-            <Sel label="Etapa (opcional)" value={form.etapaId || ""} onChange={e => setForm(f => ({ ...f, etapaId: e.target.value }))}>
+            </Select>
+            <Select label="Etapa (opcional)" value={form.etapaId || ""} onChange={e => setForm(f => ({ ...f, etapaId: e.target.value }))}>
               <option value="">Sem etapa</option>
               {etapasDaObra.map(et => {
                 const tp = tiposEtapa.find(t => t.id === et.tipoEtapaId);
                 return <option key={et.id} value={et.id}>{tp?.nome || `Etapa ${et.id}`}</option>;
               })}
-            </Sel>
-
-            <Inp
-              label="Horas Utilizadas"
-              type="number"
-              error={erros.quantidade}
-              value={form.quantidade || ""}
-              onChange={e => setForm(f => ({ ...f, quantidade: e.target.value }))} />
-
-            {/* Preview de custo para máquinas */}
-            {custoPreviewMaq != null && (
-              <div style={{ background: "rgba(96,165,250,.06)", border: "1px solid rgba(96,165,250,.15)", borderRadius: 10, padding: "9px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 11, color: C.blue }}>Custo estimado</span>
-                <span style={{ fontSize: 14, fontWeight: 800, color: C.blue, ...F }}>{fmt(custoPreviewMaq)}</span>
-              </div>
-            )}
-
-            <Inp label="Data" type="date" error={erros.data} value={form.data || today()} onChange={e => setForm(f => ({ ...f, data: e.target.value }))} />
-            <Txta label="Observações" rows={2} value={form.obs || ""} onChange={e => setForm(f => ({ ...f, obs: e.target.value }))} />
-            <div style={{ display: "flex", gap: 9, justifyContent: "flex-end" }}>
-              <Btn v="secondary" onClick={() => { setModal(false); setErros({}); }}>Cancelar</Btn>
-              <Btn onClick={save}><Icon n="check" size={13} />Lançar</Btn>
-            </div>
+            </Select>
+            <Input label="Horas utilizadas" required type="number" min="0" step="0.5" error={erros.quantidade} value={form.quantidade || ""} onChange={e => setForm(f => ({ ...f, quantidade: e.target.value }))} />
+            {custoPreviewMaq != null && <Banner tone="info" title="Custo estimado">{fmt(custoPreviewMaq)}</Banner>}
+            <Input label="Data" required type="date" error={erros.data} value={form.data || today()} onChange={e => setForm(f => ({ ...f, data: e.target.value }))} />
+            <Textarea label="Observações" rows={2} maxLength={300} value={form.obs || ""} onChange={e => setForm(f => ({ ...f, obs: e.target.value }))} />
           </div>
         </Modal>
       )}

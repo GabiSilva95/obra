@@ -1,7 +1,6 @@
-import { useState, useEffect, useRef } from "react";
-import { C, F } from "../constants/tokens";
-import { Icon, Card, Modal, Btn } from "./ui";
+import { useState, useEffect } from "react";
 import { confirmar } from "../utils/aviso";
+import { Banner, Button, Icon, IconButton, Modal, UploadBox } from "../../design-system";
 
 const LIMITE_MB = 3;
 const LIMITE_BYTES = LIMITE_MB * 1024 * 1024;
@@ -17,12 +16,12 @@ const GRUPOS = {
 const ACEITOS = Object.values(GRUPOS).flat();
 
 const ESTILO_GRUPO = {
-  documento:  { icone: "file",      cor: "#f87171", rotulo: "Documento" },
-  planilha:   { icone: "barchart",  cor: "#4ade80", rotulo: "Planilha"  },
-  imagem:     { icone: "pin",       cor: "#60a5fa", rotulo: "Imagem"    },
-  projeto:    { icone: "building",  cor: "#f97316", rotulo: "Projeto"   },
-  compactado: { icone: "cube",      cor: "#a78bfa", rotulo: "Compactado"},
-  outro:      { icone: "file",      cor: "#7a7a7a", rotulo: "Arquivo"   },
+  documento:  { icone: "file-text",    cor: "var(--cp-data-pink)",   rotulo: "Documento" },
+  planilha:   { icone: "chart-column", cor: "var(--cp-data-green)",  rotulo: "Planilha"  },
+  imagem:     { icone: "image",        cor: "var(--cp-data-blue)",   rotulo: "Imagem"    },
+  projeto:    { icone: "ruler",        cor: "var(--accent)",         rotulo: "Projeto"   },
+  compactado: { icone: "box",          cor: "var(--cp-data-purple)", rotulo: "Compactado"},
+  outro:      { icone: "file-text",    cor: "var(--text-secondary)", rotulo: "Arquivo"   },
 };
 
 const extDe = nome => {
@@ -56,8 +55,6 @@ export default function AnexosObra({ obra, api, canWrite, onClose }) {
   const [carregando, setCarregando] = useState(true);
   const [enviando, setEnviando]     = useState(null); // nome do arquivo em envio
   const [erro, setErro]             = useState("");
-  const [arrastando, setArrastando] = useState(false);
-  const inputRef = useRef(null);
 
   useEffect(() => {
     let ativo = true;
@@ -76,7 +73,7 @@ export default function AnexosObra({ obra, api, canWrite, onClose }) {
         continue;
       }
       if (file.size > LIMITE_BYTES) {
-        setErro(`"${file.name}" tem ${formatarTamanho(file.size)} — o limite é ${LIMITE_MB} MB.`);
+        setErro(`"${file.name}" tem ${formatarTamanho(file.size)}. O limite é ${LIMITE_MB} MB.`);
         continue;
       }
       setEnviando(file.name);
@@ -94,7 +91,6 @@ export default function AnexosObra({ obra, api, canWrite, onClose }) {
         setEnviando(null);
       }
     }
-    if (inputRef.current) inputRef.current.value = "";
   };
 
   const baixar = async (anexo) => {
@@ -126,104 +122,51 @@ export default function AnexosObra({ obra, api, canWrite, onClose }) {
   const totalBytes = anexos.reduce((s, a) => s + a.tamanho, 0);
 
   return (
-    <Modal title={`Anexos — ${obra.nome}`} onClose={onClose} wide>
-      {canWrite && (
-        <div
-          onDragOver={e => { e.preventDefault(); setArrastando(true); }}
-          onDragLeave={() => setArrastando(false)}
-          onDrop={e => {
-            e.preventDefault(); setArrastando(false);
-            enviarArquivos([...e.dataTransfer.files]);
-          }}
-          onClick={() => inputRef.current?.click()}
-          style={{
-            border: `1.5px dashed ${arrastando ? C.orange : C.border}`,
-            background: arrastando ? C.orangeDim : "rgba(255,255,255,.02)",
-            borderRadius: 12, padding: "22px 16px", textAlign: "center",
-            cursor: enviando ? "wait" : "pointer", transition: "all .15s", marginBottom: 14,
-          }}
-        >
-          <input
-            ref={inputRef}
-            type="file"
-            multiple
-            accept={ACEITOS.join(",")}
-            onChange={e => enviarArquivos([...e.target.files])}
-            style={{ display: "none" }}
-          />
-          <Icon n="upload" size={20} color={arrastando ? C.orange : C.dim} />
-          <div style={{ fontSize: 12.5, fontWeight: 600, color: C.text, marginTop: 8, ...F }}>
-            {enviando ? `Enviando ${enviando}...` : "Arraste arquivos ou clique para escolher"}
-          </div>
-          <div style={{ fontSize: 10.5, color: C.dim, marginTop: 4 }}>
-            PDF, planilhas, imagens e arquivos de projeto (DWG, RVT, SKP, IFC) — até {LIMITE_MB} MB cada
-          </div>
-        </div>
-      )}
+    <Modal title={`Anexos · ${obra.nome}`} onClose={onClose} wide footer={<Button variant="secondary" onClick={onClose}>Fechar</Button>}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+        {canWrite && (
+          <UploadBox height={150} multiple accept={ACEITOS.join(",")} busy={!!enviando} onFiles={enviarArquivos}
+            title={enviando ? `Enviando ${enviando}…` : "Enviar arquivos"}
+            hint="Arraste arquivos ou clique para escolher."
+            formats={`PDF, planilhas, imagens e projetos (DWG, RVT, SKP, IFC) · até ${LIMITE_MB} MB cada`} />
+        )}
 
-      {erro && (
-        <div style={{ background: "rgba(239,68,68,.08)", border: "1px solid rgba(239,68,68,.25)", borderRadius: 9, padding: "9px 13px", fontSize: 11.5, color: C.red, marginBottom: 12 }}>
-          {erro}
-        </div>
-      )}
+        {erro && <Banner tone="danger">{erro}</Banner>}
 
-      {carregando ? (
-        <div style={{ padding: "34px", textAlign: "center", color: C.dim, fontSize: 12 }}>Carregando anexos...</div>
-      ) : anexos.length === 0 ? (
-        <Card style={{ padding: "34px", textAlign: "center", color: C.dim }}>
-          <Icon n="file" size={26} color={C.border} />
-          <div style={{ fontSize: 12.5, marginTop: 10 }}>Nenhum arquivo anexado a esta obra.</div>
-        </Card>
-      ) : (
-        <>
-          <div style={{ fontSize: 10.5, color: C.dim, marginBottom: 8, ...F, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>
-            {anexos.length} arquivo{anexos.length > 1 ? "s" : ""} · {formatarTamanho(totalBytes)}
+        {carregando ? (
+          <div style={{ padding: "var(--space-8)", textAlign: "center", color: "var(--text-secondary)" }}>Carregando anexos…</div>
+        ) : anexos.length === 0 ? (
+          <div style={{ padding: "var(--space-8)", textAlign: "center", color: "var(--text-secondary)", display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--space-2)" }}>
+            <Icon name="file-text" size={28} />
+            Nenhum arquivo anexado a esta obra.
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 7, maxHeight: 380, overflowY: "auto" }}>
-            {anexos.map(a => {
-              const g = ESTILO_GRUPO[grupoDe(a.nome)];
-              return (
-                <div key={a.id} style={{
-                  display: "flex", alignItems: "center", gap: 11, padding: "10px 13px",
-                  background: "rgba(255,255,255,.025)", border: `1px solid ${C.borderLight}`, borderRadius: 10,
-                }}>
-                  <div style={{
-                    width: 34, height: 34, borderRadius: 9, flexShrink: 0,
-                    background: `${g.cor}18`, border: `1px solid ${g.cor}33`,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>
-                    <Icon n={g.icone} size={15} color={g.cor} />
-                  </div>
-
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: C.text, ...F, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {a.nome}
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+            <span style={{ font: "var(--type-label)", color: "var(--text-secondary)" }}>
+              {anexos.length} arquivo{anexos.length > 1 ? "s" : ""} · {formatarTamanho(totalBytes)}
+            </span>
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", maxHeight: "var(--scroll-h-md)", overflowY: "auto" }}>
+              {anexos.map(a => {
+                const g = ESTILO_GRUPO[grupoDe(a.nome)];
+                return (
+                  <div key={a.id} style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", padding: "var(--space-2) var(--space-3)", background: "var(--surface-sunken)", borderRadius: "var(--radius-md)" }}>
+                    <span style={{ width: "var(--space-9)", height: "var(--space-9)", borderRadius: "var(--radius-md)", flexShrink: 0, background: `color-mix(in srgb, ${g.cor} 14%, transparent)`, color: g.cor, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Icon name={g.icone} size={18} />
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: "var(--fw-semibold)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.nome}</div>
+                      <div style={{ fontSize: "var(--fs-caption)", color: "var(--text-secondary)" }}>
+                        {g.rotulo} · {formatarTamanho(a.tamanho)} · {new Date(a.createdAt).toLocaleDateString("pt-BR")}
+                      </div>
                     </div>
-                    <div style={{ fontSize: 10.5, color: C.dim, marginTop: 2 }}>
-                      {g.rotulo} · {formatarTamanho(a.tamanho)} · {new Date(a.createdAt).toLocaleDateString("pt-BR")}
-                    </div>
+                    <IconButton icon="download" label="Baixar" onClick={() => baixar(a)} />
+                    {canWrite && <IconButton icon="trash-2" label="Remover" onClick={() => remover(a)} />}
                   </div>
-
-                  <button onClick={() => baixar(a)} title="Baixar" style={{ background: "none", border: "none", cursor: "pointer", padding: 5, flexShrink: 0, lineHeight: 0 }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
-                    </svg>
-                  </button>
-
-                  {canWrite && (
-                    <button onClick={() => remover(a)} title="Remover" style={{ background: "none", border: "none", cursor: "pointer", padding: 5, flexShrink: 0 }}>
-                      <Icon n="trash" size={13} color={C.dim} />
-                    </button>
-                  )}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </>
-      )}
-
-      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
-        <Btn v="secondary" onClick={onClose}>Fechar</Btn>
+        )}
       </div>
     </Modal>
   );

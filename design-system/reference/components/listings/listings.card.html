@@ -1,0 +1,14 @@
+<!-- @dsCard group="Components" viewport="700x520" name="Listings" subtitle="ListingCard, ProductCard" -->
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{background:var(--bg-app);padding:20px}.lbl{font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.06em}.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}.col{display:flex;flex-direction:column;gap:12px}</style></head><body><div id="root"></div>
+<script type="text/babel">
+const { ListingCard, ProductCard } = window.ConstruktProDesignSystem_8956f7;
+function Demo(){ return <div className="col">
+<ListingCard title="Residencial Vila Nova — Bloco B" status="var(--cp-success-strong)" onMore={()=>{}} attrs={[{label:'Prazo',value:'14 meses'},{label:'Local',value:'Curitiba | PR'},{label:'Área',value:'4.200 m²'}]} featuresLabel="Etapas" features={[{icon:'shovel',label:'Fundação'},{icon:'hammer',label:'Alvenaria'},{icon:'zap',label:'Elétrica'}]} />
+<div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12}}>{[['Cimento CP-II 50kg','R$ 38'],['Vergalhão 10mm','R$ 52'],['Bloco cerâmico','R$ 1,20'],['Areia média m³','R$ 140']].map(p=><ProductCard key={p[0]} title={p[0]} price={p[1]} onEdit={()=>{}} />)}</div></div>; }
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script></body></html>

@@ -68,7 +68,7 @@ export default function Notificacoes({ data }) {
   const count = notifs.length;
 
   return (
-    <div style={{ position: "relative" }}>
+    <div data-tour="notificacoes" style={{ position: "relative" }}>
       <IconButton icon="bell" label="Notificações" badge={count > 9 ? "9+" : count || undefined} onClick={() => setOpen(v => !v)} />
       {open && (
         <>

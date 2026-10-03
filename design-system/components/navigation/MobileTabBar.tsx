@@ -11,8 +11,8 @@ export function MobileTabBar({ items = [], activeId, onSelect, style }: MobileTa
       {items.map(it => {
         const on = it.id === activeId;
         return (
-          <button key={it.id} type="button" onClick={() => onSelect?.(it.id)} aria-label={it.label} aria-current={on ? 'page' : undefined}
-            style={{ flex: 1, minWidth: 'var(--space-11)', border: 0, background: 'transparent', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-0-5)', cursor: 'pointer', color: on ? 'var(--accent)' : 'var(--text-on-sidebar-muted)', font: 'inherit', fontSize: 'var(--fs-micro)', fontWeight: on ? 700 : 500 }}>
+          <button key={it.id} type="button" data-nav-id={it.id} onClick={() => onSelect?.(it.id)} aria-label={it.label} aria-current={on ? 'page' : undefined}
+            style={{ flex: 1, minWidth: 'var(--space-11)', border: 0, background: 'transparent', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-0-5)', cursor: 'pointer', color: on ? 'var(--accent)' : 'var(--text-on-sidebar-muted)', font: 'inherit', fontSize: 'var(--fs-micro)', fontWeight: on ? 'var(--fw-bold)' : 'var(--fw-medium)' }}>
             <span style={{ width: 'var(--space-11)', height: 'var(--space-7)', borderRadius: 'var(--radius-pill)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: on ? 'var(--accent)' : 'transparent', color: on ? 'var(--text-on-accent)' : 'inherit', boxShadow: on ? 'var(--shadow-nav-glow)' : 'none' }}>
               <Icon name={it.icon} size={20} />
             </span>

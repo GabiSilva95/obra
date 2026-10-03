@@ -2,7 +2,7 @@ import { useState, type CSSProperties, type ReactNode } from 'react';
 import {
   AlertDialog, AreaChart, Avatar, Badge, Banner, BarChart, Button, Card, ChatBubble, Checkbox, DataTable, FilterPill, Header, ICON_NAMES, Icon, IconButton,
   Input, ListingCard, MessageItem, MiniCalendar, MobileTabBar, Modal, MoneyInput, MonthCalendar, OptionRow, PieChart, ProductCard, ProgressBar, SegmentedTabs, Select,
-  Sidebar, StatCard, Stepper, Tag, Textarea, UploadBox, type BadgeTone, type ButtonVariant, type NavItemDef,
+  Sidebar, StatCard, Stepper, Tag, Textarea, Tour, UploadBox, type BadgeTone, type ButtonVariant, type NavItemDef,
 } from '../index';
 import { AdminShell } from '../templates';
 import logoNeg from '../assets/logo-negativo.svg';
@@ -61,6 +61,7 @@ function Library({ theme }: { theme: Theme }) {
   const [money, setMoney] = useState<number | ''>(4250);
   const [modal, setModal] = useState(false);
   const [alert, setAlert] = useState<null | 'notice' | 'confirm'>(null);
+  const [tour, setTour] = useState(false);
   return (
     <div data-theme={theme} style={{ background: 'var(--bg-app)', color: 'var(--text-primary)', padding: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-12)', minWidth: 0, borderRadius: 'var(--radius-lg)' }}>
       <Section id={`${theme}-foundations`} title="Fundamentos" note="Tokens semânticos do tema atual. A fonte da verdade é o DESIGN.md na raiz.">
@@ -171,7 +172,7 @@ function Library({ theme }: { theme: Theme }) {
         </div>
       </Section>
 
-      <Section id={`${theme}-feedback`} title="Feedback e sobreposições" note="Banner inline, Modal (bottom sheet abaixo de 640px) e AlertDialog para avisos/confirmações.">
+      <Section id={`${theme}-feedback`} title="Feedback e sobreposições" note="Banner inline, Modal (bottom sheet abaixo de 640px), AlertDialog para avisos/confirmações e Tour guiado.">
         <div style={col}>
           <Banner tone="info" title="Informação">Etapas são criadas automaticamente ao escolher um tipo de obra.</Banner>
           <Banner tone="success">Ordem marcada como entregue. 3 lotes deram entrada no estoque.</Banner>
@@ -187,6 +188,7 @@ function Library({ theme }: { theme: Theme }) {
           <Button variant="secondary" onClick={() => setModal(true)}>Abrir Modal</Button>
           <Button variant="secondary" onClick={() => setAlert('notice')}>Aviso (AlertDialog)</Button>
           <Button variant="danger" onClick={() => setAlert('confirm')}>Confirmação perigosa</Button>
+          <span data-tour-demo={theme}><Button variant="accent" iconLeft="circle-play" onClick={() => setTour(true)}>Iniciar tour</Button></span>
         </div>
         {modal && (
           <Modal title="Nova ordem de compra" onClose={() => setModal(false)}
@@ -195,6 +197,13 @@ function Library({ theme }: { theme: Theme }) {
           </Modal>
         )}
         {alert === 'notice' && <AlertDialog tone="success" title="Tudo certo" message="Ordem de compra criada." onConfirm={() => setAlert(null)} onCancel={() => setAlert(null)} />}
+        {tour && (
+          <Tour onClose={() => setTour(false)} steps={[
+            { title: 'Bem-vindo ao tour', content: 'Sem alvo, o card fica centralizado sobre o fundo escurecido.' },
+            { target: `#${theme}-feedback`, title: 'Destaque de uma área', content: 'O alvo é um seletor CSS. A página escurece em volta e o card fica ao lado.' },
+            { target: `[data-tour-demo="${theme}"]`, title: 'Destaque de um botão', content: 'Esc fecha, as setas navegam. "Não mostrar novamente" volta no resultado de onClose.' },
+          ]} />
+        )}
         {alert === 'confirm' && <AlertDialog tone="error" title="Remover obra?" message="Esta ação não pode ser desfeita." confirmLabel="Remover" cancelLabel="Cancelar" danger onConfirm={() => setAlert(null)} onCancel={() => setAlert(null)} />}
       </Section>
 

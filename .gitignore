@@ -5,7 +5,8 @@ dist
 
 /src/generated/prisma
 .vercel
-.claude
+.claude/*
+!.claude/settings.json
 
 # macOS
 .DS_Store

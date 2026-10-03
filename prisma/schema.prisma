@@ -55,6 +55,8 @@ model User {
   role       String   @default("user")
   ativo      Boolean  @default(true)
   permissoes String[] @default([])
+  // Tour de primeiros passos: true quando o usuário marca "Não mostrar novamente"
+  ocultarTour Boolean @default(false)
   createdAt  DateTime @default(now())
 
   tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)

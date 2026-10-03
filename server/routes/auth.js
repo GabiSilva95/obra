@@ -93,7 +93,7 @@ router.post("/login", async (req, res) => {
   res.json({
     token: accessToken,
     refreshToken,
-    user: { id: matchedUser.id, nome: matchedUser.nome, email: matchedUser.email, role: matchedUser.role, permissoes: matchedUser.permissoes },
+    user: { id: matchedUser.id, nome: matchedUser.nome, email: matchedUser.email, role: matchedUser.role, permissoes: matchedUser.permissoes, ocultarTour: matchedUser.ocultarTour },
     tenant: matchedUser.tenant,
   });
 });

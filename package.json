@@ -12,7 +12,10 @@
     "postinstall": "prisma generate",
     "typecheck": "tsc -p tsconfig.json",
     "lint": "oxlint -c .oxlintrc.json",
-    "lint:design": "designmd lint DESIGN.md"
+    "lint:design": "designmd lint DESIGN.md",
+    "treinamentos:gravar": "node scripts/treinamentos/gravar.mjs",
+    "treinamentos:verificar": "node scripts/treinamentos/verificar.mjs",
+    "prebuild": "node scripts/treinamentos/verificar.mjs --avisar"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
@@ -31,6 +34,7 @@
   },
   "devDependencies": {
     "@google/design.md": "^0.4.0",
+    "@playwright/test": "^1.63.0",
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",

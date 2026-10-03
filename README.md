@@ -161,6 +161,13 @@ npm run lint:design   # valida o DESIGN.md
 
 ---
 
+## Tour e Central de treinamentos
+
+- Tour de primeiros passos a cada login, até o usuário marcar "Não mostrar novamente" (`src/tour/primeirosPassos.js`).
+- Central em `/app/treinamentos`: conteúdo em `src/treinamentos/conteudo.js`, vídeos em `public/treinamentos/`.
+- `npm run treinamentos:gravar` (com `npm run dev` rodando) regrava os vídeos com Playwright; `-- --so <id>` regrava um só.
+- `npm run treinamentos:verificar` aponta campos sem descrição e vídeos mais antigos que a tela. O `prebuild` roda em modo aviso.
+
 ## Modelos de Dados
 
 ### Principais

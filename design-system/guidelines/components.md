@@ -284,6 +284,14 @@ Compact notice or confirmation with a tone icon. Without `cancelLabel` it is a s
   confirmLabel="Excluir" cancelLabel="Cancelar" danger onConfirm={excluir} onCancel={fechar} />
 ```
 
+### Tour
+
+Guided tour over the real screen: dims the page, spotlights the element of each step (CSS selector in `target`, measured continuously so it can appear after a navigation) and explains it in a card with Voltar / Próximo / Concluir. A step without `target`, or whose target is not on screen, shows a centered card. Esc closes, arrow keys navigate. `onClose` receives `{ completed, dontShowAgain }`; `dontShowLabel={false}` hides the opt-out checkbox. Use `onStepChange` to navigate to the page a step talks about. Menu items of `Sidebar` and `MobileTabBar` carry `data-nav-id`, so `[data-nav-id="obras"]` works on desktop and mobile.
+```jsx
+<Tour steps={[{ title: "Bem-vindo", content: "Veja o essencial em 1 minuto." }, { target: '[data-nav-id="obras"]', title: "Obras", content: "Cadastre a obra e as etapas." }]}
+  onStepChange={i => navigate(rotas[i])} onClose={({ dontShowAgain }) => salvar(dontShowAgain)} />
+```
+
 ## Feedback
 
 ### Banner

@@ -14,6 +14,12 @@ ConstruktPro — multi-tenant SaaS for construction management. React 18 + Vite 
 - `npm run lint` — oxlint, including the design-system adherence rules
 - `npm run lint:design` — validates `DESIGN.md` (Google Labs `design.md` linter)
 
+## Tour and training center — rules
+
+- **First-steps tour:** `src/tour/primeirosPassos.js` (steps) + DS `Tour`. It opens on every login until the user checks "Não mostrar novamente" (`User.ocultarTour`, `PATCH /api/me/preferencias`).
+- **Training center** (`/app/treinamentos`): content lives in `src/treinamentos/conteudo.js` (one module per screen/flow: steps + every form field), videos in `public/treinamentos/<id>.webm`, recorded by `scripts/treinamentos/roteiros.mjs` (never save data in a script).
+- **Whenever you create or change a screen, field or flow:** update the module in `conteudo.js`, its script in `roteiros.mjs`, the tour steps if the menu changed, then run `npm run treinamentos:gravar -- --so <id>` (with `npm run dev` running) and `npm run treinamentos:verificar` until it is clean. A PostToolUse hook (`.claude/settings.json`) reports what is out of date after each edit in `src/`.
+
 ## Design system — rules
 
 - **`DESIGN.md` (repo root) is the visual contract and the source of truth for tokens.** To change a colour, font, spacing or radius, edit `DESIGN.md` first, then mirror it in `design-system/tokens/*.css`, then run `npm run lint:design`.
@@ -33,7 +39,7 @@ ConstruktPro — multi-tenant SaaS for construction management. React 18 + Vite 
 | `design-system/index.ts` | Barrel: every component and its prop types |
 | `design-system/styles.css` | Entry CSS (imported once in `src/main.jsx`) → `tokens/` |
 | `design-system/tokens/` | `colors.css` (primitives + light/dark semantic), `typography.css`, `spacing.css` (space/size scale, radius, border widths, control heights, layout widths, z-index), `effects.css` (shadows, motion, scrim), `fonts.css` (Nunito @font-face), `base.css` |
-| `design-system/components/core/` | `Icon` (+ `iconData.ts`, 80 Lucide glyphs), `Button` (+ `Spinner`), `IconButton`, `Badge`, `Tag`, `Avatar` |
+| `design-system/components/core/` | `Icon` (+ `iconData.ts`, 82 Lucide glyphs), `Button` (+ `Spinner`), `IconButton`, `Badge`, `Tag`, `Avatar` |
 | `design-system/components/forms/` | `Field`, `Input`, `Select`, `Textarea`, `Checkbox`, `OptionRow`, `FilterPill`, `UploadBox`, `MoneyInput` (+ `formatarMoeda`, `parseMoeda`) |
 | `design-system/components/navigation/` | `Sidebar`, `Header`, `MobileTabBar`, `SegmentedTabs`, `Stepper` |
 | `design-system/components/data/` | `Card`, `StatCard`, `DataTable`, `ProgressBar`, `AreaChart`, `BarChart`, `PieChart`, `MiniCalendar`, `MonthCalendar`, `MessageItem`, `ChatBubble` |

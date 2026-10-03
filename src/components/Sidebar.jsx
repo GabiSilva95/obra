@@ -14,6 +14,7 @@ export const MENU = [
   { id: "financeiro", label: "Financeiro",  title: "Financeiro",      icon: "wallet",         perm: null },
   { id: "relatorios", label: "Relatórios",  title: "Relatórios",      icon: "chart-column",   perm: "relatorios" },
   { id: "usuarios",   label: "Usuários",    title: "Usuários",        icon: "users",          perm: "usuarios" },
+  { id: "treinamentos", label: "Treinamentos", title: "Central de treinamentos", icon: "graduation-cap", perm: null },
 ];
 
 // Mobile bottom bar: top destinations + "Menu" (opens the sidebar drawer).

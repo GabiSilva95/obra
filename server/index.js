@@ -14,6 +14,7 @@ import planoRoutes from "./routes/plano.js";
 import auditoriaRoutes from "./routes/auditoria.js";
 import apontamentosRoutes from "./routes/apontamentos.js";
 import despesasRoutes from "./routes/despesas.js";
+import preferenciasRoutes from "./routes/preferencias.js";
 import { authMiddleware } from "./middleware/auth.js";
 import { authLimiter, apiLimiter } from "./middleware/rateLimiter.js";
 import { auditLogger } from "./middleware/auditLogger.js";
@@ -64,6 +65,7 @@ app.use("/api/plano",      planoRoutes);
 app.use("/api/auditoria",  auditoriaRoutes);
 app.use("/api/apontamentos", apontamentosRoutes);
 app.use("/api/despesas",     despesasRoutes);
+app.use("/api/me/preferencias", preferenciasRoutes);
 
 app.get("/api/health", (_, res) => res.json({ ok: true }));
 

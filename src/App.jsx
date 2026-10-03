@@ -1,13 +1,14 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
-import { Button, Header, MobileTabBar, useIsMobile } from "../design-system";
+import { Button, Header, MobileTabBar, Tour, useIsMobile } from "../design-system";
 import createApi from "./utils/api.js";
 import AppSidebar, { MENU, TAB_IDS, allowedMenu } from "./components/Sidebar";
 import { PageActionsContext } from "./components/PageActions";
 import AvisoModal from "./components/AvisoModal";
 import { planoPorId } from "./constants/data";
 import { onLimiteAtingido, LABELS_RECURSO, ACAO_RECURSO } from "./utils/planoLimite";
-import { avisar } from "./utils/aviso";
+import { avisar, avisarSucesso, avisarErro } from "./utils/aviso";
+import { passosDoTour } from "./tour/primeirosPassos";
 import Notificacoes from "./components/Notificacoes";
 import Login from "./pages/Login";
 import Registro from "./pages/Registro";
@@ -22,6 +23,7 @@ import Usuarios from "./pages/Usuarios";
 import Diario from "./pages/Diario";
 import Financeiro from "./pages/Financeiro";
 import Compras from "./pages/Compras";
+import Treinamentos from "./pages/Treinamentos";
 
 const Showcase = lazy(() => import("../design-system/showcase/Showcase"));
 
@@ -54,7 +56,7 @@ function normalizeData(raw) {
   };
 }
 
-function AppShell({ session, setSession }) {
+function AppShell({ session, atualizarSessao, onLogout }) {
   const navigate = useNavigate();
   const api = createApi(session.token);
 
@@ -91,7 +93,6 @@ function AppShell({ session, setSession }) {
   useEffect(() => { loadData(); }, [loadData]);
 
 
-  const doLogout = () => { setSession(null); navigate("/"); };
 
   const user = session.user;
   const tenant = session.tenant;
@@ -128,10 +129,27 @@ function AppShell({ session, setSession }) {
   const go = id => {
     if (id === "menu") { setDrawer(true); return; }
     setDrawer(false);
-    if (id === "sair") doLogout(); else navigate(`/app/${id}`);
+    if (id === "sair") onLogout(); else navigate(`/app/${id}`);
   };
   const tabs = [...allowedMenu(user).filter(m => TAB_IDS.includes(m.id)), { id: "menu", label: "Menu", icon: "menu" }]
     .map(({ id, label, icon }) => ({ id, label, icon }));
+
+  // Tour de primeiros passos: abre a cada login (session.tourPendente) ou pelo botão da central
+  const [tourAberto, setTourAberto] = useState(false);
+  const passosTour = useMemo(() => passosDoTour(allowedMenu(user), { mobile: isMobile, idsBarraMobile: TAB_IDS }), [user, isMobile]);
+  const salvarOcultarTour = async valor => {
+    await api.patch("/me/preferencias", { ocultarTour: valor });
+    atualizarSessao({ user: { ...user, ocultarTour: valor } });
+  };
+  const fecharTour = async ({ dontShowAgain }) => {
+    setTourAberto(false);
+    atualizarSessao({ tourPendente: false });
+    if (!dontShowAgain) return;
+    try {
+      await salvarOcultarTour(true);
+      avisarSucesso("O tour não vai mais abrir ao entrar. Para rever, acesse Treinamentos.");
+    } catch (e) { avisarErro(e.message); }
+  };
 
   const message = (text, color = "var(--text-secondary)") => (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", paddingTop: "var(--space-12)", color, fontSize: "var(--fs-p5-5)" }}>{text}</div>
@@ -154,15 +172,19 @@ function AppShell({ session, setSession }) {
       <Route path="estoque"    element={has("estoque")     ? <Estoque    {...sharedProps} canWrite={has("estoque")}     /> : message("Acesso não permitido.")} />
       <Route path="alocacao"   element={has("alocacao")    ? <Alocacao   {...sharedProps} canWrite={has("alocacao")}    /> : message("Acesso não permitido.")} />
       <Route path="relatorios" element={has("relatorios")  ? <Relatorios data={data} />                                  : message("Acesso não permitido.")} />
-      <Route path="usuarios"   element={isAdmin            ? <Usuarios   {...sharedProps} tenant={tenant} setTenant={t => setSession(s => ({ ...s, tenant: t }))} /> : message("Acesso não permitido.")} />
+      <Route path="usuarios"   element={isAdmin            ? <Usuarios   {...sharedProps} tenant={tenant} setTenant={t => atualizarSessao({ tenant: t })} /> : message("Acesso não permitido.")} />
       <Route path="diario"     element={<Diario    {...sharedProps} canWrite={isAdmin || has("obras")} />} />
       <Route path="financeiro" element={<Financeiro {...sharedProps} canWrite={isAdmin} />} />
       <Route path="compras"    element={<Compras   {...sharedProps} canWrite={isAdmin || has("estoque")} />} />
+      <Route path="treinamentos" element={<Treinamentos menu={allowedMenu(user)} ocultarTour={!!user.ocultarTour} onRefazerTour={() => setTourAberto(true)}
+        onMostrarTourAoEntrar={async mostrar => {
+          try { await salvarOcultarTour(!mostrar); } catch (e) { avisarErro(e.message); }
+        }} />} />
       <Route path="*"          element={<Navigate to="dashboard" replace />} />
     </Routes>
   );
 
-  const actionsSlot = <div ref={setActionsEl} style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexWrap: "wrap", justifyContent: isMobile ? "flex-start" : "flex-end", flex: "0 1 auto", minWidth: 0 }} />;
+  const actionsSlot = <div ref={setActionsEl} data-tour="acoes" style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexWrap: "wrap", justifyContent: isMobile ? "flex-start" : "flex-end", flex: "0 1 auto", minWidth: 0 }} />;
   const header = (
     <Header title={title} user={headerUser} search="none" messages={false} compact={isMobile}
       onMenu={isMobile ? () => setDrawer(true) : undefined}
@@ -172,6 +194,9 @@ function AppShell({ session, setSession }) {
 
   return (
     <PageActionsContext.Provider value={actionsEl}>
+      {data && (session.tourPendente || tourAberto) && (
+        <Tour steps={passosTour} onStepChange={i => passosTour[i].route && navigate(`/app/${passosTour[i].route}`)} onClose={fecharTour} />
+      )}
       <style>{`*{margin:0;padding: 0}::-webkit-scrollbar{width:var(--space-1-5);height:var(--space-1-5)}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border-default);border-radius:var(--radius-sm)}::-webkit-scrollbar-thumb:hover{background:var(--border-strong)}input[type=range]{accent-color:var(--accent)}`}</style>
       {isMobile ? (
         <div style={{ minHeight: "100vh", paddingBottom: "calc(var(--mobile-tabbar-height) + var(--space-4))" }}>
@@ -214,8 +239,19 @@ export default function App() {
   });
   const navigate = useNavigate();
 
+  // Atualiza campos da sessão no estado e no localStorage. Mescla sobre o que está salvo
+  // porque o refresh silencioso (utils/api.js) troca os tokens direto no localStorage.
+  const atualizarSessao = useCallback(patch => {
+    setSession(s => s && { ...s, ...patch });
+    try {
+      const raw = localStorage.getItem("session");
+      if (raw) localStorage.setItem("session", JSON.stringify({ ...JSON.parse(raw), ...patch }));
+    } catch {}
+  }, []);
+
   const doLogin = (token, user, tenant, refreshToken) => {
-    const s = { token, user, tenant, refreshToken };
+    // tourPendente: o tour abre a cada login, até o usuário marcar "Não mostrar novamente"
+    const s = { token, user, tenant, refreshToken, tourPendente: !user.ocultarTour };
     setSession(s);
     localStorage.setItem("session", JSON.stringify(s));
     navigate("/app/dashboard");
@@ -250,7 +286,7 @@ export default function App() {
       <Route path="/planos"  element={<PlanosPage onEscolher={id => navigate("/registro", { state: { planoId: id } })} onLogin={() => navigate("/login")} />} />
       <Route path="/showcase" element={<Suspense fallback={null}><Showcase /></Suspense>} />
       <Route path="/registro" element={<Registro onVoltar={() => navigate("/login")} onVerPlanos={() => navigate("/planos")} />} />
-      <Route path="/app/*"   element={session ? <AppShell session={session} setSession={setSession} /> : <Navigate to="/login" replace />} />
+      <Route path="/app/*"   element={session ? <AppShell session={session} atualizarSessao={atualizarSessao} onLogout={doLogout} /> : <Navigate to="/login" replace />} />
       <Route path="*"        element={<Navigate to="/" replace />} />
     </Routes>
     </>

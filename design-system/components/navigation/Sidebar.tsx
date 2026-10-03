@@ -47,7 +47,7 @@ function NavItem({ item, active, collapsed, depth = 0, onSelect, activeId }: Nav
   const activate = () => { if (has) setOpen(!open); else onSelect?.(item.id); };
   return (
     <div>
-      <div role="button" tabIndex={0} aria-current={isActive ? 'page' : undefined} aria-expanded={has ? open : undefined}
+      <div role="button" tabIndex={0} data-nav-id={item.id} aria-current={isActive ? 'page' : undefined} aria-expanded={has ? open : undefined}
         title={collapsed ? item.label : undefined} onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
         onClick={activate} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); } }}
         style={{

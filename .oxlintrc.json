@@ -179,6 +179,10 @@
         "message": "<Modal> doesn't accept that prop. Declared props: title, onClose, wide, footer, children."
       },
       {
+        "selector": "JSXOpeningElement[name.name='Tour'] > JSXAttribute > JSXIdentifier[name!=/^(?:steps|onStepChange|onClose|dontShowLabel|initialStep|key|ref|className|aria-label)$/]",
+        "message": "<Tour> doesn't accept that prop. Declared props: steps, onStepChange, onClose, dontShowLabel, initialStep."
+      },
+      {
         "selector": "JSXOpeningElement[name.name='MonthCalendar'] > JSXAttribute > JSXIdentifier[name!=/^(?:year|month|events|today|onPrev|onNext|onEventClick|compact|key|ref|className|aria-label)$/]",
         "message": "<MonthCalendar> doesn't accept that prop. Declared props: year, month, events, today, onPrev, onNext, onEventClick, compact."
       },

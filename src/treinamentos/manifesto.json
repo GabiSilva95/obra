@@ -1,0 +1,78 @@
+{
+  "alocacao": {
+    "hash": "2f415d0c207b8526",
+    "gravadoEm": "2026-10-03"
+  },
+  "cadastros-insumos": {
+    "hash": "dbc022af0fb62718",
+    "gravadoEm": "2026-10-03"
+  },
+  "cadastros-pessoas": {
+    "hash": "dbc022af0fb62718",
+    "gravadoEm": "2026-10-03"
+  },
+  "cadastros-tipos-etapa": {
+    "hash": "0cf7771c5171cd1a",
+    "gravadoEm": "2026-10-03"
+  },
+  "cadastros-tipos-obra": {
+    "hash": "dbc022af0fb62718",
+    "gravadoEm": "2026-10-03"
+  },
+  "compras": {
+    "hash": "33fc7cb9808a3531",
+    "gravadoEm": "2026-10-03"
+  },
+  "compras-nf": {
+    "hash": "33fc7cb9808a3531",
+    "gravadoEm": "2026-10-03"
+  },
+  "diario": {
+    "hash": "8d827e23621805fb",
+    "gravadoEm": "2026-10-03"
+  },
+  "estoque": {
+    "hash": "fafa10d928905e52",
+    "gravadoEm": "2026-10-03"
+  },
+  "estoque-transferencias": {
+    "hash": "fafa10d928905e52",
+    "gravadoEm": "2026-10-03"
+  },
+  "financeiro-despesas": {
+    "hash": "db2e36ada4a08459",
+    "gravadoEm": "2026-10-03"
+  },
+  "financeiro-receitas": {
+    "hash": "db2e36ada4a08459",
+    "gravadoEm": "2026-10-03"
+  },
+  "inicio": {
+    "hash": "2194402be088b5cf",
+    "gravadoEm": "2026-10-03"
+  },
+  "maquinas": {
+    "hash": "dbc022af0fb62718",
+    "gravadoEm": "2026-10-03"
+  },
+  "obras": {
+    "hash": "6099307eeb8baceb",
+    "gravadoEm": "2026-10-03"
+  },
+  "obras-etapas": {
+    "hash": "42d12570d14627aa",
+    "gravadoEm": "2026-10-03"
+  },
+  "primeiros-passos": {
+    "hash": "711164c094be4dc6",
+    "gravadoEm": "2026-10-03"
+  },
+  "relatorios": {
+    "hash": "f3bd738f4b748dac",
+    "gravadoEm": "2026-10-03"
+  },
+  "usuarios": {
+    "hash": "c7508445ea1bdea8",
+    "gravadoEm": "2026-10-03"
+  }
+}

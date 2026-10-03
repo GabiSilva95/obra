@@ -41,5 +41,6 @@ export { ProductCard, type ProductCardProps } from './components/listings/Produc
 export { Banner, type BannerProps, type BannerTone } from './components/feedback/Banner';
 export { Modal, type ModalProps } from './components/overlays/Modal';
 export { AlertDialog, type AlertDialogProps, type AlertTone } from './components/overlays/AlertDialog';
+export { Tour, type TourProps, type TourStep, type TourResult } from './components/overlays/Tour';
 
 export { useMediaQuery, useIsMobile } from './hooks/useMediaQuery';

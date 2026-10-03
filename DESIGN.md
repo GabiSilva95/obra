@@ -306,7 +306,7 @@ ConstruktPro — "Do canteiro ao escritório" — is a construction-management p
 
 ## Components
 
-The library lives in `design-system/components` (37 components) and `design-system/templates` (admin shell + 5 screens); per-component usage notes are in `design-system/guidelines/components.md`.
+The library lives in `design-system/components` (38 components) and `design-system/templates` (admin shell + 5 screens); per-component usage notes are in `design-system/guidelines/components.md`.
 
 - **Buttons:** dark `primary` is the default CTA; `accent` (orange) is reserved for one hero action per view; `secondary`, `ghost`, `link`, `danger`. Sizes 32 / 40 / 48, radius 8, `loading` shows a spinner and blocks clicks.
 - **Cards:** surface fill, 16px radius, no border in light (1px in dark), `--shadow-card`, 20px padding; clickable cards get an orange border on hover/selection.
@@ -315,11 +315,11 @@ The library lives in `design-system/components` (37 components) and `design-syst
 - **Navigation:** charcoal rounded `Sidebar` with glowing orange active pill; `Header` with title, icon actions and user block; `SegmentedTabs` dark or light; `Stepper` for wizards; `MobileTabBar` below 900px.
 - **Data:** `StatCard` KPI tiles, `DataTable` with solid header and orange row hover (card list on mobile), `ProgressBar` (budget/stock usage, auto-coloured by threshold), `AreaChart`, `BarChart`, `PieChart`, `MiniCalendar`, `MonthCalendar`, `MessageItem`, `ChatBubble`.
 - **Forms (extra):** `MoneyInput` (BRL mask, "R$" prefix, parses to number), `UploadBox` (drag-and-drop or click, `busy`/`disabled`), `Checkbox`, `OptionRow`, `FilterPill`.
-- **Overlays:** `Modal` — card over a blurred scrim, 500px (760px `wide`), sticky footer for actions, becomes a bottom sheet below 640px, Esc/scrim close. `AlertDialog` — compact notice/confirmation with a tone icon (info / success / warning / error), one or two buttons, `danger` turns the confirm button red.
+- **Overlays:** `Modal` — card over a blurred scrim, 500px (760px `wide`), sticky footer for actions, becomes a bottom sheet below 640px, Esc/scrim close. `AlertDialog` — compact notice/confirmation with a tone icon (info / success / warning / error), one or two buttons, `danger` turns the confirm button red. `Tour` — guided walkthrough: the page dims around the highlighted element (accent outline, `--radius-md`) and a raised card beside it explains the step, with progress dots, Voltar / Próximo / Concluir and an optional "Não mostrar novamente" checkbox; centered card when a step has no target, docked to the top or bottom on mobile.
 - **Feedback:** `Banner` — inline soft-tinted notice (info / success / warning / danger / accent) with icon, title, message and optional action.
 
 ### Iconography
-- Thin outline set, 1.5px stroke, rounded caps — **Lucide** — at 20px in nav/body, 16px in dense tables, 24px in headers. 80 SVGs in `design-system/assets/icons`, inlined in `components/core/iconData.ts` for the `Icon` component. Add more by copying from `lucide-static`.
+- Thin outline set, 1.5px stroke, rounded caps — **Lucide** — at 20px in nav/body, 16px in dense tables, 24px in headers. 82 SVGs in `design-system/assets/icons`, inlined in `components/core/iconData.ts` for the `Icon` component. Add more by copying from `lucide-static`.
 - Icons are always monochrome `currentColor`; filled icon tiles (white glyph on a 12px-radius orange/charcoal square) are used for section headers.
 - No emoji, no icon font, no PNG icons. No flags — the language menu uses text labels.
 

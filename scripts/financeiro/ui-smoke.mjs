@@ -17,7 +17,7 @@ mkdirSync(PASTA, { recursive: true });
 const moeda = async (loc, digitos) => { await loc.focus(); await loc.page().waitForTimeout(120); await loc.page().keyboard.press("ControlOrMeta+A"); await loc.pressSequentially(digitos); };
 const campo = (escopo, rotulo) => escopo.locator("label").filter({ has: escopo.page().locator("span", { hasText: new RegExp(`^\\*?\\s*${rotulo}\\s*$`) }) }).locator("input, select, textarea").first();
 
-const login = await fetch(`${BASE}/api/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: "admin@teste.com", senha: "admin123" }) }).then(r => r.json());
+const login = await fetch(`${BASE}/api/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: "admin@teste.com", senha: process.env.DEMO_SENHA || "admin123" }) }).then(r => r.json());
 const sessao = JSON.stringify({ token: login.token, refreshToken: login.refreshToken, user: login.user, tenant: login.tenant, tourPendente: false });
 
 const browser = await chromium.launch();

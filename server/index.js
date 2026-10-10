@@ -18,8 +18,14 @@ import preferenciasRoutes from "./routes/preferencias.js";
 import financeiroRoutes from "./routes/financeiro.js";
 import financeiroConciliacaoRoutes from "./routes/financeiroConciliacao.js";
 import { authMiddleware } from "./middleware/auth.js";
+import { contaAtiva, modoLeitura } from "./middleware/conta.js";
 import { requirePermissao } from "./middleware/permissao.js";
-import { authLimiter, apiLimiter } from "./middleware/rateLimiter.js";
+import { authLimiter, apiLimiter, painelLoginLimiter, chatLimiter } from "./middleware/rateLimiter.js";
+import suporteRoutes from "./routes/suporte.js";
+import assinaturaRoutes from "./routes/assinatura.js";
+import pagamentosRoutes from "./routes/pagamentos.js";
+import emailRoutes from "./routes/email.js";
+import painelRoutes from "./painel/index.js";
 import { auditLogger } from "./middleware/auditLogger.js";
 
 const app = express();
@@ -42,8 +48,10 @@ app.use(cors({
   },
   credentials: true,
 }));
-// 6 MB cobre o base64 de um anexo de 3 MB (~4 MB) com folga para o resto
-app.use(express.json({ limit: "6mb" }));
+// 6 MB cobre o base64 de um anexo de 3 MB (~4 MB) com folga para o resto.
+// Os avisos de provedores (pagamento, e-mail) são assinados sobre o corpo EXATO recebido: guarda os bytes originais só para esses caminhos.
+const CORPO_BRUTO = /^\/api\/(pagamentos|email)\/webhook\//;
+app.use(express.json({ limit: "6mb", verify: (req, _res, buf) => { if (CORPO_BRUTO.test(req.originalUrl)) req.rawBody = buf; } }));
 
 // Rate limiting global + específico para auth
 app.use("/api", apiLimiter);
@@ -52,8 +60,19 @@ app.use("/api/auth/registro", authLimiter);
 
 app.use("/api/auth", authRoutes);
 
+// Avisos de gateways de pagamento: públicos (a origem é conferida pelo provedor), antes do authMiddleware
+app.use("/api/pagamentos", pagamentosRoutes);
+// Avisos do provedor de e-mail (resposta do cliente ao e-mail do chamado): públicos, assinados pelo Resend
+app.use("/api/email", emailRoutes);
+
+// Painel interno da equipe: login e permissões próprios, antes do authMiddleware do cliente
+app.use("/api/painel/auth/login", painelLoginLimiter);
+app.use("/api/painel", painelRoutes);
+
 // Autenticação + audit log para todas as rotas protegidas
 app.use(authMiddleware);
+app.use(modoLeitura);   // a equipe "como o cliente" só lê
+app.use(contaAtiva);    // teste vencido, conta suspensa ou cancelada: só assinatura, suporte e autenticação
 app.use(auditLogger);
 
 app.use("/api/obras",      obrasRoutes);
@@ -65,6 +84,10 @@ app.use("/api/diario",     diarioRoutes);
 app.use("/api/receitas",   requirePermissao("financeiro", { soEscrita: true }), receitasRoutes);
 app.use("/api/compras",    comprasRoutes);
 app.use("/api/plano",      planoRoutes);
+app.use("/api/assinatura", assinaturaRoutes);
+app.use("/api/suporte/chat",    chatLimiter);
+app.use("/api/suporte/resumo",  chatLimiter);
+app.use("/api/suporte",    suporteRoutes);
 app.use("/api/auditoria",  auditoriaRoutes);
 app.use("/api/apontamentos", apontamentosRoutes);
 app.use("/api/despesas",     requirePermissao("financeiro", { soEscrita: true }), despesasRoutes);

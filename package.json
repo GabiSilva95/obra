@@ -19,7 +19,9 @@
     "test": "node --test \"server/**/*.test.js\" \"src/**/*.test.js\"",
     "financeiro:demo": "node --env-file=.env scripts/financeiro/seed-demo.mjs",
     "financeiro:e2e": "node --env-file=.env scripts/financeiro/e2e.mjs",
-    "financeiro:ui": "node --env-file=.env scripts/financeiro/ui-smoke.mjs"
+    "financeiro:ui": "node --env-file=.env scripts/financeiro/ui-smoke.mjs",
+    "painel:admin": "node --env-file=.env scripts/painel/criar-admin.mjs",
+    "config:verificar": "node --env-file=.env scripts/configuracao/verificar.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

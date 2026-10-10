@@ -14,6 +14,8 @@ export const MENU = [
   { id: "financeiro", label: "Financeiro",  title: "Financeiro",      icon: "wallet",         perm: "financeiro" },
   { id: "relatorios", label: "Relatórios",  title: "Relatórios",      icon: "chart-column",   perm: "relatorios" },
   { id: "usuarios",   label: "Usuários",    title: "Usuários",        icon: "users",          perm: "usuarios" },
+  { id: "assinatura", label: "Assinatura",  title: "Assinatura",      icon: "circle-dollar-sign", perm: "assinatura" },
+  { id: "suporte",    label: "Suporte",     title: "Suporte",         icon: "message-circle", perm: null },
   { id: "treinamentos", label: "Treinamentos", title: "Central de treinamentos", icon: "graduation-cap", perm: null },
 ];
 
@@ -22,7 +24,8 @@ export const TAB_IDS = ["dashboard", "obras", "estoque", "alocacao"];
 
 export function allowedMenu(user) {
   const isAdmin = user.role === "tenant_admin";
-  return MENU.filter(m => !m.perm || isAdmin || (m.perm !== "usuarios" && (user.permissoes || []).includes(m.perm)));
+  // Usuários e Assinatura são só do administrador da empresa: nenhuma permissão delegada abre estas telas
+  return MENU.filter(m => !m.perm || isAdmin || (!["usuarios", "assinatura"].includes(m.perm) && (user.permissoes || []).includes(m.perm)));
 }
 
 export default function AppSidebar({ user, tenant, activeId, onSelect, collapsed, onToggle, onClose, style }) {

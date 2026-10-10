@@ -5,6 +5,10 @@ import { randomBytes } from "crypto";
 import prisma from "../db.js";
 import { normalizarPlano } from "../config/planos.js";
 import { popularDadosReferencia } from "../config/dadosReferencia.js";
+import { ACEITE_MENSAGENS, DIAS_TESTE } from "../config/conta.js";
+import { normalizarTelefoneBR } from "../utils/telefone.js";
+import { tenantParaCliente } from "../utils/tenantPublico.js";
+import { hojeBR, somarDias } from "../utils/datas.js";
 
 const router = Router();
 
@@ -21,6 +25,12 @@ function makeAccessToken(user) {
   );
 }
 
+/** Marca o último acesso da empresa (no máximo a cada 30 minutos, sem atrasar a resposta). */
+function marcarAcesso(tenantId) {
+  const limite = new Date(Date.now() - 30 * 60 * 1000);
+  prisma.tenant.updateMany({ where: { id: tenantId, OR: [{ ultimoAcessoEm: null }, { ultimoAcessoEm: { lt: limite } }] }, data: { ultimoAcessoEm: new Date() } }).catch(() => {});
+}
+
 async function makeRefreshToken(userId, tenantId) {
   const token     = randomBytes(64).toString("hex");
   const expiresAt = new Date(Date.now() + REFRESH_DAYS * 24 * 60 * 60 * 1000);
@@ -31,9 +41,12 @@ async function makeRefreshToken(userId, tenantId) {
 // ─── Registro ─────────────────────────────────────────────────────────────────
 
 router.post("/registro", async (req, res) => {
-  const { razaoSocial, cnpj, email, nome, senha, plano } = req.body;
+  const { razaoSocial, cnpj, email, nome, senha, plano, telefone, aceiteMensagens } = req.body;
   if (!razaoSocial || !cnpj || !email || !nome || !senha)
     return res.status(400).json({ error: "Preencha todos os campos." });
+  const telefoneNormalizado = normalizarTelefoneBR(telefone);
+  if (!telefoneNormalizado) return res.status(400).json({ error: "Informe um telefone válido, com DDD." });
+  if (aceiteMensagens !== true) return res.status(400).json({ error: "Para criar a conta, aceite receber mensagens e notificações sobre a sua conta." });
 
   const existe = await prisma.tenant.findUnique({ where: { cnpj } });
   if (existe) return res.status(400).json({ error: "CNPJ já cadastrado." });
@@ -42,6 +55,10 @@ router.post("/registro", async (req, res) => {
   const tenant = await prisma.tenant.create({
     data: {
       razaoSocial, cnpj, email, plano: normalizarPlano(plano || "starter"),
+      // Conta nova começa em teste grátis; o texto aceito vem do servidor, não do navegador
+      status: "trial", trialAte: somarDias(hojeBR(), DIAS_TESTE), ultimoAcessoEm: new Date(),
+      telefone: telefoneNormalizado, aceiteMensagensEm: new Date(), aceiteMensagensTexto: `${ACEITE_MENSAGENS.versao}: ${ACEITE_MENSAGENS.texto}`,
+      aceiteMensagensIp: (req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "").toString().split(",")[0].trim().slice(0, 45) || null,
       users: { create: { nome, email, senha: hash, role: "tenant_admin" } },
     },
     include: { users: true },
@@ -60,10 +77,12 @@ router.post("/registro", async (req, res) => {
   const accessToken  = makeAccessToken(user);
   const refreshToken = await makeRefreshToken(user.id, tenant.id);
 
+  // Mesmo formato do login: o front entra direto no sistema depois do cadastro, sem pedir login
   res.json({
     token: accessToken,
     refreshToken,
-    user: { id: user.id, nome: user.nome, email: user.email, role: user.role },
+    user: { id: user.id, nome: user.nome, email: user.email, role: user.role, permissoes: user.permissoes, ocultarTour: user.ocultarTour },
+    tenant: tenantParaCliente(tenant),
     tenantId: tenant.id,
   });
 });
@@ -89,12 +108,13 @@ router.post("/login", async (req, res) => {
 
   const accessToken  = makeAccessToken(matchedUser);
   const refreshToken = await makeRefreshToken(matchedUser.id, matchedUser.tenantId);
+  marcarAcesso(matchedUser.tenantId);
 
   res.json({
     token: accessToken,
     refreshToken,
     user: { id: matchedUser.id, nome: matchedUser.nome, email: matchedUser.email, role: matchedUser.role, permissoes: matchedUser.permissoes, ocultarTour: matchedUser.ocultarTour },
-    tenant: matchedUser.tenant,
+    tenant: tenantParaCliente(matchedUser.tenant),
   });
 });
 
@@ -120,6 +140,7 @@ router.post("/refresh", async (req, res) => {
 
   const accessToken     = makeAccessToken(stored.user);
   const newRefreshToken = await makeRefreshToken(stored.userId, stored.tenantId);
+  marcarAcesso(stored.tenantId);
 
   res.json({ token: accessToken, refreshToken: newRefreshToken });
 });

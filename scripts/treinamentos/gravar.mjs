@@ -18,7 +18,7 @@ import { hashArquivos } from "./verificar.mjs";
 const raiz = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const BASE = process.env.TREINAMENTO_URL || "http://localhost:3000";
 const EMAIL = process.env.TREINAMENTO_EMAIL || "admin@teste.com";
-const SENHA = process.env.TREINAMENTO_SENHA || "admin123";
+const SENHA = process.env.TREINAMENTO_SENHA || process.env.DEMO_SENHA || "admin123"; // DEMO_SENHA no .env (conta interna, não é pública)
 const TELA = { width: 1280, height: 800 };
 const saida = path.join(raiz, "public/treinamentos");
 const arqManifesto = path.join(raiz, "src/treinamentos/manifesto.json");

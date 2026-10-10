@@ -11,7 +11,8 @@ const prisma = new PrismaClient({ adapter });
 
 async function main() {
   const EMAIL = "admin@teste.com";
-  const SENHA = "admin123";
+  // Conta interna (vídeos e testes). Defina DEMO_SENHA no .env para trocar a senha: rode `npm run seed` e ela é atualizada.
+  const SENHA = process.env.DEMO_SENHA || "admin123";
   const CNPJ  = "00.000.000/0001-00";
 
   // ── Tenant de demonstração ──────────────────────────────────────────────────

@@ -11,7 +11,7 @@ import prisma from "../../server/db.js";
 
 const API = process.env.API || "http://localhost:3002";
 const EMAIL = process.env.TREINAMENTO_EMAIL || "admin@teste.com";
-const SENHA = process.env.TREINAMENTO_SENHA || "admin123";
+const SENHA = process.env.TREINAMENTO_SENHA || process.env.DEMO_SENHA || "admin123"; // DEMO_SENHA no .env
 const soma = a => Math.round(a.reduce((x, y) => x + y, 0) * 100) / 100;
 
 let token;

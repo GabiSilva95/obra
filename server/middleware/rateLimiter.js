@@ -1,4 +1,4 @@
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 
 /** Limita tentativas de login/registro: 10 req / 15 min por IP */
 export const authLimiter = rateLimit({
@@ -20,4 +20,28 @@ export const apiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Muitas requisições. Tente novamente em instantes." },
+  // O chat consulta a cada 3 s: tem limitador próprio, por usuário (abaixo)
+  skip: req => CAMINHOS_DE_CHAT.test(req.originalUrl),
+});
+
+const CAMINHOS_DE_CHAT = /^\/api\/(suporte\/chat|suporte\/resumo|painel\/atendimento|painel\/chamados)/;
+
+/** Consultas curtas do chat e da tela Atendimento: 150 por minuto por pessoa (a cada 3 s dá 20). */
+export const chatLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: Number(process.env.API_RATE_LIMIT) ? Number(process.env.API_RATE_LIMIT) : 150,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: req => (req.user?.userId ? `c${req.user.userId}` : req.equipe?.id ? `e${req.equipe.id}` : ipKeyGenerator(req.ip)),
+  message: { error: "Muitas consultas. Aguarde um instante." },
+});
+
+/** Login do painel interno: mais estrito que o do cliente (8 tentativas erradas / 15 min por IP). */
+export const painelLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Muitas tentativas. Aguarde 15 minutos e tente novamente." },
+  skipSuccessfulRequests: true,
 });

@@ -90,14 +90,27 @@ obra/
 │   │   ├── auditLogger.js     # Log assíncrono de mutações
 │   │   ├── planLimit.js       # Enforcement de cotas por plano
 │   │   └── rateLimiter.js     # Rate limiting por IP
+│   ├── financeiro/            # Regras do financeiro (funções puras + serviços); o front reaproveita dinheiro, parcelas e rateio
+│   │   ├── dinheiro.js        # Centavos, divisão sem perder centavo (maior resto)
+│   │   ├── parcelas.js        # Parcelamento e conta fixa
+│   │   ├── rateio.js          # Rateio entre obras, etapas e centros de custo
+│   │   ├── servico.js         # Documento, baixa, estorno, cancelamento (transações)
+│   │   ├── compras.js         # Compra entregue → conta a pagar (NF-e com duplicatas)
+│   │   ├── geracao.js         # Pendências: compras, diárias e locações → contas a pagar
+│   │   ├── fluxo.js           # Fluxo de caixa e envelhecimento
+│   │   ├── ofx.js, csv.js     # Leitura de extrato bancário
+│   │   ├── conciliacao.js     # Sugestões de conciliação
+│   │   └── *.test.js          # Testes (npm test)
 │   └── routes/
 │       ├── auth.js            # Login, registro, refresh, logout
+│       ├── financeiro.js      # Contas, títulos, baixas, rateio, fluxo, relatórios, pendências
+│       ├── financeiroConciliacao.js  # Importação de extrato e conciliação bancária
 │       ├── obras.js           # CRUD obras + etapas
 │       ├── cadastros.js       # Máquinas, funcionários, insumos, tipos de etapa
 │       ├── estoque.js         # Movimentações de estoque
 │       ├── alocacao.js        # Alocação de máquinas e insumos
 │       ├── diario.js          # Diário de obra
-│       ├── receitas.js        # Receitas por obra
+│       ├── receitas.js        # Receitas (competência): linhas de faturamento por obra
 │       ├── compras.js         # Ordens de compra
 │       ├── usuarios.js        # Gestão de usuários do tenant
 │       ├── plano.js           # Consulta de uso e limites do plano
@@ -113,19 +126,20 @@ obra/
 │   │   ├── helpers.js         # Formatação e cálculos de custo/progresso
 │   │   └── planoLimite.js     # Checagem de limites do plano
 │   ├── components/
+│   │   ├── RateioEditor.jsx   # Rateio de um valor entre obras, etapas e centros de custo
 │   │   ├── Sidebar.jsx        # Menu (MENU, abas do mobile) sobre o Sidebar do design system
 │   │   ├── PageActions.jsx    # Portal das ações de cada página para o Header do shell
 │   │   ├── Notificacoes.jsx   # Alertas computados em tempo real (sino do Header)
 │   │   ├── AvisoModal.jsx     # Renderiza os avisos de utils/aviso.js
 │   │   └── AnexosObra.jsx     # Upload e lista de anexos da obra
 │   └── pages/
-│       ├── Dashboard.jsx
+│       ├── Dashboard/         # Início: seções Obras, Financeiro e Estoque (card de números + indicadores); cálculos em indicadores.js
 │       ├── Obras.jsx
 │       ├── Cadastros.jsx
 │       ├── Estoque.jsx
 │       ├── Alocacao.jsx
 │       ├── Diario.jsx
-│       ├── Financeiro.jsx     # Resumo, receitas, fluxo de caixa
+│       ├── Financeiro/        # Resumo, contas a pagar e a receber, pendências, contas e conciliação, fluxo, resultado, relatórios, cadastros
 │       ├── Compras.jsx
 │       ├── Relatorios.jsx     # Gantt, exportação CSV/PDF
 │       ├── TiposEtapa.jsx
@@ -167,6 +181,31 @@ npm run lint:design   # valida o DESIGN.md
 - Central em `/app/treinamentos`: conteúdo em `src/treinamentos/conteudo.js`, vídeos em `public/treinamentos/`.
 - `npm run treinamentos:gravar` (com `npm run dev` rodando) regrava os vídeos com Playwright; `-- --so <id>` regrava um só.
 - `npm run treinamentos:verificar` aponta campos sem descrição e vídeos mais antigos que a tela. O `prebuild` roda em modo aviso.
+
+## Financeiro
+
+O financeiro tem duas camadas que **não se misturam**:
+
+- **Competência** (o que a obra custou e faturou): `ConsumoInsumo`, `Alocacao`, `ApontamentoMO`, `Despesa` e `Receita`. É o que alimenta orçado x realizado, lucro e margem (`calcCustoObra`).
+- **Caixa** (quando e como se paga e se recebe): `Titulo` (parcela a pagar ou a receber), `Baixa` (pagamento ou recebimento), `ContaFinanceira`, `LancamentoBancario` (linha do extrato) e `TransferenciaConta`.
+
+Cada título aponta para sua origem (`origemTipo`): despesa, receita, compra, diárias, locação ou avulso. Só despesa e receita geram linhas de custo e faturamento; compra, diárias e locação não duplicam custo, que já foi apropriado no consumo, no apontamento e na alocação. **Rateio**: um título se divide entre obras, etapas e centros de custo (`TituloRateio`); uma despesa rateada vira uma linha de `Despesa` por linha de rateio, então os relatórios por obra continuam corretos.
+
+Valores das tabelas novas são `Decimal(14,2)`; as contas são feitas em centavos (`server/financeiro/dinheiro.js`). Acesso: permissão **Financeiro** (`requirePermissao`); `GET /despesas` e `GET /receitas` ficam abertos porque o custo aparece em outras telas.
+
+| Rota (`/api/financeiro`) | O que faz |
+|---|---|
+| `GET /base`, `PUT /config` | Contas, categorias, centros de custo e prazo padrão |
+| `GET /titulos`, `POST/PUT/DELETE /documentos`, `PATCH /titulos/:id`, `POST /titulos/:id/cancelar` | Contas a pagar e a receber (com parcelas e rateio) |
+| `POST /titulos/:id/baixas`, `POST /titulos/baixa-lote`, `POST /baixas/:id/estornar` | Pagar, receber, baixar em lote e estornar |
+| `GET /pendencias`, `POST /gerar/compra`, `/gerar/diarias`, `/gerar/locacoes` | O que ainda não virou conta a pagar |
+| `POST /contas/:id/extrato/previa`, `POST /contas/:id/extrato`, `GET /contas/:id/conciliacao` | Importação de OFX/CSV e tela de conciliação |
+| `POST /lancamentos/:id/conciliar`, `/baixar`, `/lancar`, `/transferir`, `/ignorar`, `/desfazer` | Ações sobre cada linha do extrato |
+| `GET /fluxo`, `GET /relatorios/envelhecimento`, `GET /contas/:id/movimentos`, `GET /resumo` | Fluxo de caixa, envelhecimento, extrato da conta e resumo |
+
+Comandos: `npm test` (regras de dinheiro, parsers, conciliação e indicadores do Início), `npm run financeiro:e2e` (verificação ponta a ponta da API; suba antes `API_RATE_LIMIT=5000 PORT=3012 node server/index.js` e rode com `API=http://localhost:3012`), `npm run financeiro:ui` (percorre a tela com Playwright) e `npm run financeiro:demo` (dados de exemplo no tenant de demonstração).
+
+---
 
 ## Modelos de Dados
 
@@ -237,7 +276,8 @@ Base URL: `/api`
 | Estoque | `/estoque` | GET, POST, PUT, DELETE |
 | Alocação | `/alocacao` | GET, POST, DELETE |
 | Diário | `/diario` | GET, POST, PUT, DELETE |
-| Receitas | `/receitas` | GET, POST, PUT, DELETE |
+| Receitas | `/receitas` | GET (livre), POST, PUT, DELETE (exigem a permissão Financeiro) |
+| Despesas | `/despesas` | GET (livre), POST, PUT, DELETE (exigem a permissão Financeiro) |
 | Compras | `/compras` | GET, POST, PUT, DELETE, `PATCH /:id/status` |
 | Usuários | `/usuarios` | GET, POST, PUT, `PATCH /:id/ativo` |
 | Plano | `/plano/uso` | GET — uso atual vs. limites |

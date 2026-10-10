@@ -14,7 +14,9 @@ export const validate = (form, rules) => {
   return { ok: Object.keys(erros).length === 0, erros };
 };
 export const nextId = arr => arr.length ? Math.max(...arr.map(i => i.id)) + 1 : 1;
-export const today = () => new Date().toISOString().split("T")[0];
+// Data de hoje (AAAA-MM-DD) no horário de São Paulo: toISOString() é UTC e, depois das 21h, já é amanhã.
+const fmtSP = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" });
+export const today = () => fmtSP.format(new Date());
 export const isAtrasada = e => {
   const n = today();
   if (e.status === "Concluída") return false;

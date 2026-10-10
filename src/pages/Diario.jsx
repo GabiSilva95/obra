@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { validate, fmt } from "../utils/helpers";
+import { validate, fmt, today } from "../utils/helpers";
 import { avisarErro, confirmar } from "../utils/aviso";
 import { Banner, Button, Card, Checkbox, Icon, IconButton, Input, Modal, Select, Tag, Textarea } from "../../design-system";
 import { PageActions } from "../components/PageActions";
@@ -30,7 +30,7 @@ export default function Diario({ data, setData, api, canWrite }) {
   }, 0);
 
   const abrirNovo = () => {
-    setForm({ obraId: obraFiltro || obras[0]?.id, data: new Date().toISOString().slice(0, 10) });
+    setForm({ obraId: obraFiltro || obras[0]?.id, data: today() });
     setPresencas([]);
     setModal(true);
   };

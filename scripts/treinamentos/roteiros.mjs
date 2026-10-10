@@ -35,14 +35,22 @@ export const ROTEIROS = {
     await t.passo(1);
     await t.escolher("Filtrar obra", 1);
     await t.escolher("Filtrar obra", 0);
+    const titulo = nome => t.page.getByRole("heading", { name: nome, exact: true });
     await t.passo(2);
-    await t.mostrar(t.page.getByText("Obras ativas").first());
-    await t.mostrar(t.page.getByText("Custo total").first());
+    await t.mostrar(titulo("Obras"));
+    await t.mostrar(t.page.getByText("Progresso médio").first());
+    await t.mostrar(titulo("Orçamento"));
     await t.passo(3);
-    await t.page.mouse.wheel(0, 400);
-    await t.pausa(1500);
+    await t.mostrar(titulo("Financeiro"));
+    await t.mostrar(titulo("Contas a pagar"));
+    await t.mostrar(titulo("Fluxo de caixa"));
     await t.passo(4);
-    await t.page.mouse.wheel(0, -400);
+    await t.mostrar(titulo("Estoque"));
+    await t.mostrar(titulo("Posição do estoque"));
+    await t.mostrar(titulo("Compras"));
+    await t.passo(5);
+    await t.mostrar(titulo("Cada obra"));
+    await t.page.mouse.wheel(0, -6000);
     await t.pausa(1500);
   },
 
@@ -176,6 +184,8 @@ export const ROTEIROS = {
     await t.escolher("Tipo de propriedade", "Alugada / terceirizada");
     await t.digitar("Valor por hora", "45,00");
     await t.passo(6);
+    await t.escolher("Locador", 1);
+    await t.passo(7);
     await t.cancelar();
   },
 
@@ -282,37 +292,269 @@ export const ROTEIROS = {
     await t.cancelar();
   },
 
-  "financeiro-receitas": async t => {
+  "financeiro-resumo": async t => {
     await t.passo(1);
     await t.menu("financeiro");
-    await t.aba(/^Receitas/);
-    await t.botao("Nova receita");
     await t.passo(2);
-    await t.digitar("Descrição", "1ª medição");
+    await t.mostrar(t.page.getByText("Saldo em contas").first());
+    await t.mostrar(t.page.getByText("A pagar em aberto").first());
     await t.passo(3);
-    await t.digitar("Valor", "45000,00");
-    await t.escolher("Tipo", "Medição");
+    await t.mostrar(t.page.getByText("Vencem hoje").first());
     await t.passo(4);
-    await t.cancelar();
-    await t.mostrar(t.page.getByText("Total de receitas").first());
+    await t.mostrar(t.page.getByRole("button", { name: "Ver vencidas" }).first());
+    await t.passo(5);
+    await t.mostrar(t.page.getByText("Há pagamentos sem conta a pagar"));
   },
 
-  "financeiro-despesas": async t => {
+  "financeiro-contas-pagar": async t => {
     await t.passo(1);
     await t.menu("financeiro");
-    await t.aba(/^Despesas/);
-    await t.botao("Nova despesa");
+    await t.aba("A pagar");
     await t.passo(2);
-    await t.escolher("Categoria", "Combustível");
-    await t.digitar("Descrição", "Diesel da retroescavadeira");
+    await t.escolher("Situação", "Vencidos");
+    await t.escolher("Situação", "Em aberto");
+    await t.digitar("Buscar", "Aço");
+    await t.digitar("Buscar", "");
     await t.passo(3);
-    await t.digitar("Valor", "680,00");
-    await t.digitar("Fornecedor", "Posto Avenida");
+    await t.botao("Nova conta a pagar");
     await t.passo(4);
-    await t.escolher("Obra", 1);
+    await t.digitar("Descrição", "Cimento CP-II para a laje");
+    await t.escolher("Categoria", "Outros");
+    await t.escolher("Fornecedor", "Depósito Construforte");
+    await t.digitar("Valor", "245000");
     await t.passo(5);
-    await t.mostrar(t.modal().getByRole("button", { name: "Salvar despesa" }));
+    await t.escolher("Condição", "Parcelado");
+    await t.digitar("Número de parcelas", "3");
+    await t.mostrar(t.modal().getByRole("columnheader", { name: "Vencimento" }));
+    await t.passo(6);
+    await t.clicar(t.modal().getByRole("button", { name: "Ratear em mais de uma linha" }));
+    const obras = t.modal().locator("select[aria-label='Obra']");
+    await t.mostrar(obras.nth(0));
+    await obras.nth(0).selectOption({ index: 1 });
+    await obras.nth(1).selectOption({ index: 2 });
+    await t.pausa(900);
+    await t.passo(7);
+    await t.mostrar(t.modal().getByRole("button", { name: "Salvar lançamento" }));
     await t.cancelar();
+    await t.passo(8);
+    await t.clicar(t.page.getByRole("row").filter({ hasText: "Aço CA-50" }).first());
+    await t.mostrar(t.modal().getByRole("heading", { name: "Parcelas" }));
+    await t.page.keyboard.press("Escape");
+  },
+
+  "financeiro-contas-receber": async t => {
+    await t.passo(1);
+    await t.menu("financeiro");
+    await t.aba("A receber");
+    await t.passo(2);
+    await t.botao("Nova conta a receber");
+    await t.passo(3);
+    await t.digitar("Descrição", "2ª medição da Casa Gabriella");
+    await t.escolher("Tipo de receita", "Medição");
+    await t.escolher("Cliente", "Silva Empreendimentos");
+    await t.digitar("Valor", "3800000");
+    await t.passo(4);
+    await t.escolher("Condição", "Parcelado");
+    await t.digitar("Número de parcelas", "2");
+    await t.passo(5);
+    await t.escolher("Obra", 2);
+    await t.cancelar();
+    await t.passo(6);
+    await t.mostrar(t.page.getByRole("button", { name: "Receber" }).first());
+    await t.mostrar(t.page.getByText("de atraso").first());
+  },
+
+  "financeiro-baixas": async t => {
+    await t.menu("financeiro");
+    await t.aba("A pagar");
+    await t.passo(1);
+    await t.clicar(t.page.getByRole("row").filter({ hasText: "Conta de energia" }).getByRole("button", { name: "Pagar" }));
+    await t.passo(2);
+    await t.escolher("Forma", "PIX");
+    await t.passo(3);
+    await t.escolher("Quanto", "Pagamento parcial (outro valor)");
+    await t.digitar("Valor", "30000");
+    await t.passo(4);
+    await t.digitar("Juros", "500");
+    await t.digitar("Multa", "1800");
+    await t.mostrar(t.modal().getByText("Sai da conta"));
+    await t.cancelar();
+    await t.passo(5);
+    await t.clicar(t.page.getByRole("row").filter({ hasText: "Conta de energia" }).getByRole("checkbox"));
+    await t.mostrar(t.page.getByRole("button", { name: "Pagar selecionados" }));
+    await t.clicar(t.page.getByRole("row").filter({ hasText: "Conta de energia" }).getByRole("checkbox"));
+    await t.passo(6);
+    await t.clicar(t.page.getByRole("row").filter({ hasText: "Locação de betoneira" }).first());
+    await t.mostrar(t.modal().getByRole("heading", { name: "Pagamentos" }));
+    await t.mostrar(t.modal().getByRole("button", { name: "Estornar" }).first());
+    await t.passo(7);
+    await t.mostrar(t.modal().getByRole("button", { name: "Prorrogar vencimento" }).first());
+    await t.page.keyboard.press("Escape");
+  },
+
+  "financeiro-rateio": async t => {
+    await t.passo(1);
+    await t.menu("financeiro");
+    await t.aba("A pagar");
+    await t.botao("Nova conta a pagar");
+    await t.digitar("Descrição", "Óleo hidráulico das máquinas");
+    await t.digitar("Valor", "180000");
+    await t.mostrar(t.modal().getByRole("heading", { name: "Rateio" }));
+    await t.passo(2);
+    const obras = () => t.modal().locator("select[aria-label='Obra']");
+    await obras().nth(0).selectOption({ index: 1 });
+    await t.escolher("Centro de custo", "Frota e equipamentos");
+    await t.passo(3);
+    await t.clicar(t.modal().getByRole("button", { name: "Ratear em mais de uma linha" }));
+    await obras().nth(1).selectOption({ index: 2 });
+    await t.passo(4);
+    await t.clicar(t.modal().getByRole("button", { name: "Dividir igualmente" }));
+    await t.passo(5);
+    await t.mostrar(t.modal().getByText("Rateio fechado"));
+    await t.passo(6);
+    await t.cancelar();
+    await t.menu("financeiro");
+    await t.aba("Resultado");
+    await t.aba("Por centro de custo");
+    await t.pausa(1500);
+  },
+
+  "financeiro-pendencias": async t => {
+    await t.passo(1);
+    await t.menu("financeiro");
+    await t.aba("Pendências");
+    await t.passo(2);
+    await t.mostrar(t.page.getByRole("heading", { name: "Compras entregues sem conta a pagar" }));
+    await t.clicar(t.page.getByRole("button", { name: "Gerar conta" }).first());
+    await t.passo(5);
+    await t.escolher("Situação do pagamento", "Já foi pago");
+    await t.cancelar();
+    await t.passo(3);
+    await t.mostrar(t.page.getByRole("heading", { name: "Diárias a pagar" }));
+    await t.clicar(t.page.getByRole("row").filter({ hasText: "Ana Beatriz" }).getByRole("checkbox"));
+    await t.mostrar(t.page.getByRole("button", { name: /^Gerar pagamento/ }).first());
+    await t.passo(4);
+    await t.passo(6);
+  },
+
+  "financeiro-contas": async t => {
+    await t.passo(1);
+    await t.menu("financeiro");
+    await t.aba("Contas e conciliação");
+    await t.passo(2);
+    await t.botao("Nova conta");
+    await t.digitar("Nome da conta", "Conta da obra Casa Gabriella");
+    await t.escolher("Tipo", "Conta bancária");
+    await t.digitar("Banco", "Caixa Econômica");
+    await t.passo(3);
+    await t.digitar("Saldo inicial", "1500000");
+    await t.data("Data do saldo inicial", "2026-10-01");
+    await t.passo(4);
+    await t.cancelar();
+    await t.mostrar(t.page.getByText("Saldo atual").first());
+    await t.passo(5);
+    await t.botao("Transferência entre contas");
+    await t.escolher("Conta de origem", 1);
+    await t.escolher("Conta de destino", 2);
+    await t.digitar("Valor", "300000");
+    await t.cancelar();
+  },
+
+  "financeiro-conciliacao": async t => {
+    await t.passo(1);
+    await t.menu("financeiro");
+    await t.aba("Contas e conciliação");
+    await t.passo(2);
+    await t.botao("Importar extrato");
+    await t.mostrar(t.modal().getByText("Selecionar extrato"));
+    await t.cancelar();
+    await t.passo(3);
+    await t.clicar(t.page.getByRole("row").filter({ hasText: "Banco Principal" }).getByRole("button", { name: "Conciliar" }));
+    await t.page.getByRole("heading", { name: /Conciliação:/ }).waitFor();
+    await t.passo(4);
+    await t.mostrar(t.page.getByRole("button", { name: /^Conciliar \d+ exato/ }));
+    await t.mostrar(t.page.getByRole("button", { name: "Conciliar", exact: true }).first());
+    await t.passo(5);
+    await t.clicar(t.page.getByRole("row").filter({ hasText: "TARIFA PACOTE" }).getByRole("button", { name: "Tratar" }));
+    await t.clicar(t.modal().getByRole("tab", { name: "Lançar novo" }));
+    await t.mostrar(t.modal().getByRole("heading", { name: "Rateio" }));
+    await t.clicar(t.modal().getByRole("tab", { name: "Transferência" }));
+    await t.cancelar().catch(() => {});
+    await t.page.keyboard.press("Escape");
+    await t.passo(6);
+    await t.mostrar(t.page.getByText(/Diferença de|O saldo fecha/).first());
+  },
+
+  "financeiro-fluxo": async t => {
+    await t.passo(1);
+    await t.menu("financeiro");
+    await t.aba("Fluxo de caixa");
+    await t.passo(2);
+    await t.escolher("Agrupar por", "Mês");
+    await t.escolher("Agrupar por", "Semana");
+    await t.passo(3);
+    await t.mostrar(t.page.getByRole("columnheader", { name: "A receber" }));
+    await t.mostrar(t.page.getByRole("columnheader", { name: "A pagar" }));
+    await t.passo(4);
+    await t.mostrar(t.page.getByText("A pagar em atraso").first());
+    await t.passo(5);
+    await t.escolher("Obra", 1);
+    await t.escolher("Obra", 0);
+    await t.passo(6);
+    await t.mostrar(t.page.getByRole("button", { name: "CSV" }));
+  },
+
+  "financeiro-resultado": async t => {
+    await t.passo(1);
+    await t.menu("financeiro");
+    await t.aba("Resultado");
+    await t.passo(2);
+    await t.escolher("Filtrar obra", 2);
+    await t.passo(3);
+    await t.mostrar(t.page.getByText("Composição de custos"));
+    await t.passo(4);
+    await t.aba("Por obra");
+    await t.aba("Por centro de custo");
+    await t.passo(5);
+    await t.aba("Custo por mês");
+    await t.pausa(1200);
+  },
+
+  "financeiro-relatorios": async t => {
+    await t.passo(1);
+    await t.menu("financeiro");
+    await t.aba("Relatórios");
+    await t.passo(2);
+    await t.mostrar(t.page.getByRole("columnheader", { name: "Mais de 90 dias" }));
+    await t.aba("Envelhecimento a receber");
+    await t.pausa(900);
+    await t.passo(3);
+    await t.aba("Extrato da conta");
+    await t.mostrar(t.page.getByText(/Saldo anterior/));
+    await t.passo(4);
+    await t.mostrar(t.page.getByRole("button", { name: "CSV" }));
+    await t.mostrar(t.page.getByRole("button", { name: "PDF" }));
+  },
+
+  "financeiro-cadastros": async t => {
+    await t.passo(1);
+    await t.menu("financeiro");
+    await t.aba("Cadastros");
+    await t.passo(2);
+    await t.botao("Nova categoria");
+    await t.digitar("Nome", "Seguros da obra");
+    await t.escolher("Usada em", "Contas a pagar");
+    await t.cancelar();
+    await t.passo(3);
+    await t.aba("Centros de custo");
+    await t.botao("Novo centro de custo");
+    await t.digitar("Nome", "Segurança do trabalho");
+    await t.cancelar();
+    await t.passo(4);
+    await t.mostrar(t.page.getByRole("button", { name: "Inativar" }).first());
+    await t.passo(5);
+    await t.aba("Preferências");
+    await t.mostrar("Prazo padrão de pagamento (dias)");
   },
 
   relatorios: async t => {

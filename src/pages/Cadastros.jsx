@@ -131,6 +131,10 @@ export function Maquinas({ data, setData, api, canWrite }) {
 
             {form.tipoPropriedade === "alugada" && (
               <>
+                <Select label="Locador" info="Fornecedor que aluga a máquina. Junta as locações do mesmo fornecedor num pagamento só, em Financeiro > Pendências." value={form.locadorId || ""} onChange={e => set("locadorId", e.target.value ? parseInt(e.target.value) : null)}>
+                  <option value="">Sem locador cadastrado</option>
+                  {(data.funcionarios || []).filter(p => p.isFornecedor).map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                </Select>
                 <Select label="Tipo de cobrança" value={form.tipoCobranca || "hora"} onChange={e => set("tipoCobranca", e.target.value)}>
                   <option value="hora">Por hora</option>
                   <option value="mensal">Valor mensal fixo</option>

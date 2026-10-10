@@ -11,7 +11,7 @@ export const MENU = [
   { id: "estoque",    label: "Estoque",     title: "Estoque",         icon: "warehouse",      perm: "estoque" },
   { id: "compras",    label: "Compras",     title: "Compras",         icon: "package",        perm: "estoque" },
   { id: "alocacao",   label: "Alocação",    title: "Alocação",        icon: "link",           perm: "alocacao" },
-  { id: "financeiro", label: "Financeiro",  title: "Financeiro",      icon: "wallet",         perm: null },
+  { id: "financeiro", label: "Financeiro",  title: "Financeiro",      icon: "wallet",         perm: "financeiro" },
   { id: "relatorios", label: "Relatórios",  title: "Relatórios",      icon: "chart-column",   perm: "relatorios" },
   { id: "usuarios",   label: "Usuários",    title: "Usuários",        icon: "users",          perm: "usuarios" },
   { id: "treinamentos", label: "Treinamentos", title: "Central de treinamentos", icon: "graduation-cap", perm: null },

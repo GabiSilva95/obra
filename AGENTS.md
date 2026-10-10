@@ -20,6 +20,24 @@ ConstruktPro — multi-tenant SaaS for construction management. React 18 + Vite 
 - **Training center** (`/app/treinamentos`): content lives in `src/treinamentos/conteudo.js` (one module per screen/flow: steps + every form field), videos in `public/treinamentos/<id>.webm`, recorded by `scripts/treinamentos/roteiros.mjs` (never save data in a script).
 - **Whenever you create or change a screen, field or flow:** update the module in `conteudo.js`, its script in `roteiros.mjs`, the tour steps if the menu changed, then run `npm run treinamentos:gravar -- --so <id>` (with `npm run dev` running) and `npm run treinamentos:verificar` until it is clean. A PostToolUse hook (`.claude/settings.json`) reports what is out of date after each edit in `src/`.
 
+## Financeiro — rules
+
+- **Competência não é caixa.** Custo e faturamento da obra vêm de `Despesa`, `Receita`, `ConsumoInsumo`, `Alocacao` e `ApontamentoMO` (`calcCustoObra`, `src/utils/helpers.js`). Contas a pagar e a receber são `Titulo` (caixa). Compra, diárias e locação geram título mas **não** custo (já apropriado): nunca crie uma `Despesa` para elas. Despesa e receita novas entram por `POST /api/financeiro/documentos`, que cria o título, o rateio e as linhas de custo juntos.
+- **Dinheiro em centavos.** Tabelas novas usam `Decimal(14,2)`; toda conta de parcela, rateio e saldo usa `server/financeiro/dinheiro.js` (o front importa o mesmo arquivo, para a prévia ser o que será gravado). Nunca some `Float` em reais.
+- **Datas** em `AAAA-MM-DD` no fuso de São Paulo: `hojeBR()` (servidor) e `today()` (front). Nunca `new Date().toISOString()` para "hoje".
+- **Permissão `financeiro`** em `/api/financeiro` (`requirePermissao`, lê do banco, não do token). Escritas de `/despesas` e `/receitas` também a exigem; as leituras ficam abertas porque o custo aparece em outras telas.
+- **Banco compartilhado com a produção.** Só `prisma db push` aditivo; rode antes `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` e confira que não há `DROP`.
+- **Avisos:** salvamentos rotineiros do Financeiro não abrem pop-up de sucesso (só fecham o modal e atualizam a lista); erros e confirmações usam `aviso.js`.
+- **Testes:** `npm test` (regras puras) e `npm run financeiro:e2e` (API contra a conta demo, limpando o que cria). Mexeu em regra de dinheiro ou em rota do financeiro? Rode os dois.
+
+## Início (painel) — rules
+
+- **Três seções, cada uma abre com um card de números:** Obras (cronograma e orçamento), Financeiro (contas a pagar, a receber e fluxo de caixa) e Estoque (posição do estoque e compras). Depois delas vem o card de cada obra. Estrutura em `src/pages/Dashboard/` (`Secao.jsx` é a base; uma `Secao*.jsx` por área).
+- **Número novo entra em `indicadores.js`** (funções puras, com teste em `indicadores.test.js`, rodado por `npm test`), nunca calculado dentro do JSX. Custo da obra continua vindo de `calcCustoObra`.
+- **Filtro de obra** vale para Obras e Estoque. O Financeiro é sempre da empresa toda (a etiqueta da seção avisa quando há filtro).
+- **Permissão:** a seção Financeiro só aparece e só chama `/api/financeiro` com a permissão `financeiro`; Estoque (com Compras) exige `estoque`. `resumoFin` do `App.jsx` é `null` carregando e `false` se falhou.
+- **Valor em estoque** usa o custo do lote, igual à tela de Estoque (cai no custo do cadastro se o lote não tem).
+
 ## Design system — rules
 
 - **`DESIGN.md` (repo root) is the visual contract and the source of truth for tokens.** To change a colour, font, spacing or radius, edit `DESIGN.md` first, then mirror it in `design-system/tokens/*.css`, then run `npm run lint:design`.

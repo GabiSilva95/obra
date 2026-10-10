@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { fmt, calcProg, calcIns, calcMaq, calcMO, calcDesp, isAtrasada } from "../utils/helpers";
+import { fmt, calcProg, calcIns, calcMaq, calcMO, calcDesp, isAtrasada, today as hoje } from "../utils/helpers";
 import { exportCsv, exportPdf } from "../utils/export";
 import { Badge, Button, Card, Icon, ProgressBar, SegmentedTabs, Select } from "../../design-system";
 import { PageActions } from "../components/PageActions";
@@ -10,7 +10,7 @@ function GanttBar({ etapas, tiposEtapa }) {
   const inicio = new Date(datas[0]);
   const fim = new Date(datas[datas.length - 1]);
   const totalDias = Math.max(1, (fim - inicio) / 86400000);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = hoje();
   const todayX = Math.min(100, Math.max(0, ((new Date(today) - inicio) / 86400000 / totalDias) * 100));
 
   const fmtDate = d => new Date(d + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });

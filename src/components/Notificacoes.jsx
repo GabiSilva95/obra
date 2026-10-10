@@ -3,6 +3,20 @@ import { useNavigate } from "react-router-dom";
 import { Badge, Icon, IconButton } from "../../design-system";
 import { isAtrasada, calcCustoObra, fmt } from "../utils/helpers";
 
+/** Vencimentos do financeiro, a partir do resumo de /financeiro/resumo. */
+function notifsFinanceiro(r) {
+  if (!r) return [];
+  const n = [];
+  const link = "/app/financeiro";
+  if (r.pagar.qtdVencido > 0) n.push({ id: "fin-pagar-vencido", tipo: "danger", icone: "circle-alert", titulo: "Contas a pagar vencidas", msg: `${r.pagar.qtdVencido} conta${r.pagar.qtdVencido > 1 ? "s" : ""}, ${fmt(r.pagar.vencido)}`, link });
+  if (r.pagar.hoje > 0) n.push({ id: "fin-pagar-hoje", tipo: "warning", icone: "wallet", titulo: "Contas a pagar vencem hoje", msg: fmt(r.pagar.hoje), link });
+  if (r.pagar.prox7 > 0) n.push({ id: "fin-pagar-7", tipo: "warning", icone: "wallet", titulo: "A pagar nos próximos 7 dias", msg: fmt(r.pagar.prox7), link });
+  if (r.receber.qtdVencido > 0) n.push({ id: "fin-receber-vencido", tipo: "warning", icone: "circle-alert", titulo: "Contas a receber vencidas", msg: `${r.receber.qtdVencido} conta${r.receber.qtdVencido > 1 ? "s" : ""}, ${fmt(r.receber.vencido)}`, link });
+  const pend = r.pendencias.compras + r.pendencias.diarias + r.pendencias.locacoes;
+  if (pend > 0) n.push({ id: "fin-pendencias", tipo: "warning", icone: "clipboard-list", titulo: "Pagamentos sem conta a pagar", msg: `${pend} item${pend > 1 ? "s" : ""} em Financeiro > Pendências`, link });
+  return n;
+}
+
 function calcNotifs(data) {
   const { obras, etapasObra, tiposEtapa, estoques, insumos } = data;
   const notifs = [];
@@ -61,10 +75,10 @@ const TIPO = {
   warning: { color: "var(--status-warning-text)", soft: "var(--status-warning-soft)" },
 };
 
-export default function Notificacoes({ data }) {
+export default function Notificacoes({ data, financeiro }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const notifs = useMemo(() => (data ? calcNotifs(data) : []), [data]);
+  const notifs = useMemo(() => (data ? [...notifsFinanceiro(financeiro), ...calcNotifs(data)] : []), [data, financeiro]);
   const count = notifs.length;
 
   return (

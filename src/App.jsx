@@ -94,8 +94,19 @@ function AppShell({ session, atualizarSessao, onLogout }) {
 
 
 
+
   const user = session.user;
   const tenant = session.tenant;
+
+  // Vencimentos do financeiro (sino e painel): só para quem tem a permissão, e atualizado a cada troca de tela.
+  // null = ainda carregando; false = falhou (o painel mostra o aviso em vez de ficar "Carregando")
+  const [resumoFin, setResumoFin] = useState(null);
+  const podeFinanceiro = user.role === "tenant_admin" || (user.permissoes || []).includes("financeiro");
+  const { pathname: rotaAtual } = useLocation();
+  useEffect(() => {
+    if (!podeFinanceiro || !data) return;
+    api.get("/financeiro/resumo").then(setResumoFin).catch(() => setResumoFin(false));
+  }, [podeFinanceiro, !!data, rotaAtual]); // eslint-disable-line
 
   // Limite de plano vira o mesmo pop-up central, com atalho para os planos
   useEffect(() => onLimiteAtingido(info => {
@@ -165,7 +176,7 @@ function AppShell({ session, atualizarSessao, onLogout }) {
   const routes = !data ? message("Carregando…") : (
     <Routes>
       <Route index element={<Navigate to="dashboard" replace />} />
-      <Route path="dashboard"  element={<Dashboard data={data} userId={user.id} isMaster={isAdmin} />} />
+      <Route path="dashboard"  element={<Dashboard data={data} userId={user.id} isMaster={isAdmin} financeiro={resumoFin} pode={{ financeiro: has("financeiro"), estoque: has("estoque") }} api={api} ir={id => navigate(`/app/${id}`)} />} />
       <Route path="obras"      element={has("obras")       ? <Obras      {...sharedProps} canWrite={has("obras")}       /> : message("Acesso não permitido.")} />
       <Route path="maquinas"   element={has("maquinas")    ? <Maquinas   {...sharedProps} canWrite={has("maquinas")}    /> : message("Acesso não permitido.")} />
       <Route path="cadastros"  element={<Cadastros {...sharedProps} canWrite={has("cadastros")} />} />
@@ -174,7 +185,7 @@ function AppShell({ session, atualizarSessao, onLogout }) {
       <Route path="relatorios" element={has("relatorios")  ? <Relatorios data={data} />                                  : message("Acesso não permitido.")} />
       <Route path="usuarios"   element={isAdmin            ? <Usuarios   {...sharedProps} tenant={tenant} setTenant={t => atualizarSessao({ tenant: t })} /> : message("Acesso não permitido.")} />
       <Route path="diario"     element={<Diario    {...sharedProps} canWrite={isAdmin || has("obras")} />} />
-      <Route path="financeiro" element={<Financeiro {...sharedProps} canWrite={isAdmin} />} />
+      <Route path="financeiro" element={has("financeiro") ? <Financeiro {...sharedProps} canWrite={has("financeiro")} /> : message("Acesso não permitido.")} />
       <Route path="compras"    element={<Compras   {...sharedProps} canWrite={isAdmin || has("estoque")} />} />
       <Route path="treinamentos" element={<Treinamentos menu={allowedMenu(user)} ocultarTour={!!user.ocultarTour} onRefazerTour={() => setTourAberto(true)}
         onMostrarTourAoEntrar={async mostrar => {
@@ -189,7 +200,7 @@ function AppShell({ session, atualizarSessao, onLogout }) {
     <Header title={title} user={headerUser} search="none" messages={false} compact={isMobile}
       onMenu={isMobile ? () => setDrawer(true) : undefined}
       actions={isMobile ? undefined : actionsSlot}
-      notificationsSlot={<Notificacoes data={data} />} />
+      notificationsSlot={<Notificacoes data={data} financeiro={resumoFin} />} />
   );
 
   return (

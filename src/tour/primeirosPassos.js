@@ -14,7 +14,7 @@ const PASSOS = [
   {
     menuId: "dashboard",
     title: "Início",
-    content: "O resumo das suas obras: andamento, custos, estoque baixo e pendências. É a tela que abre ao entrar.",
+    content: "O resumo do que importa em três seções: Obras (cronograma e orçamento), Financeiro (contas a pagar, a receber e fluxo de caixa) e Estoque (posição do estoque e compras). É a tela que abre ao entrar.",
   },
   {
     menuId: "cadastros",
@@ -54,7 +54,7 @@ const PASSOS = [
   {
     menuId: "financeiro",
     title: "Financeiro",
-    content: "Lance receitas (contrato, medições, adiantamentos) e despesas (combustível, aluguel, taxas…) por obra e etapa, e acompanhe o lucro e a margem.",
+    content: "Contas a pagar e a receber com vencimento e rateio por obra, contas bancárias, conciliação do extrato, fluxo de caixa e o resultado de cada obra. Aparece para quem tem a permissão Financeiro.",
   },
   {
     menuId: "relatorios",
@@ -64,7 +64,7 @@ const PASSOS = [
   {
     menuId: "usuarios",
     title: "Usuários e plano",
-    content: "Convide a equipe e defina o que cada pessoa pode ver e editar, por tela e por obra. Aqui você também acompanha o seu plano.",
+    content: "Convide a equipe e defina o que cada pessoa pode ver e editar, por tela (inclusive o Financeiro) e por obra. Aqui você também acompanha o seu plano.",
   },
   {
     route: "obras",
@@ -75,7 +75,7 @@ const PASSOS = [
   {
     target: '[data-tour="notificacoes"]',
     title: "Notificações",
-    content: "O sino avisa o que precisa de atenção: etapas atrasadas, orçamento estourado, estoque zerado e prazos vencendo.",
+    content: "O sino avisa o que precisa de atenção: etapas atrasadas, orçamento estourado, estoque zerado, prazos vencendo e, para quem tem acesso ao Financeiro, contas vencidas.",
   },
   {
     menuId: "treinamentos",

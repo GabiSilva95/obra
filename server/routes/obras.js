@@ -197,6 +197,9 @@ router.delete("/:id", async (req, res) => {
   const id = parseInt(req.params.id);
   const obra = await findObraDoTenant(id, req.user.tenantId);
   if (!obra) return res.status(404).json({ error: "Obra não encontrada." });
+  // Contas a pagar e a receber rateadas para esta obra perderiam a classificação ao excluí-la
+  const titulos = await prisma.tituloRateio.count({ where: { obraId: id, tenantId: req.user.tenantId, titulo: { status: { not: "cancelado" } } } });
+  if (titulos) return res.status(409).json({ error: "Há contas a pagar ou a receber ligadas a esta obra no Financeiro. Cancele ou reclassifique antes de excluir." });
   await prisma.obra.delete({ where: { id } });
   res.json({ ok: true });
 });

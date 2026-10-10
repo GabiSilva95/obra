@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { extrairDadosNfe } from "../utils/nfe.js";
 import prisma from "../db.js";
+import { hojeBR } from "../utils/datas.js";
+import { TX, sanearNf, gerarTituloDaCompra, sincronizarTitulosDaCompra, cancelarTitulosDaCompra, excluirTitulosDaCompra } from "../financeiro/compras.js";
 
 const router = Router();
 
@@ -83,7 +85,7 @@ async function gerarEntradasEstoque(ordem, tenantId) {
         quantEntrada:   item.quantidade,
         quantUtilizado: 0,
         custoUnit:      custoNovo,
-        dataMov:        new Date().toISOString().slice(0, 10),
+        dataMov:        hojeBR(),
         origem,
       },
       include: { insumo: true },
@@ -91,6 +93,22 @@ async function gerarEntradasEstoque(ordem, tenantId) {
     criados.push(novo);
   }
   return criados;
+}
+
+/**
+ * Compra entregue: dá entrada no estoque e gera a conta a pagar. Uma falha numa das duas
+ * não desfaz a entrega nem a outra: o que faltar aparece em Financeiro > Pendências.
+ */
+async function aoEntregar(ordem, tenantId, nf) {
+  const estoquesGerados = await gerarEntradasEstoque(ordem, tenantId).catch(e => {
+    console.error(`[compras] falha ao gerar estoque da ordem ${ordem.id}:`, e);
+    return [];
+  });
+  const titulo = await prisma.$transaction(tx => gerarTituloDaCompra(tx, { tenantId, ordem, nf }), TX).catch(e => {
+    console.error(`[compras] falha ao gerar conta a pagar da ordem ${ordem.id}:`, e);
+    return null;
+  });
+  return { estoquesGerados, tituloGerado: !!titulo };
 }
 
 // ─── Rotas ────────────────────────────────────────────────────────────────────
@@ -209,15 +227,12 @@ router.put("/:id", async (req, res) => {
   });
 
   const normalizada = normalizar(updated);
-  let estoquesGerados = [];
-  if (status === "Entregue") {
-    estoquesGerados = await gerarEntradasEstoque(normalizada, req.user.tenantId).catch(e => {
-      console.error(`[compras] falha ao gerar estoque da ordem ${id}:`, e);
-      return [];
-    });
-  }
+  let extra = { estoquesGerados: [], tituloGerado: false };
+  if (status === "Entregue") extra = await aoEntregar(normalizada, req.user.tenantId, sanearNf(req.body.nf));
+  // Itens, obra ou etapa mudaram: o título (se ainda estiver sem pagamento) acompanha
+  await prisma.$transaction(tx => sincronizarTitulosDaCompra(tx, { tenantId: req.user.tenantId, ordem: normalizada }), TX).catch(e => console.error(`[compras] sincronização do título da ordem ${id}:`, e));
 
-  res.json({ ...normalizada, estoquesGerados });
+  res.json({ ...normalizada, ...extra });
 });
 
 router.patch("/:id/status", async (req, res) => {
@@ -233,22 +248,23 @@ router.patch("/:id/status", async (req, res) => {
   });
 
   const normalizada = normalizar(updated);
-  let estoquesGerados = [];
-  if (status === "Entregue") {
-    estoquesGerados = await gerarEntradasEstoque(normalizada, req.user.tenantId).catch(e => {
-      console.error(`[compras] falha ao gerar estoque da ordem ${id}:`, e);
-      return [];
-    });
-  }
+  let extra = { estoquesGerados: [], tituloGerado: false };
+  if (status === "Entregue") extra = await aoEntregar(normalizada, req.user.tenantId, sanearNf(req.body.nf));
+  else if (status === "Cancelada") await prisma.$transaction(tx => cancelarTitulosDaCompra(tx, { tenantId: req.user.tenantId, ordemId: id }), TX).catch(e => console.error(`[compras] cancelamento dos títulos da ordem ${id}:`, e));
 
-  res.json({ ...normalizada, estoquesGerados });
+  res.json({ ...normalizada, ...extra });
 });
 
 router.delete("/:id", async (req, res) => {
   const id = parseInt(req.params.id);
   const existing = await prisma.ordemCompra.findFirst({ where: { id, tenantId: req.user.tenantId } });
   if (!existing) return res.status(404).json({ error: "Não encontrado." });
-  await prisma.ordemCompra.delete({ where: { id } });
+  const motivo = await prisma.$transaction(async tx => {
+    const m = await excluirTitulosDaCompra(tx, { tenantId: req.user.tenantId, ordemId: id });
+    if (!m) await tx.ordemCompra.delete({ where: { id } });
+    return m;
+  }, TX);
+  if (motivo) return res.status(409).json({ error: motivo });
   res.json({ ok: true });
 });
 

@@ -174,9 +174,10 @@ Revenue/trend line — smooth curve, orange→transparent fill, dark value toolt
 
 ### BarChart
 
-Paired bars comparing two series per period; top-rounded 6px.
+Paired bars comparing two series per period; top-rounded 6px. `format` formats the axis ticks and the hover text (e.g. currency); pass `max` to pick the axis top yourself.
 ```jsx
 <BarChart series={[{key:'prev',label:'Previsto',color:'var(--accent)'},{key:'real',label:'Realizado',color:'var(--cp-black)'}]} data={[{label:'Seg',prev:220,real:120}]} />
+<BarChart max={40000} format={v=>'R$ '+Math.round(v/1000)+' mil'} series={[…]} data={[…]} />
 ```
 
 ### Card

@@ -65,7 +65,7 @@ function helpers(page, modulo) {
   const modal = () => page.getByRole("dialog").last();
   // Campo pelo texto do label do Field (o "*" de obrigatório é ignorado); procura no modal aberto primeiro
   const campo = label => {
-    const re = new RegExp(`^\\*?\\s*${esc(label)}$`);
+    const re = new RegExp(`^\\*?\\s*${esc(label)}\\s*$`);
     const porLabel = escopo => escopo.locator("label").filter({ has: page.locator(":scope > span").filter({ hasText: re }) }).locator("input, select, textarea").first();
     const porAria = escopo => escopo.getByLabel(label, { exact: true }).first();
     return { modal: [porLabel(modal()), porAria(modal())], pagina: [porLabel(page), porAria(page)] };

@@ -109,7 +109,7 @@ router.post("/maquinas", async (req, res) => {
   try {
     const {
       nome, tipo, modelo,
-      categoriaId,
+      categoriaId, locadorId,
       tipoPropriedade, tipoCobranca,
       valorLocacao, valorAquisicao, dataAquisicao, vidaUtilAnos, horasProdMes,
       custoHora: custoHoraManual,
@@ -129,6 +129,7 @@ router.post("/maquinas", async (req, res) => {
         modelo: modelo || null,
         custoHora,
         categoriaId:      categoriaId     ? parseInt(categoriaId)     : null,
+        locadorId:        locadorId       ? parseInt(locadorId)       : null,
         tipoPropriedade:  tipoPropriedade  || null,
         tipoCobranca:     tipoCobranca     || null,
         valorLocacao:     valorLocacao     != null ? parseFloat(valorLocacao)     : null,
@@ -151,7 +152,7 @@ router.put("/maquinas/:id", async (req, res) => {
 
     const {
       nome, tipo, modelo,
-      categoriaId,
+      categoriaId, locadorId,
       tipoPropriedade, tipoCobranca,
       valorLocacao, valorAquisicao, dataAquisicao, vidaUtilAnos, horasProdMes,
       custoHora: custoHoraManual,
@@ -175,6 +176,7 @@ router.put("/maquinas/:id", async (req, res) => {
         modelo:          modelo          !== undefined ? (modelo || null)  : existing.modelo,
         custoHora,
         categoriaId:     categoriaId     !== undefined ? (categoriaId ? parseInt(categoriaId) : null) : existing.categoriaId,
+        locadorId:       locadorId       !== undefined ? (locadorId ? parseInt(locadorId) : null) : existing.locadorId,
         tipoPropriedade: tipoPropriedade !== undefined ? (tipoPropriedade || null) : existing.tipoPropriedade,
         tipoCobranca:    tipoCobranca    !== undefined ? (tipoCobranca    || null) : existing.tipoCobranca,
         valorLocacao:    valorLocacao    !== undefined ? (valorLocacao    != null ? parseFloat(valorLocacao)   : null) : existing.valorLocacao,

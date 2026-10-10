@@ -9,6 +9,7 @@ import { PageActions } from "../components/PageActions";
 const ALL_PERMS = [
   { id: "obras", l: "Obras" }, { id: "maquinas", l: "Máquinas" }, { id: "cadastros", l: "Cadastros" },
   { id: "estoque", l: "Estoque" }, { id: "alocacao", l: "Alocação" }, { id: "relatorios", l: "Relatórios" },
+  { id: "financeiro", l: "Financeiro" },
 ];
 
 export default function Usuarios({ data, setData, api, tenant, setTenant }) {

@@ -35,5 +35,12 @@ export function extrairDadosNfe(xmlStr) {
     };
   }).filter(i => i.nome && i.quantidade > 0);
 
-  return { fornecedor: nomeFornecedor, cnpj, nfe: nNF, data: dhEmi, itens };
+  // Cobrança: as duplicatas (parcelas reais) viram as contas a pagar da compra
+  const total = parseFloat(inf.total?.ICMSTot?.vNF ?? 0) || null;
+  const dups = Array.isArray(inf.cobr?.dup) ? inf.cobr.dup : inf.cobr?.dup ? [inf.cobr.dup] : [];
+  const duplicatas = dups
+    .map(d => ({ numero: d.nDup != null ? String(d.nDup) : "", vencimento: d.dVenc ? String(d.dVenc).slice(0, 10) : null, valor: parseFloat(d.vDup ?? 0) }))
+    .filter(d => d.vencimento && d.valor > 0);
+
+  return { fornecedor: nomeFornecedor, cnpj, nfe: nNF, data: dhEmi, total, duplicatas, itens };
 }

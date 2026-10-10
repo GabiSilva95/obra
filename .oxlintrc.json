@@ -95,8 +95,8 @@
         "message": "<Banner> tone must be one of 'info' | 'success' | 'warning' | 'danger' | 'accent'."
       },
       {
-        "selector": "JSXOpeningElement[name.name='BarChart'] > JSXAttribute > JSXIdentifier[name!=/^(?:data|series|max|ticks|height|key|ref|className|aria-label)$/]",
-        "message": "<BarChart> doesn't accept that prop. Declared props: data, series, max, ticks, height."
+        "selector": "JSXOpeningElement[name.name='BarChart'] > JSXAttribute > JSXIdentifier[name!=/^(?:data|series|max|ticks|height|format|key|ref|className|aria-label)$/]",
+        "message": "<BarChart> doesn't accept that prop. Declared props: data, series, max, ticks, height, format."
       },
       {
         "selector": "JSXOpeningElement[name.name='Button'] > JSXAttribute > JSXIdentifier[name!=/^(?:variant|size|iconLeft|iconRight|fullWidth|disabled|loading|type|onClick|title|style|children|key|ref|className|aria-label)$/]",

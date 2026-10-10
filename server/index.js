@@ -15,7 +15,10 @@ import auditoriaRoutes from "./routes/auditoria.js";
 import apontamentosRoutes from "./routes/apontamentos.js";
 import despesasRoutes from "./routes/despesas.js";
 import preferenciasRoutes from "./routes/preferencias.js";
+import financeiroRoutes from "./routes/financeiro.js";
+import financeiroConciliacaoRoutes from "./routes/financeiroConciliacao.js";
 import { authMiddleware } from "./middleware/auth.js";
+import { requirePermissao } from "./middleware/permissao.js";
 import { authLimiter, apiLimiter } from "./middleware/rateLimiter.js";
 import { auditLogger } from "./middleware/auditLogger.js";
 
@@ -59,13 +62,15 @@ app.use("/api/estoque",    estoqueRoutes);
 app.use("/api/alocacao",   alocacaoRoutes);
 app.use("/api/usuarios",   usuariosRoutes);
 app.use("/api/diario",     diarioRoutes);
-app.use("/api/receitas",   receitasRoutes);
+app.use("/api/receitas",   requirePermissao("financeiro", { soEscrita: true }), receitasRoutes);
 app.use("/api/compras",    comprasRoutes);
 app.use("/api/plano",      planoRoutes);
 app.use("/api/auditoria",  auditoriaRoutes);
 app.use("/api/apontamentos", apontamentosRoutes);
-app.use("/api/despesas",     despesasRoutes);
+app.use("/api/despesas",     requirePermissao("financeiro", { soEscrita: true }), despesasRoutes);
 app.use("/api/me/preferencias", preferenciasRoutes);
+app.use("/api/financeiro", requirePermissao("financeiro"), financeiroRoutes);
+app.use("/api/financeiro", requirePermissao("financeiro"), financeiroConciliacaoRoutes);
 
 app.get("/api/health", (_, res) => res.json({ ok: true }));
 

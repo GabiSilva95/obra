@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { fmt, validate } from "../utils/helpers";
+import { fmt, validate, today } from "../utils/helpers";
 import { exportCsv } from "../utils/export";
 import { avisarErro, avisarSucesso, confirmar } from "../utils/aviso";
 import { Badge, Banner, Button, Card, DataTable, IconButton, Input, Modal, MoneyInput, SegmentedTabs, Select, StatCard, Tag, Textarea, UploadBox, useIsMobile } from "../../design-system";
@@ -111,14 +111,15 @@ export default function Compras({ data, setData, api, canWrite }) {
     if (!nfOcId || vinculando) return;
     setVinculando(true);
     try {
-      const { estoquesGerados = [], ...updated } = await api.patch(`/compras/${nfOcId}/status`, { status: "Entregue" });
+      const nf = { nfe: nfData.nfe, data: nfData.data, total: nfData.total, duplicatas: nfData.duplicatas };
+      const { estoquesGerados = [], tituloGerado, ...updated } = await api.patch(`/compras/${nfOcId}/status`, { status: "Entregue", nf });
       setData(d => ({
         ...d,
         compras:  d.compras.map(x => x.id === parseInt(nfOcId) ? { ...x, status: "Entregue" } : x),
         estoques: estoquesGerados.length ? [...d.estoques, ...estoquesGerados] : d.estoques,
       }));
       const n = estoquesGerados.length;
-      avisarSucesso(`NF vinculada. Ordem marcada como Entregue.${n ? ` ${n} lote(s) no estoque.` : ""}`, "Importação concluída");
+      avisarSucesso(`NF vinculada. Ordem marcada como Entregue.${n ? ` ${n} lote(s) no estoque.` : ""}${tituloGerado ? ` Conta a pagar gerada${nfData.duplicatas?.length > 1 ? ` em ${nfData.duplicatas.length} parcelas` : ""}.` : ""}`, "Importação concluída");
       setNfModal(false); setNfStep(1); setNfData(null); setNfOcId("");
     } catch (err) { avisarErro(err.message || "Erro ao vincular NF."); }
     finally { setVinculando(false); }
@@ -135,7 +136,7 @@ export default function Compras({ data, setData, api, canWrite }) {
   const totalEntregue  = compras.filter(c => c.status === "Entregue").reduce((s, c)  => s + totalOrdem(c), 0);
 
   const abrirNova = () => {
-    setForm({ obraId: obraFiltro || obras[0]?.id, data: new Date().toISOString().slice(0, 10), status: "Pendente" });
+    setForm({ obraId: obraFiltro || obras[0]?.id, data: today(), status: "Pendente" });
     setItensForm([{ insumoId: "", descricao: "", quantidade: 1, valorUnit: "" }]);
     setModal(true);
   };
@@ -184,14 +185,14 @@ export default function Compras({ data, setData, api, canWrite }) {
 
   const setStatus = async (id, status) => {
     try {
-      const { estoquesGerados = [], ...updated } = await api.patch(`/compras/${id}/status`, { status });
+      const { estoquesGerados = [], tituloGerado, ...updated } = await api.patch(`/compras/${id}/status`, { status });
       setData(d => ({
         ...d,
         compras:  d.compras.map(x => x.id === id ? { ...x, status } : x),
         estoques: estoquesGerados.length ? [...d.estoques, ...estoquesGerados] : d.estoques,
       }));
-      if (estoquesGerados.length) {
-        avisarSucesso(`${estoquesGerados.length} lote(s) de material deram entrada no estoque da obra.`, "Entrada registrada");
+      if (estoquesGerados.length || tituloGerado) {
+        avisarSucesso([estoquesGerados.length && `${estoquesGerados.length} lote(s) de material deram entrada no estoque da obra.`, tituloGerado && "A conta a pagar foi gerada no Financeiro."].filter(Boolean).join(" "), "Entrega registrada");
       }
     } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
   };
@@ -327,12 +328,18 @@ export default function Compras({ data, setData, api, canWrite }) {
                   {nfData.fornecedor && <span>Fornecedor: <b>{nfData.fornecedor}</b></span>}
                   {nfData.nfe && <span>NF: <b>{nfData.nfe}</b></span>}
                   {nfData.data && <span>Emissão: <b>{dataBR(nfData.data)}</b></span>}
+                  {nfData.total > 0 && <span>Total da nota: <b>{fmt(nfData.total)}</b></span>}
                 </div>
               </Banner>
               <DataTable dense minWidth={0} rows={nfData.itens} rowKey={(r, i) => i} columns={[
                 { key: "nome", label: "Produto" }, { key: "unidade", label: "Un." }, { key: "quantidade", label: "Qtd.", align: "right" },
                 { key: "valorUnit", label: "Valor unit.", align: "right", render: item => fmt(item.valorUnit) },
               ]} />
+              {nfData.duplicatas?.length > 0 && (
+                <Banner tone="accent" title={`Contas a pagar: ${nfData.duplicatas.length} ${nfData.duplicatas.length === 1 ? "parcela" : "parcelas"} da nota`}>
+                  {nfData.duplicatas.map(d => `${dataBR(d.vencimento)}: ${fmt(d.valor)}`).join(" · ")}
+                </Banner>
+              )}
               <h3 style={{ margin: 0, font: "var(--type-card-title)", fontSize: "var(--fs-p4)" }}>Vincular a uma ordem aprovada</h3>
               {!ocAprovadas.length ? (
                 <Banner tone="warning">Não há ordens com status <b>Aprovada</b>. Aprove uma OC antes de importar a NF.</Banner>

@@ -17,47 +17,58 @@ model Tenant {
   plano       String   @default("starter")
   createdAt   DateTime @default(now())
 
-  users             User[]
-  obras             Obra[]
-  tiposEtapa        TipoEtapa[]
-  maquinas          Maquina[]
-  funcionarios      Funcionario[]
-  insumos           Insumo[]
-  etapasObra        EtapaObra[]
-  estoques          Estoque[]
-  alocacoes         Alocacao[]
-  diarios           DiarioObra[]
-  receitas          Receita[]
-  ordensCompra      OrdemCompra[]
-  refreshTokens     RefreshToken[]
-  auditLogs         AuditLog[]
+  users               User[]
+  obras               Obra[]
+  tiposEtapa          TipoEtapa[]
+  maquinas            Maquina[]
+  funcionarios        Funcionario[]
+  insumos             Insumo[]
+  etapasObra          EtapaObra[]
+  estoques            Estoque[]
+  alocacoes           Alocacao[]
+  diarios             DiarioObra[]
+  receitas            Receita[]
+  ordensCompra        OrdemCompra[]
+  refreshTokens       RefreshToken[]
+  auditLogs           AuditLog[]
   // Novos (Melhorias 1 e 2)
-  categoriasMaquina CategoriaMaquina[]
-  tiposObra         TipoObra[]
+  categoriasMaquina   CategoriaMaquina[]
+  tiposObra           TipoObra[]
   // Novos (Prioridades 4 a 8)
-  consumos          ConsumoInsumo[]
-  apontamentos      ApontamentoMO[]
-  despesas          Despesa[]
-  anexos            Anexo[]
-  subetapas         Subetapa[]
-  itensOrdem        ItemOrdemCompra[]
-  transferencias    Transferencia[]
+  consumos            ConsumoInsumo[]
+  apontamentos        ApontamentoMO[]
+  despesas            Despesa[]
+  anexos              Anexo[]
+  subetapas           Subetapa[]
+  itensOrdem          ItemOrdemCompra[]
+  transferencias      Transferencia[]
+  // Financeiro (títulos, contas, rateio, conciliação)
+  contasFinanceiras   ContaFinanceira[]
+  categoriasFinanc    CategoriaFinanceira[]
+  centrosCusto        CentroCusto[]
+  titulos             Titulo[]
+  titulosRateio       TituloRateio[]
+  baixas              Baixa[]
+  lancamentosBanc     LancamentoBancario[]
+  importacoesExtrato  ImportacaoExtrato[]
+  transferenciasConta TransferenciaConta[]
+  configFinanceira    ConfigFinanceira?
 }
 
 // ─── Usuários e Acessos ───────────────────────────────────────────────────────
 
 model User {
-  id         Int      @id @default(autoincrement())
-  tenantId   String
-  nome       String
-  email      String
-  senha      String
-  role       String   @default("user")
-  ativo      Boolean  @default(true)
-  permissoes String[] @default([])
+  id          Int      @id @default(autoincrement())
+  tenantId    String
+  nome        String
+  email       String
+  senha       String
+  role        String   @default("user")
+  ativo       Boolean  @default(true)
+  permissoes  String[] @default([])
   // Tour de primeiros passos: true quando o usuário marca "Não mostrar novamente"
-  ocultarTour Boolean @default(false)
-  createdAt  DateTime @default(now())
+  ocultarTour Boolean  @default(false)
+  createdAt   DateTime @default(now())
 
   tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   obrasAcesso   ObraAcesso[]
@@ -93,22 +104,23 @@ model Obra {
   // Melhoria 2: tipo de obra (nullable para compatibilidade com obras existentes)
   tipoObraId  Int?
 
-  tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  tipoObra        TipoObra?         @relation(fields: [tipoObraId], references: [id], onDelete: SetNull)
-  etapas          EtapaObra[]
-  estoques        Estoque[]
-  alocacoes       Alocacao[]
-  funcionarioObra FuncionarioObra[]
-  acessos         ObraAcesso[]
-  diario          DiarioObra[]
-  receitas        Receita[]
-  ordensCompra    OrdemCompra[]
+  tenant                Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tipoObra              TipoObra?         @relation(fields: [tipoObraId], references: [id], onDelete: SetNull)
+  etapas                EtapaObra[]
+  estoques              Estoque[]
+  alocacoes             Alocacao[]
+  funcionarioObra       FuncionarioObra[]
+  acessos               ObraAcesso[]
+  diario                DiarioObra[]
+  receitas              Receita[]
+  ordensCompra          OrdemCompra[]
   consumos              ConsumoInsumo[]
   apontamentos          ApontamentoMO[]
   despesas              Despesa[]
   anexos                Anexo[]
-  transferenciasOrigem  Transferencia[] @relation("TransferenciaOrigem")
-  transferenciasDestino Transferencia[] @relation("TransferenciaDestino")
+  rateiosTitulo         TituloRateio[]
+  transferenciasOrigem  Transferencia[]   @relation("TransferenciaOrigem")
+  transferenciasDestino Transferencia[]   @relation("TransferenciaDestino")
 
   @@index([tenantId])
   @@index([tipoObraId])
@@ -177,12 +189,13 @@ model EtapaObra {
   tipoEtapa TipoEtapa @relation(fields: [tipoEtapaId], references: [id])
 
   // Prioridade 7: custo realizado por etapa
-  alocacoes    Alocacao[]
-  consumos     ConsumoInsumo[]
-  apontamentos ApontamentoMO[]
-  despesas     Despesa[]
-  ordensCompra OrdemCompra[]
-  subetapas    Subetapa[]
+  alocacoes     Alocacao[]
+  consumos      ConsumoInsumo[]
+  apontamentos  ApontamentoMO[]
+  despesas      Despesa[]
+  ordensCompra  OrdemCompra[]
+  subetapas     Subetapa[]
+  rateiosTitulo TituloRateio[]
 
   @@index([tenantId])
   @@index([obraId])
@@ -260,8 +273,12 @@ model Maquina {
   vidaUtilAnos   Int?
   horasProdMes   Int?
 
+  // Financeiro: quem recebe o aluguel (pessoa com perfil fornecedor)
+  locadorId Int?
+
   tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   categoria CategoriaMaquina? @relation(fields: [categoriaId], references: [id], onDelete: SetNull)
+  locador   Funcionario?      @relation(fields: [locadorId], references: [id], onDelete: SetNull)
   alocacoes Alocacao[]
 
   @@index([tenantId])
@@ -271,24 +288,26 @@ model Maquina {
 // ─── Funcionários ─────────────────────────────────────────────────────────────
 
 model Funcionario {
-  id             Int     @id @default(autoincrement())
-  tenantId       String
-  nome           String
-  cpfCnpj        String?
-  telefone       String?
-  email          String?
-  endereco       String?
-  isColaborador  Boolean @default(false)
-  isFornecedor   Boolean @default(false)
-  isCliente      Boolean @default(false)
-  cargo          String?
-  salarioDia     Float   @default(0)
-  ativo          Boolean @default(true)
+  id            Int     @id @default(autoincrement())
+  tenantId      String
+  nome          String
+  cpfCnpj       String?
+  telefone      String?
+  email         String?
+  endereco      String?
+  isColaborador Boolean @default(false)
+  isFornecedor  Boolean @default(false)
+  isCliente     Boolean @default(false)
+  cargo         String?
+  salarioDia    Float   @default(0)
+  ativo         Boolean @default(true)
 
   tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   funcionarioObra FuncionarioObra[]
   apontamentos    ApontamentoMO[]
   ordensCompra    OrdemCompra[]
+  titulos         Titulo[]
+  maquinasLocadas Maquina[]
 }
 
 model Subetapa {
@@ -330,7 +349,7 @@ model Insumo {
   categoria  String?
   fornecedor String?
 
-  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant         Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   estoques       Estoque[]
   alocacoes      Alocacao[]
   ordensCompra   OrdemCompra[]
@@ -413,6 +432,8 @@ model ApontamentoMO {
   /// Registro do diário que originou este apontamento, quando houver
   diarioId      Int?
   obs           String?
+  /// Título a pagar que quitou esta diária (nulo = ainda não paga)
+  tituloId      Int?
   createdAt     DateTime @default(now())
 
   tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -420,6 +441,7 @@ model ApontamentoMO {
   funcionario Funcionario @relation(fields: [funcionarioId], references: [id], onDelete: Cascade)
   etapa       EtapaObra?  @relation(fields: [etapaId], references: [id], onDelete: SetNull)
   diarioRef   DiarioObra? @relation(fields: [diarioId], references: [id], onDelete: SetNull)
+  titulo      Titulo?     @relation(fields: [tituloId], references: [id], onDelete: SetNull)
 
   @@unique([funcionarioId, obraId, data])
   @@index([tenantId])
@@ -433,25 +455,30 @@ model ApontamentoMO {
 /// manutenção, aluguel, tributos, administrativo.
 /// obraId nulo = despesa geral da empresa, fora do custo de uma obra.
 model Despesa {
-  id         Int      @id @default(autoincrement())
-  tenantId   String
-  obraId     Int?
-  etapaId    Int?
-  categoria  String
-  descricao  String
-  valor      Float    @default(0)
-  data       String
-  fornecedor String?
-  obs        String?
-  createdAt  DateTime @default(now())
+  id            Int      @id @default(autoincrement())
+  tenantId      String
+  obraId        Int?
+  etapaId       Int?
+  categoria     String
+  descricao     String
+  valor         Float    @default(0)
+  data          String
+  fornecedor    String?
+  obs           String?
+  createdAt     DateTime @default(now())
+  // Financeiro: centro de custo e documento (grupo) que liga as linhas de um rateio ao título
+  centroCustoId Int?
+  grupoId       String?
 
-  tenant Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  obra   Obra?      @relation(fields: [obraId], references: [id], onDelete: Cascade)
-  etapa  EtapaObra? @relation(fields: [etapaId], references: [id], onDelete: SetNull)
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  obra        Obra?        @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  etapa       EtapaObra?   @relation(fields: [etapaId], references: [id], onDelete: SetNull)
+  centroCusto CentroCusto? @relation(fields: [centroCustoId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([obraId])
   @@index([etapaId])
+  @@index([grupoId])
 }
 
 // ─── Alocação ─────────────────────────────────────────────────────────────────
@@ -473,13 +500,16 @@ model Alocacao {
   custoUnitario Float?
 
   // Prioridade 7: apropriação por etapa
-  etapaId Int?
+  etapaId  Int?
+  // Financeiro: título a pagar (locação) que quitou esta alocação
+  tituloId Int?
 
   tenant  Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   obra    Obra       @relation(fields: [obraId], references: [id], onDelete: Cascade)
   maquina Maquina?   @relation(fields: [maquinaId], references: [id])
   insumo  Insumo?    @relation(fields: [insumoId], references: [id])
   etapa   EtapaObra? @relation(fields: [etapaId], references: [id], onDelete: SetNull)
+  titulo  Titulo?    @relation(fields: [tituloId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([obraId])
@@ -510,33 +540,39 @@ model DiarioObra {
 // ─── Receitas ─────────────────────────────────────────────────────────────────
 
 model Receita {
-  id        Int    @id @default(autoincrement())
-  tenantId  String @default("")
-  obraId    Int
-  descricao String
-  valor     Float  @default(0)
-  data      String
-  tipo      String @default("Contrato")
+  id            Int     @id @default(autoincrement())
+  tenantId      String  @default("")
+  // Opcional: a receita de um centro de custo (ex.: venda de sucata) não tem obra
+  obraId        Int?
+  descricao     String
+  valor         Float   @default(0)
+  data          String
+  tipo          String  @default("Contrato")
+  // Financeiro: centro de custo e documento (grupo) que liga as linhas de um rateio ao título
+  centroCustoId Int?
+  grupoId       String?
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  obra   Obra   @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  obra        Obra?        @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  centroCusto CentroCusto? @relation(fields: [centroCustoId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([obraId])
+  @@index([grupoId])
 }
 
 // ─── Ordens de Compra ─────────────────────────────────────────────────────────
 
 model OrdemCompra {
-  id         Int     @id @default(autoincrement())
-  numero     Int?
-  tenantId   String  @default("")
-  obraId     Int
+  id           Int     @id @default(autoincrement())
+  numero       Int?
+  tenantId     String  @default("")
+  obraId       Int
   // Campos legados (OCs antigas single-item) — novos registros usam ItemOrdemCompra
-  insumoId   Int?
-  descricao  String  @default("")
-  quantidade Float   @default(0)
-  valorUnit  Float   @default(0)
+  insumoId     Int?
+  descricao    String  @default("")
+  quantidade   Float   @default(0)
+  valorUnit    Float   @default(0)
   fornecedor   String?
   fornecedorId Int?
   status       String  @default("Pendente")
@@ -588,7 +624,7 @@ model Transferencia {
   createdAt  DateTime @default(now())
 
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  deObra   Obra   @relation("TransferenciaOrigem",  fields: [deObraId],   references: [id], onDelete: Cascade)
+  deObra   Obra   @relation("TransferenciaOrigem", fields: [deObraId], references: [id], onDelete: Cascade)
   paraObra Obra   @relation("TransferenciaDestino", fields: [paraObraId], references: [id], onDelete: Cascade)
   insumo   Insumo @relation(fields: [insumoId], references: [id], onDelete: Cascade)
 
@@ -630,4 +666,242 @@ model AuditLog {
 
   @@index([tenantId])
   @@index([createdAt])
+}
+
+// ─── Financeiro: contas, títulos, rateio e conciliação ───────────────────────
+//
+// Camada de CAIXA. O custo da obra (competência) continua em Despesa, Receita,
+// ConsumoInsumo, Alocacao e ApontamentoMO; o título só diz quando e como se paga.
+// Valores em Decimal(14,2): parcelas, rateios e baixas parciais não toleram Float.
+// Datas seguem o resto do sistema: String AAAA-MM-DD (horário de São Paulo).
+
+model ContaFinanceira {
+  id               Int      @id @default(autoincrement())
+  tenantId         String
+  nome             String
+  /// "banco" | "caixa"
+  tipo             String   @default("banco")
+  banco            String?
+  agencia          String?
+  numero           String?
+  saldoInicial     Decimal  @default(0) @db.Decimal(14, 2)
+  dataSaldoInicial String
+  ativa            Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  tenant                Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  baixas                Baixa[]
+  lancamentos           LancamentoBancario[]
+  importacoes           ImportacaoExtrato[]
+  transferenciasSaida   TransferenciaConta[] @relation("TransferenciaContaOrigem")
+  transferenciasEntrada TransferenciaConta[] @relation("TransferenciaContaDestino")
+
+  @@index([tenantId])
+}
+
+model CategoriaFinanceira {
+  id       Int     @id @default(autoincrement())
+  tenantId String
+  /// "pagar" | "receber"
+  tipo     String
+  nome     String
+  ativa    Boolean @default(true)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, tipo, nome])
+}
+
+/// Dimensão analítica além de obra e etapa: Administrativo, Frota, Comercial…
+model CentroCusto {
+  id       Int     @id @default(autoincrement())
+  tenantId String
+  nome     String
+  codigo   String?
+  ativo    Boolean @default(true)
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  despesas Despesa[]
+  receitas Receita[]
+  rateios  TituloRateio[]
+
+  @@unique([tenantId, nome])
+}
+
+model ConfigFinanceira {
+  tenantId        String @id
+  prazoPadraoDias Int    @default(30)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+/// Uma parcela a pagar ou a receber. `grupoId` liga as parcelas do mesmo documento
+/// (e as linhas de Despesa/Receita geradas junto).
+model Titulo {
+  id            Int      @id @default(autoincrement())
+  tenantId      String
+  /// "pagar" | "receber"
+  tipo          String
+  pessoaId      Int?
+  /// Nome livre quando a pessoa não está cadastrada
+  pessoaTexto   String?
+  descricao     String
+  documento     String?
+  categoria     String?
+  valor         Decimal  @db.Decimal(14, 2)
+  emissao       String
+  vencimento    String
+  parcela       Int      @default(1)
+  totalParcelas Int      @default(1)
+  grupoId       String
+  /// "aberto" | "parcial" | "quitado" | "cancelado"; "vencido" é derivado pela data
+  status        String   @default("aberto")
+  /// "despesa" | "receita" | "compra" | "mao_de_obra" | "locacao" | "avulso"
+  origemTipo    String   @default("avulso")
+  origemId      Int?
+  /// Conta fixa repetida: cada parcela é um custo do seu mês (e não uma divisão do valor)
+  recorrente    Boolean  @default(false)
+  obs           String?
+  createdAt     DateTime @default(now())
+
+  tenant       Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pessoa       Funcionario?    @relation(fields: [pessoaId], references: [id], onDelete: SetNull)
+  rateios      TituloRateio[]
+  baixas       Baixa[]
+  apontamentos ApontamentoMO[]
+  alocacoes    Alocacao[]
+
+  /// Geração automática idempotente (ex.: a mesma compra entregue duas vezes)
+  @@unique([tenantId, origemTipo, origemId, parcela])
+  @@index([tenantId, tipo, status, vencimento])
+  @@index([grupoId])
+  @@index([pessoaId])
+}
+
+/// Como o título se divide entre obra, etapa e centro de custo. A soma é o valor do título.
+model TituloRateio {
+  id            Int     @id @default(autoincrement())
+  tenantId      String
+  tituloId      Int
+  obraId        Int?
+  etapaId       Int?
+  centroCustoId Int?
+  valor         Decimal @db.Decimal(14, 2)
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  titulo      Titulo       @relation(fields: [tituloId], references: [id], onDelete: Cascade)
+  obra        Obra?        @relation(fields: [obraId], references: [id], onDelete: SetNull)
+  etapa       EtapaObra?   @relation(fields: [etapaId], references: [id], onDelete: SetNull)
+  centroCusto CentroCusto? @relation(fields: [centroCustoId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([tituloId])
+  @@index([obraId])
+  @@index([centroCustoId])
+}
+
+/// Pagamento ou recebimento de (parte de) um título.
+/// `valor` quita o título; o dinheiro que se move é valor + juros + multa - desconto.
+model Baixa {
+  id           Int      @id @default(autoincrement())
+  tenantId     String
+  tituloId     Int
+  contaId      Int
+  data         String
+  valor        Decimal  @db.Decimal(14, 2)
+  juros        Decimal  @default(0) @db.Decimal(14, 2)
+  multa        Decimal  @default(0) @db.Decimal(14, 2)
+  desconto     Decimal  @default(0) @db.Decimal(14, 2)
+  /// "pix" | "boleto" | "ted" | "dinheiro" | "cartao" | "cheque"
+  forma        String   @default("pix")
+  obs          String?
+  /// Data do estorno; baixa estornada não conta no saldo nem no título
+  estornadaEm  String?
+  lancamentoId Int?
+  createdAt    DateTime @default(now())
+
+  tenant     Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  titulo     Titulo              @relation(fields: [tituloId], references: [id], onDelete: Cascade)
+  conta      ContaFinanceira     @relation(fields: [contaId], references: [id])
+  lancamento LancamentoBancario? @relation(fields: [lancamentoId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([tituloId])
+  @@index([contaId])
+  @@index([lancamentoId])
+}
+
+/// Arquivo de extrato importado (OFX ou CSV).
+model ImportacaoExtrato {
+  id             Int      @id @default(autoincrement())
+  tenantId       String
+  contaId        Int
+  arquivo        String
+  formato        String
+  periodoInicio  String?
+  periodoFim     String?
+  saldoFinal     Decimal? @db.Decimal(14, 2)
+  dataSaldoFinal String?
+  total          Int      @default(0)
+  novos          Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  tenant      Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conta       ContaFinanceira      @relation(fields: [contaId], references: [id], onDelete: Cascade)
+  lancamentos LancamentoBancario[]
+
+  @@index([tenantId])
+  @@index([contaId])
+}
+
+/// Linha do extrato bancário. `valor` tem sinal: entrada positiva, saída negativa.
+model LancamentoBancario {
+  id           Int      @id @default(autoincrement())
+  tenantId     String
+  contaId      Int
+  importacaoId Int?
+  data         String
+  valor        Decimal  @db.Decimal(14, 2)
+  descricao    String
+  fitid        String?
+  /// Evita importar duas vezes a mesma linha (fitid, ou data+valor+descrição+ordem)
+  hash         String
+  /// "pendente" | "conciliado" | "ignorado"
+  status       String   @default("pendente")
+  /// "extrato" | "manual"
+  origem       String   @default("extrato")
+  createdAt    DateTime @default(now())
+
+  tenant             Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conta              ContaFinanceira      @relation(fields: [contaId], references: [id], onDelete: Cascade)
+  importacao         ImportacaoExtrato?   @relation(fields: [importacaoId], references: [id], onDelete: SetNull)
+  baixas             Baixa[]
+  transferenciasDe   TransferenciaConta[] @relation("TransferenciaLancamentoDe")
+  transferenciasPara TransferenciaConta[] @relation("TransferenciaLancamentoPara")
+
+  @@unique([contaId, hash])
+  @@index([tenantId, contaId, status])
+}
+
+model TransferenciaConta {
+  id          Int      @id @default(autoincrement())
+  tenantId    String
+  deContaId   Int
+  paraContaId Int
+  data        String
+  valor       Decimal  @db.Decimal(14, 2)
+  obs         String?
+  createdAt   DateTime @default(now())
+
+  /// Linhas do extrato que confirmam a saída (conta de origem) e a entrada (conta de destino)
+  lancamentoDeId   Int?
+  lancamentoParaId Int?
+
+  tenant         Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  deConta        ContaFinanceira     @relation("TransferenciaContaOrigem", fields: [deContaId], references: [id])
+  paraConta      ContaFinanceira     @relation("TransferenciaContaDestino", fields: [paraContaId], references: [id])
+  lancamentoDe   LancamentoBancario? @relation("TransferenciaLancamentoDe", fields: [lancamentoDeId], references: [id], onDelete: SetNull)
+  lancamentoPara LancamentoBancario? @relation("TransferenciaLancamentoPara", fields: [lancamentoParaId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
 }

@@ -1,0 +1,27 @@
+// Nomes legíveis das ações da auditoria da equipe. Ação sem nome aparece como veio.
+export const ACOES = {
+  login: "Entrou no painel",
+  login_falhou: "Tentativa de login errada",
+  senha_trocada: "Trocou a própria senha",
+  senha_redefinida_por_script: "Senha redefinida por script",
+  administrador_criado_por_script: "Administrador criado por script",
+  equipe_criou: "Criou uma pessoa da equipe",
+  equipe_editou: "Alterou uma pessoa da equipe",
+  equipe_desativou: "Desativou uma pessoa da equipe",
+  equipe_reativou: "Reativou uma pessoa da equipe",
+  equipe_redefiniu_senha: "Redefiniu a senha de alguém",
+  cliente_plano: "Alterou o plano de uma empresa",
+  cliente_teste: "Estendeu o teste de uma empresa",
+  cliente_status: "Mudou a situação de uma empresa",
+  cliente_notas: "Editou as notas de uma empresa",
+  cliente_entrou_leitura: "Entrou na conta de uma empresa (leitura)",
+  cliente_assinatura: "Configurou a assinatura de uma empresa",
+  cobranca_criou: "Criou uma cobrança",
+  cobranca_gerou_mes: "Gerou as cobranças do mês",
+  cobranca_pagamento: "Registrou um pagamento",
+  cobranca_estorno: "Estornou um pagamento",
+  cobranca_cancelou: "Cancelou uma cobrança",
+  cobranca_reabriu: "Reabriu uma cobrança",
+  cobranca_exportou: "Exportou cobranças em CSV",
+};
+export const rotuloAcao = a => ACOES[a] || a;

@@ -12,14 +12,13 @@ const ALL_PERMS = [
   { id: "financeiro", l: "Financeiro" },
 ];
 
-export default function Usuarios({ data, setData, api, tenant, setTenant }) {
+export default function Usuarios({ data, setData, api, tenant, irAssinatura }) {
   const { obras } = data;
   const users = data.users;
   const plano = planoPorId(tenant.plano) || PLANOS[0];
   const ativos = users.filter(u => u.ativo).length;
   const limiteAtingido = ativos >= plano.usuarios;
   const [modal, setModal] = useState(false);
-  const [planoModal, setPlanoModal] = useState(false);
   const [form, setForm] = useState({});
   const [erros, setErros] = useState({});
   const [salvando, setSalvando] = useState(false);
@@ -56,13 +55,12 @@ export default function Usuarios({ data, setData, api, tenant, setTenant }) {
     } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
   };
 
-  const planoAtual = planoPorId(tenant.plano)?.id;
   const fecharModal = () => { setModal(false); setErros({}); };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)" }}>
       <PageActions>
-        <Button variant="secondary" iconLeft="shield-check" onClick={() => setPlanoModal(true)}>Alterar plano</Button>
+        <Button variant="secondary" iconLeft="shield-check" onClick={irAssinatura}>Plano e assinatura</Button>
         <Button iconLeft="plus" onClick={() => { if (limiteAtingido) { emitirLimiteAtingido({ recurso: "usuarios", limite: plano.usuarios, atual: ativos }); return; } setForm({ permissoes: [], obrasAcesso: [] }); setModal(true); }}>Novo usuário</Button>
       </PageActions>
 
@@ -75,7 +73,7 @@ export default function Usuarios({ data, setData, api, tenant, setTenant }) {
       </Card>
 
       {limiteAtingido && (
-        <Banner tone="danger" title="Limite de usuários atingido" action={<Button size="sm" variant="danger" onClick={() => setPlanoModal(true)}>Fazer upgrade</Button>}>
+        <Banner tone="danger" title="Limite de usuários atingido" action={<Button size="sm" variant="danger" onClick={irAssinatura}>Fazer upgrade</Button>}>
           Faça upgrade para adicionar mais usuários.
         </Banner>
       )}
@@ -143,29 +141,6 @@ export default function Usuarios({ data, setData, api, tenant, setTenant }) {
         </Modal>
       )}
 
-      {planoModal && (
-        <Modal title="Alterar plano" onClose={() => setPlanoModal(false)} wide>
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(var(--col-min-sm),1fr))", gap: "var(--space-3)" }}>
-              {PLANOS.map(p => {
-                const curr = planoAtual === p.id;
-                return (
-                  <Card key={p.id} selected={curr} padding="var(--space-4)" title={p.nome}
-                    action={curr ? <Badge size="sm" tone="accent">Atual</Badge> : p.popular ? <Badge size="sm" tone="neutral">Popular</Badge> : null}>
-                    <div><span style={{ font: "var(--type-stat)", fontSize: "var(--fs-h4)" }}>R$ {p.preco.mensal}</span><span style={{ color: "var(--text-secondary)" }}> /mês</span></div>
-                    <div style={{ color: "var(--text-secondary)", fontSize: "var(--fs-p5-5)" }}>
-                      <div>{p.usuarios === 999 ? "Usuários ilimitados" : `Até ${p.usuarios} usuários`}</div>
-                      <div>{p.obras === 999 ? "Obras ilimitadas" : `Até ${p.obras} obras`}</div>
-                    </div>
-                    {!curr && <Button size="sm" fullWidth onClick={() => { setTenant(t => ({ ...t, plano: p.id })); setPlanoModal(false); }}>Migrar para {p.nome}</Button>}
-                  </Card>
-                );
-              })}
-            </div>
-            <p style={{ margin: 0, fontSize: "var(--fs-p5-5)", color: "var(--text-secondary)", textAlign: "center" }}>A migração de plano é imediata nesta demonstração.</p>
-          </div>
-        </Modal>
-      )}
     </div>
   );
 }

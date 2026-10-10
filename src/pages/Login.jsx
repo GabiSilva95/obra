@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button, Card, Icon, Input } from "../../design-system";
 import logoPositivo from "../../design-system/assets/logo-positivo.svg";
+import { DIAS_TESTE } from "./Landing/oferta";
 
 export default function Login({ onLogin, onRegistro }) {
   const [email, setEmail] = useState("");
@@ -52,16 +53,10 @@ export default function Login({ onLogin, onRegistro }) {
             onChange={e => { setSenha(e.target.value); setErr(""); }} onKeyDown={onKey} />
           <Button fullWidth size="lg" loading={loading} onClick={go}>Entrar</Button>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", color: "var(--text-secondary)", fontSize: "var(--fs-caption)" }}>
-          <span style={{ flex: 1, height: "var(--border-w)", background: "var(--border-default)" }} />ou<span style={{ flex: 1, height: "var(--border-w)", background: "var(--border-default)" }} />
-        </div>
-        <Button variant="secondary" fullWidth iconLeft="user" onClick={() => { setEmail("admin@teste.com"); setSenha("admin123"); setErr(""); }}>
-          Usar credenciais de demonstração
-        </Button>
         <p style={{ margin: 0, textAlign: "center", fontSize: "var(--fs-p6)", color: "var(--text-secondary)" }}>
           Ainda não tem conta?{" "}
           <Button variant="link" size="sm" onClick={onRegistro} style={{ height: "auto", padding: 0, color: "var(--text-accent)" }}>
-            Ver planos <Icon name="arrow-right" size={14} />
+            Teste grátis por {DIAS_TESTE} dias <Icon name="arrow-right" size={14} />
           </Button>
         </p>
       </Card>

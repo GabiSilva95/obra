@@ -63,8 +63,13 @@ const PASSOS = [
   },
   {
     menuId: "usuarios",
-    title: "Usuários e plano",
-    content: "Convide a equipe e defina o que cada pessoa pode ver e editar, por tela (inclusive o Financeiro) e por obra. Aqui você também acompanha o seu plano.",
+    title: "Usuários e permissões",
+    content: "Convide a equipe e defina o que cada pessoa pode ver e editar, por tela (inclusive o Financeiro) e por obra.",
+  },
+  {
+    menuId: "assinatura",
+    title: "Assinatura",
+    content: "Veja o seu plano, quantos dias faltam do teste grátis, assine ou mude de plano e confira as faturas. Só o administrador vê esta tela.",
   },
   {
     route: "obras",
@@ -76,6 +81,11 @@ const PASSOS = [
     target: '[data-tour="notificacoes"]',
     title: "Notificações",
     content: "O sino avisa o que precisa de atenção: etapas atrasadas, orçamento estourado, estoque zerado, prazos vencendo e, para quem tem acesso ao Financeiro, contas vencidas.",
+  },
+  {
+    menuId: "suporte",
+    title: "Suporte",
+    content: "Precisou de ajuda? Abra um chamado ou converse ao vivo com a equipe: você entra na fila e é atendido na ordem. Tudo fica registrado aqui e as respostas chegam pelo sino.",
   },
   {
     menuId: "treinamentos",

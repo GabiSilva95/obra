@@ -1,7 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Badge, Icon, IconButton } from "../../design-system";
 import { isAtrasada, calcCustoObra, fmt } from "../utils/helpers";
+import { larguraDoPopover, posicaoDoPopover } from "./popover";
 
 /** Vencimentos do financeiro, a partir do resumo de /financeiro/resumo. */
 function notifsFinanceiro(r) {
@@ -73,21 +74,30 @@ function calcNotifs(data) {
 const TIPO = {
   danger:  { color: "var(--status-danger)",       soft: "var(--status-danger-soft)" },
   warning: { color: "var(--status-warning-text)", soft: "var(--status-warning-soft)" },
+  info:    { color: "var(--status-info-text)",    soft: "var(--status-info-soft)" },
 };
 
-export default function Notificacoes({ data, financeiro }) {
+/** Chamados de suporte com resposta nova da equipe (de /suporte/resumo). */
+function notifsSuporte(r) {
+  return (r?.respondidos || []).map(c => ({ id: `sup-${c.id}`, tipo: "info", icone: "message-circle", titulo: `Chamado #${c.id} respondido`, msg: c.assunto, link: "/app/suporte" }));
+}
+
+export default function Notificacoes({ data, financeiro, suporte }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const notifs = useMemo(() => (data ? [...notifsFinanceiro(financeiro), ...calcNotifs(data)] : []), [data, financeiro]);
+  const [pos, setPos] = useState(null);
+  const botao = useRef(null);
+  const notifs = useMemo(() => (data ? [...notifsSuporte(suporte), ...notifsFinanceiro(financeiro), ...calcNotifs(data)] : []), [data, financeiro, suporte]);
   const count = notifs.length;
 
   return (
-    <div data-tour="notificacoes" style={{ position: "relative" }}>
-      <IconButton icon="bell" label="Notificações" badge={count > 9 ? "9+" : count || undefined} onClick={() => setOpen(v => !v)} />
+    <div ref={botao} data-tour="notificacoes" style={{ position: "relative" }}>
+      <IconButton icon="bell" label="Notificações" badge={count > 9 ? "9+" : count || undefined}
+        onClick={() => { if (!open) setPos(posicaoDoPopover(botao.current.getBoundingClientRect(), window.innerWidth, larguraDoPopover())); setOpen(v => !v); }} />
       {open && (
         <>
           <div style={{ position: "fixed", inset: 0, zIndex: "calc(var(--z-popover) - 1)" }} onClick={() => setOpen(false)} />
-          <div role="dialog" aria-label="Notificações" style={{ position: "absolute", top: "calc(100% + var(--space-2))", right: 0, width: "min(var(--popover-width), calc(100vw - 2 * var(--space-4)))", background: "var(--surface-raised)", borderRadius: "var(--radius-lg)", border: "var(--border-w) solid var(--border-card)", boxShadow: "var(--shadow-pop)", zIndex: "var(--z-popover)", overflow: "hidden" }}>
+          <div role="dialog" aria-label="Notificações" style={{ position: "fixed", top: pos?.top, left: pos?.left, width: pos?.width, background: "var(--surface-raised)", borderRadius: "var(--radius-lg)", border: "var(--border-w) solid var(--border-card)", boxShadow: "var(--shadow-pop)", zIndex: "var(--z-popover)", overflow: "hidden" }}>
             <div style={{ padding: "var(--space-3) var(--space-4)", borderBottom: "var(--border-w) solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <span style={{ font: "var(--type-card-title)", fontSize: "var(--fs-p4)" }}>Notificações</span>
               {count > 0 && <Badge tone="error" size="sm">{count} alerta{count !== 1 ? "s" : ""}</Badge>}

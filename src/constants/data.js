@@ -1,3 +1,5 @@
+import { PRAZO_RESPOSTA_HORAS } from "../../server/config/suporte.js";
+
 export const TIPOS_ETAPA = [
   {id:1,nome:"Terraplanagem",icon:"construction"},{id:2,nome:"Fundação",icon:"building-2"},
   {id:3,nome:"Estrutura de Concreto",icon:"building-2"},{id:4,nome:"Estrutura Metálica",icon:"construction"},
@@ -16,8 +18,7 @@ export const PLANOS = [
     preco:{mensal:149, anual:119},
     usuarios:2, obras:5,
     desc:"Ideal para pequenas construtoras",
-    features:["Até 2 usuários","Até 5 obras simultâneas","Dashboard e relatórios","Controle de estoque","Suporte por e-mail"],
-    suporte:["email"],
+    features:["Até 2 usuários","Até 5 obras simultâneas","Painel e relatórios","Controle de estoque",`Suporte por chamado e chat, resposta em até ${PRAZO_RESPOSTA_HORAS.starter} h`],
   },
   {
     id:"business", nome:"Business", cor:"var(--accent)", tone:"accent",
@@ -25,16 +26,14 @@ export const PLANOS = [
     usuarios:5, obras:15,
     popular:true,
     desc:"Para empresas em crescimento",
-    features:["Até 5 usuários","Até 15 obras simultâneas","Todas as funcionalidades","Controle de estoque avançado","Alocação de máquinas e insumos","Suporte por e-mail e WhatsApp"],
-    suporte:["email","whatsapp"],
+    features:["Até 5 usuários","Até 15 obras simultâneas","Todas as funcionalidades","Controle de estoque avançado","Alocação de máquinas e insumos",`Suporte por chamado e chat, resposta em até ${PRAZO_RESPOSTA_HORAS.pro} h`],
   },
   {
     id:"professional", nome:"Professional", cor:"var(--cp-data-purple)", tone:"dark",
     preco:{mensal:749, anual:599},
     usuarios:999, obras:999,
     desc:"Sem limites, suporte dedicado",
-    features:["Usuários ilimitados","Obras ilimitadas","Todas as funcionalidades","Importação de NF-e / XML","Relatórios avançados","Suporte prioritário por e-mail e WhatsApp"],
-    suporte:["email","whatsapp"],
+    features:["Usuários ilimitados","Obras ilimitadas","Todas as funcionalidades","Importação de NF-e / XML","Relatórios avançados",`Suporte prioritário por chamado e chat, resposta em até ${PRAZO_RESPOSTA_HORAS.enterprise} h`],
   },
 ];
 

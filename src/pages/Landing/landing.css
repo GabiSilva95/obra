@@ -1,0 +1,39 @@
+/* Landing pública: linguagem de prancha técnica (papel quadriculado, carimbo, cotas e a barra laranja do logo).
+   Só tokens do design system. Animações desligadas com prefers-reduced-motion. */
+.lp { font-family: var(--font-sans); color: var(--text-primary); background: var(--bg-app); overflow-x: clip; }
+.lp h1, .lp h2, .lp h3, .lp p { margin: 0; }
+.lp a { color: inherit; }
+.lp :focus-visible { outline: var(--border-w-thick) solid var(--accent); outline-offset: var(--space-0-5); }
+
+.lp-papel { position: relative; isolation: isolate; }
+.lp-papel::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background-image: linear-gradient(var(--border-subtle) var(--border-w), transparent var(--border-w)),
+                    linear-gradient(90deg, var(--border-subtle) var(--border-w), transparent var(--border-w));
+  background-size: var(--space-6) var(--space-6);
+  -webkit-mask-image: radial-gradient(ellipse at 50% 40%, black 35%, transparent 85%);
+          mask-image: radial-gradient(ellipse at 50% 40%, black 35%, transparent 85%);
+}
+
+.lp-viga {
+  background: linear-gradient(var(--accent), var(--accent)) no-repeat 0 92% / 0% var(--space-2);
+  animation: lp-viga calc(var(--dur-slow) * 3) var(--ease-standard) var(--dur-slow) forwards;
+}
+@keyframes lp-viga { to { background-size: 100% var(--space-2); } }
+
+.lp-revelar { opacity: 0; transform: translateY(var(--space-5)); transition: opacity calc(var(--dur-slow) * 2) var(--ease-standard), transform calc(var(--dur-slow) * 2) var(--ease-standard); }
+.lp-revelar.lp-visivel { opacity: 1; transform: none; }
+
+.lp-faq > summary { list-style: none; cursor: pointer; }
+.lp-faq > summary::-webkit-details-marker { display: none; }
+.lp-faq .lp-faq-seta { transition: transform var(--dur-base) var(--ease-standard); }
+.lp-faq[open] .lp-faq-seta { transform: rotate(180deg); }
+
+.lp-barra-movel { transform: translateY(110%); transition: transform var(--dur-slow) var(--ease-standard); }
+.lp-barra-movel.lp-visivel { transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-viga { animation: none; background-size: 100% var(--space-2); }
+  .lp-revelar { opacity: 1; transform: none; transition: none; }
+  .lp-barra-movel, .lp-faq .lp-faq-seta { transition: none; }
+}

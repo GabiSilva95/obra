@@ -11,6 +11,13 @@
       "use": "@vercel/node"
     }
   ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "painel.construktpro.com.br" }],
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
+    }
+  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/server/index.js" },
     { "source": "/(.*)",     "destination": "/index.html" }

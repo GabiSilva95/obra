@@ -66,6 +66,11 @@ colors:
   dark-warning: "#FBBF24"
   dark-info: "#60A5FA"
 typography:
+  hero:
+    fontFamily: Nunito
+    fontSize: 72px
+    fontWeight: 900
+    lineHeight: 1.05
   display:
     fontFamily: Nunito
     fontSize: 56px
@@ -279,6 +284,7 @@ ConstruktPro — "Do canteiro ao escritório" — is a construction-management p
 
 - **Nunito throughout** (rounded sans, weights 500–800), self-hosted from `design-system/assets/fonts` (latin + latin-ext, variable 200–1000). Fallback stack `ui-rounded, 'Segoe UI', system-ui, sans-serif`.
 - **Headers:** 56 / 36 / 28 / 24 / 18 / 16, Extra Bold → Semi Bold. **Paragraphs:** 24 / 20 / 18 / 16 / 14 / 12, Medium / Semi Bold.
+- **Hero (landing only):** 72 Black (`--fs-hero`, weight `--fw-black`, line height `--lh-hero`), tight tracking (`--ls-tight`). Only the first fold of the public landing page uses it, scaled down with `clamp()` on small screens; the app never does.
 - **Roles:** page titles 28 Bold (`--type-page-title`), card titles 20 Semi Bold (`--type-card-title`), KPI numerals 30 Semi Bold in a data colour (`--type-stat`), body 14 Medium (`--type-body`), labels 12 Semi Bold (`--type-label`).
 
 ## Layout

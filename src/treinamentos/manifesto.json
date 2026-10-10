@@ -3,6 +3,10 @@
     "hash": "2f415d0c207b8526",
     "gravadoEm": "2026-10-03"
   },
+  "assinatura": {
+    "hash": "60c1c8cb066a6a88",
+    "gravadoEm": "2026-10-10"
+  },
   "cadastros-insumos": {
     "hash": "166ba822def5f5f3",
     "gravadoEm": "2026-10-06"
@@ -104,15 +108,19 @@
     "gravadoEm": "2026-10-03"
   },
   "primeiros-passos": {
-    "hash": "4c7644afbaadcbc0",
-    "gravadoEm": "2026-10-07"
+    "hash": "eaff807d80734234",
+    "gravadoEm": "2026-10-10"
   },
   "relatorios": {
     "hash": "4bb5a58134cddc5d",
     "gravadoEm": "2026-10-06"
   },
+  "suporte": {
+    "hash": "5a737dc09b151c82",
+    "gravadoEm": "2026-10-10"
+  },
   "usuarios": {
-    "hash": "d673fffc266f82a2",
-    "gravadoEm": "2026-10-06"
+    "hash": "d20ded95f37ebce5",
+    "gravadoEm": "2026-10-10"
   }
 }

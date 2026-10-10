@@ -17,6 +17,19 @@ model Tenant {
   plano       String   @default("starter")
   createdAt   DateTime @default(now())
 
+  // Conta e assinatura (painel interno da equipe). `ativo` por padrão: clientes antigos e a conta interna não mudam.
+  status               String    @default("ativo") // trial | ativo | inadimplente | suspenso | cancelado
+  trialAte             String? // AAAA-MM-DD, fuso de São Paulo
+  ciclo                String    @default("mensal") // mensal | anual
+  ultimoAcessoEm       DateTime?
+  motivoStatus         String?
+  notasInternas        String?
+  // Contato e aceite de mensagens e notificações do serviço, registrados no cadastro
+  telefone             String? // só dígitos com 55: 5511999990000
+  aceiteMensagensEm    DateTime?
+  aceiteMensagensTexto String?
+  aceiteMensagensIp    String?
+
   users               User[]
   obras               Obra[]
   tiposEtapa          TipoEtapa[]
@@ -53,6 +66,11 @@ model Tenant {
   importacoesExtrato  ImportacaoExtrato[]
   transferenciasConta TransferenciaConta[]
   configFinanceira    ConfigFinanceira?
+  // Suporte (chamados e chat)
+  tickets             Ticket[]
+  // Assinatura e cobranças (painel da equipe)
+  assinatura          Assinatura?
+  cobrancas           Cobranca[]
 }
 
 // ─── Usuários e Acessos ───────────────────────────────────────────────────────
@@ -70,9 +88,10 @@ model User {
   ocultarTour Boolean  @default(false)
   createdAt   DateTime @default(now())
 
-  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  obrasAcesso   ObraAcesso[]
-  refreshTokens RefreshToken[]
+  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  obrasAcesso    ObraAcesso[]
+  refreshTokens  RefreshToken[]
+  ticketsAbertos Ticket[]
 
   @@unique([tenantId, email])
 }
@@ -904,4 +923,254 @@ model TransferenciaConta {
   lancamentoPara LancamentoBancario? @relation("TransferenciaLancamentoPara", fields: [lancamentoParaId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
+}
+
+// ─── Painel interno da equipe ─────────────────────────────────────────────────
+// Mundo separado do cliente: login, token e permissões próprios (server/painel/). Nada aqui tem `tenantId` próprio.
+
+model EquipeUsuario {
+  id                Int       @id @default(autoincrement())
+  nome              String
+  email             String    @unique
+  senha             String
+  /// equipe_admin tem todas as permissões; os demais valem pelo que está em `permissoes`
+  papel             String    @default("atendente")
+  ativo             Boolean   @default(true)
+  /// suporte, suporte_supervisor, clientes, clientes_editar, financeiro, equipe
+  permissoes        String[]  @default([])
+  trocarSenha       Boolean   @default(true)
+  /// disponivel | ocupado | ausente (o sinal de presença vem do painel aberto)
+  statusAtendimento String    @default("ausente")
+  ultimoSinalEm     DateTime?
+  setores           String[]  @default([])
+  ultimoLoginEm     DateTime?
+  createdAt         DateTime  @default(now())
+
+  refreshTokens EquipeRefreshToken[]
+  auditorias    AuditoriaEquipe[]
+  atribuidos    Ticket[]             @relation("TicketAtribuido")
+}
+
+model EquipeRefreshToken {
+  id        String   @id @default(cuid())
+  equipeId  Int
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  revogado  Boolean  @default(false)
+
+  equipe EquipeUsuario @relation(fields: [equipeId], references: [id], onDelete: Cascade)
+
+  @@index([equipeId])
+}
+
+/// Toda ação da equipe. A auditoria do cliente (AuditLog) exige tenantId e não serve aqui.
+model AuditoriaEquipe {
+  id        Int      @id @default(autoincrement())
+  equipeId  Int?
+  acao      String
+  alvoTipo  String?
+  alvoId    String?
+  tenantId  String?
+  ticketId  Int?
+  detalhe   String?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  equipe EquipeUsuario? @relation(fields: [equipeId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([equipeId])
+  @@index([tenantId])
+}
+
+/// Linha única (id 1): horário do chat e quantos chats cada atendente faz ao mesmo tempo.
+model ConfigAtendimento {
+  id         Int      @id @default(1)
+  /// { "1": ["08:00","18:00"], ... } com 0 = domingo; dia ausente = sem chat
+  horario    Json
+  capacidade Int      @default(3)
+  updatedAt  DateTime @updatedAt
+}
+
+// ─── Suporte: chamados (ticket) e chat ao vivo, na mesma fila ─────────────────
+
+model Ticket {
+  /// O número do chamado: global e na ordem de abertura (a "ordem de solicitação")
+  id                   Int       @id @default(autoincrement())
+  tenantId             String
+  abertoPorId          Int?
+  /// ticket | chat
+  canal                String    @default("ticket")
+  assunto              String
+  /// Área do sistema onde está o problema (server/config/suporte.js)
+  setor                String    @default("outro")
+  /// baixa | normal | alta | urgente
+  prioridade           String    @default("normal")
+  /// "Isto me impede de trabalhar?" respondido pelo cliente
+  bloqueante           Boolean   @default(false)
+  /// na_fila | aberto | em_atendimento | aguardando_cliente | resolvido | fechado | abandonado
+  status               String    @default("aberto")
+  atribuidoId          Int?
+  /// Chegada na fila (ordem de atendimento). Para ticket é a própria abertura.
+  entrouNaFilaEm       DateTime  @default(now())
+  iniciadoEm           DateTime?
+  primeiraRespostaEm   DateTime?
+  encerradoEm          DateTime?
+  ultimoSinalClienteEm DateTime?
+  ultimaMensagemEm     DateTime  @default(now())
+  /// Mensagens da equipe que o cliente ainda não viu / do cliente que a equipe ainda não viu
+  naoLidoCliente       Int       @default(0)
+  naoLidoEquipe        Int       @default(0)
+  avaliacao            Int?
+  /// Plano do cliente quando abriu: define o prazo de resposta
+  plano                String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  abertoPor User?            @relation(fields: [abertoPorId], references: [id], onDelete: SetNull)
+  atribuido EquipeUsuario?   @relation("TicketAtribuido", fields: [atribuidoId], references: [id], onDelete: SetNull)
+  mensagens TicketMensagem[]
+  anexos    TicketAnexo[]
+
+  @@index([status, entrouNaFilaEm])
+  @@index([tenantId, createdAt])
+  @@index([atribuidoId])
+}
+
+model TicketMensagem {
+  id             Int      @id @default(autoincrement())
+  ticketId       Int
+  tenantId       String
+  /// cliente | equipe | sistema
+  autorTipo      String
+  autorUserId    Int?
+  autorEquipeId  Int?
+  /// Nome na hora do envio (a pessoa pode sair depois)
+  autorNome      String?
+  texto          String
+  /// Nota interna: só a equipe vê. Nunca sai nas rotas do cliente.
+  interna        Boolean  @default(false)
+  /// app | chat | email
+  origem         String   @default("app")
+  /// Message-ID do e-mail que originou a mensagem (resposta recebida por e-mail): a mesma mensagem nunca entra duas vezes
+  emailMessageId String?
+  /// Mensagem da equipe enviada por e-mail ao cliente: enviado | falhou | sem_provedor | nao_enviado (nota interna, canal chat...)
+  emailStatus    String?
+  /// Id do e-mail no provedor (Resend), para conferir no painel deles
+  emailId        String?
+  createdAt      DateTime @default(now())
+
+  ticket Ticket        @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  anexos TicketAnexo[]
+
+  @@unique([ticketId, emailMessageId])
+  @@index([ticketId, id])
+}
+
+model TicketAnexo {
+  id         Int      @id @default(autoincrement())
+  ticketId   Int
+  mensagemId Int?
+  tenantId   String
+  nome       String
+  mimeType   String
+  tamanho    Int
+  dados      Bytes
+  createdAt  DateTime @default(now())
+
+  ticket   Ticket          @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  mensagem TicketMensagem? @relation(fields: [mensagemId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+}
+
+// ─── Assinatura e cobranças (financeiro do painel da equipe) ──────────────────
+
+/// A assinatura de uma empresa: quanto paga, quando vence e se é cortesia. Plano e ciclo moram em Tenant.
+model Assinatura {
+  id                  Int       @id @default(autoincrement())
+  tenantId            String    @unique
+  /// Valor de UM período (do ciclo da empresa: mensal = o mês; anual = o ano inteiro)
+  valor               Decimal   @db.Decimal(14, 2)
+  /// Dia do mês do vencimento (1 a 28)
+  diaVencimento       Int       @default(10)
+  /// Cortesia: não gera cobrança e não entra na receita recorrente
+  cortesia            Boolean   @default(false)
+  /// manual | o gateway que cobra esta empresa
+  gateway             String    @default("manual")
+  gatewayClienteId    String?
+  gatewayAssinaturaId String?
+  ativadaEm           DateTime?
+  canceladaEm         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([gateway, gatewayClienteId])
+}
+
+/// Uma cobrança (fatura). Em aberto vira "atrasada" só pela data: a situação nunca é gravada.
+model Cobranca {
+  id                 Int      @id @default(autoincrement())
+  tenantId           String
+  /// AAAA-MM do mês a que se refere (no anual, o mês em que o ano começa). Única por empresa: gerar duas vezes não duplica.
+  referencia         String
+  descricao          String
+  /// Snapshot de quando foi gerada
+  plano              String
+  ciclo              String   @default("mensal")
+  valor              Decimal  @db.Decimal(14, 2)
+  /// AAAA-MM-DD, fuso de São Paulo
+  vencimento         String
+  /// aberta | paga | cancelada
+  status             String   @default("aberta")
+  /// AAAA-MM-DD do pagamento
+  pagaEm             String?
+  valorPago          Decimal? @db.Decimal(14, 2)
+  /// pix | boleto | cartao | transferencia | outro
+  forma              String?
+  gateway            String   @default("manual")
+  gatewayId          String?
+  linkPagamento      String?
+  motivoCancelamento String?
+  registradaPorId    Int?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, referencia])
+  /// A fatura do gateway (invoice do Stripe) vira no máximo uma cobrança
+  @@unique([gateway, gatewayId])
+  @@index([status, vencimento])
+  @@index([gateway, gatewayId])
+}
+
+/// Evento recebido de um gateway de pagamento. A chave (gateway, eventoId) garante que o mesmo aviso, reenviado, não seja aplicado duas vezes.
+model EventoPagamento {
+  id         Int      @id @default(autoincrement())
+  gateway    String
+  eventoId   String
+  tipo       String
+  resultado  String?
+  /// O corpo recebido, para conferência
+  payload    Json?
+  recebidoEm DateTime @default(now())
+
+  @@unique([gateway, eventoId])
+}
+
+/// Aviso recebido de um provedor de e-mail (Resend). A chave (provedor, eventoId) garante que o mesmo aviso, reenviado, não vire duas mensagens.
+model EventoEmail {
+  id         Int      @id @default(autoincrement())
+  provedor   String
+  eventoId   String
+  tipo       String
+  resultado  String?
+  recebidoEm DateTime @default(now())
+
+  @@unique([provedor, eventoId])
 }

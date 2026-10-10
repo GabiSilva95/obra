@@ -11,6 +11,9 @@ Sistema SaaS de gestão de obras com multi-tenancy, controle de etapas, estoque,
 - [Arquitetura](#arquitetura)
 - [Estrutura de Diretórios](#estrutura-de-diretórios)
 - [Design System](#design-system)
+- [Suporte](#suporte)
+- [Painel da equipe](#painel-da-equipe)
+- [Assinatura e cobrança](#assinatura-e-cobrança)
 - [Modelos de Dados](#modelos-de-dados)
 - [API — Rotas](#api--rotas)
 - [Autenticação e Segurança](#autenticação-e-segurança)
@@ -18,7 +21,7 @@ Sistema SaaS de gestão de obras com multi-tenancy, controle de etapas, estoque,
 - [Variáveis de Ambiente](#variáveis-de-ambiente)
 - [Instalação e Execução Local](#instalação-e-execução-local)
 - [Deploy (Vercel + Neon)](#deploy-vercel--neon)
-- [Credenciais de Demonstração](#credenciais-de-demonstração)
+- [Conta interna de demonstração](#conta-interna-de-demonstração)
 
 ---
 
@@ -90,6 +93,8 @@ obra/
 │   │   ├── auditLogger.js     # Log assíncrono de mutações
 │   │   ├── planLimit.js       # Enforcement de cotas por plano
 │   │   └── rateLimiter.js     # Rate limiting por IP
+│   ├── painel/                # Painel da equipe: token e chave próprios, guardas, auditoria, senha, rotas (auth, equipe, atendimento, chamados, auditoria)
+│   ├── suporte/               # Fila de atendimento: fila.js (regras puras), servico.js (chamados e chat), anexo.js
 │   ├── financeiro/            # Regras do financeiro (funções puras + serviços); o front reaproveita dinheiro, parcelas e rateio
 │   │   ├── dinheiro.js        # Centavos, divisão sem perder centavo (maior resto)
 │   │   ├── parcelas.js        # Parcelamento e conta fixa
@@ -114,6 +119,7 @@ obra/
 │       ├── compras.js         # Ordens de compra
 │       ├── usuarios.js        # Gestão de usuários do tenant
 │       ├── plano.js           # Consulta de uso e limites do plano
+│       ├── suporte.js         # Chamados e chat ao vivo do cliente
 │       └── auditoria.js       # Consulta de logs de auditoria
 ├── src/
 │   ├── App.jsx                # Roteamento principal + shell autenticado
@@ -132,7 +138,9 @@ obra/
 │   │   ├── Notificacoes.jsx   # Alertas computados em tempo real (sino do Header)
 │   │   ├── AvisoModal.jsx     # Renderiza os avisos de utils/aviso.js
 │   │   └── AnexosObra.jsx     # Upload e lista de anexos da obra
+│   ├── painel/                # Painel da equipe (carregado só no host painel.*): PainelApp, Casca, menu, paginas/
 │   └── pages/
+│       ├── Suporte/           # Chamados e entrada na fila do chat (o chat é o ChatSuporte.jsx, montado no shell)
 │       ├── Dashboard/         # Início: seções Obras, Financeiro e Estoque (card de números + indicadores); cálculos em indicadores.js
 │       ├── Obras.jsx
 │       ├── Cadastros.jsx
@@ -146,7 +154,8 @@ obra/
 │       ├── Usuarios.jsx
 │       ├── Login.jsx
 │       ├── Registro.jsx
-│       └── PlanosPage.jsx     # Landing pública com planos
+│       ├── Registro.jsx       # Cadastro do teste grátis (uma etapa, entra direto no sistema)
+│       └── Landing/           # Landing pública (rotas / e /planos): oferta de teste grátis, prova do produto, preços; textos exatos em oferta.js
 ├── design-system/             # Biblioteca de UI (componentes, tokens, templates, showcase)
 ├── DESIGN.md                  # Contrato visual e fonte da verdade dos tokens
 ├── AGENTS.md                  # Instruções para agentes de código (regras e mapa do design system)
@@ -207,6 +216,121 @@ Comandos: `npm test` (regras de dinheiro, parsers, conciliação e indicadores d
 
 ---
 
+## Suporte
+
+O cliente fala com a equipe sem sair do sistema (item **Suporte** do menu, para todos os usuários). É uma **fila de atendimento** com dois caminhos, ambos na tabela `Ticket`:
+
+- **Chamado (ticket):** assunto, setor do problema, "isto me impede de trabalhar?" (sim sobe a prioridade), descrição e anexo opcional. A resposta aparece na conversa do chamado e no sino. O número do chamado é o `id` autoincremento: é a **ordem de solicitação**. Prazo de primeira resposta por plano: 48 h Starter, 24 h Business, 8 h Professional (`server/config/suporte.js`).
+- **Chat ao vivo:** o cliente informa o setor e entra na fila (segunda a sexta, 8h às 18h, fuso de São Paulo; 3 chats por atendente). Vê a posição e pode sair. A fila do chat é estritamente por ordem de chegada.
+- **Setor** é a área do sistema onde está o problema (Obras, Cadastros, Estoque e Compras, Alocação e Máquinas, Financeiro, Relatórios, Usuários e acesso, Assinatura e cobrança, Outro). A equipe pode reclassificar.
+- Administrador da empresa vê todos os chamados da empresa; os demais, só os seus. Notas internas nunca saem para o cliente (filtradas no banco).
+- **Sem WebSocket:** a API roda como função da Vercel. O chat consulta a cada 3 s (15 s em segundo plano), e a consulta é também o sinal de presença: cliente sem sinal por 60 s na fila (300 s em conversa) sai; atendente sem sinal por 90 s devolve o chat à fila na posição original.
+- Regras puras e testadas em `server/suporte/fila.js`; atribuição sem corrida (`FOR UPDATE` no atendente e `SKIP LOCKED` no chamado) em `server/suporte/servico.js`. Anexos em base64, até 3 MB, com checagem dos bytes iniciais (`server/suporte/anexo.js`).
+- E-mail integrado ao chamado ainda **não existe**: a resposta fica na conversa e no sino. Entra numa fase própria, quando houver provedor de e-mail e domínio.
+
+| Rota (`/api/suporte`, autenticada) | O que faz |
+|---|---|
+| `GET /config`, `GET /resumo` | Setores, horário do chat e o que o sino e a janela do chat precisam |
+| `GET/POST /chamados`, `GET /chamados/:id` | Lista, abre e lê um chamado (com cursor `?depois=` para só as mensagens novas) |
+| `POST /chamados/:id/mensagens`, `/resolver`, `/avaliar` | Responder, dar por resolvido, avaliar |
+| `POST /chat/entrar`, `GET /chat/:id`, `POST /chat/:id/mensagens`, `/sair`, `/avaliar` | Entrar na fila, acompanhar, escrever, sair, avaliar |
+
+Testes: `npm test` (fila, horário, prazo, anexos), `node --env-file=.env scripts/painel/e2e-suporte.mjs` (API ponta a ponta, 88 verificações) e `node --env-file=.env scripts/painel/ui-suporte.mjs` (cliente e equipe ao mesmo tempo no navegador). Os scripts criam e apagam a própria empresa e equipe de teste. `SUPORTE_HORARIO_TESTE=sempre|nunca` fixa o horário do chat só para testes.
+
+---
+
+## Painel da equipe
+
+Segundo sistema, **só para a equipe do ConstruktPro**, com cadastro de usuários e permissões próprios. Atende os chamados e o chat, mostra os clientes (quem testa, quem paga, quem está bloqueado) e deixa a equipe mudar plano, teste e situação da conta. Cuida também da assinatura e das cobranças (ver [Assinatura e cobrança](#assinatura-e-cobrança)). Não tem cadastro público nem link em lugar nenhum do sistema do cliente.
+
+- **Mesmo aplicativo, outro endereço:** `src/main.jsx` olha o host; se começar com `painel.` carrega o `PainelApp` (código à parte, fora do pacote do cliente). Produção: `painel.construktpro.com.br`. Local: `http://painel.localhost:3000`.
+- **Dois mundos separados.** Prisma ignora um filtro `undefined`: uma consulta com `tenantId` indefinido devolveria todos os clientes. Por isso o token da equipe nunca chega às rotas do cliente: chave própria (derivada de `JWT_SECRET`, ou `JWT_SECRET_EQUIPE`), audiência `painel`, `tipo: "equipe"`, e o `authMiddleware` do cliente recusa esse tipo. O painel é montado antes da autenticação do cliente.
+- **Rotas** em `/api/painel` (login e refresh próprios, refresh rotativo em tabela própria, permissão lida do banco a cada chamada). Com `PAINEL_HOST` definido, elas só respondem nesse host (404 nos outros).
+- **Permissões:** `suporte`, `suporte_supervisor` (furar a fila, reatribuir, mudar horário), `equipe`, e o papel `equipe_admin` com tudo. A tela Equipe tem perfis prontos (Administrador, Supervisor, Atendente, Financeiro, Leitura). `clientes` (ver as empresas e entrar na conta em leitura) e `clientes_editar` (mudar plano, teste, situação e notas) liberam a tela Clientes; `financeiro` libera a tela Financeiro e as cobranças de cada empresa.
+- **Senha:** mínimo de 10 caracteres; a senha provisória é mostrada uma vez e a troca é obrigatória no primeiro acesso; limite de tentativas por IP e e-mail.
+- **Auditoria própria** (`AuditoriaEquipe`) de toda ação da equipe, inclusive quando alguém fura a fila.
+- **Telas:** Atendimento (a tela principal: fila do chat, em atendimento, chamados abertos com "aberto há", setor e prazo, atendentes), Visão geral, Chamados, Clientes, Financeiro, Equipe e Auditoria. Quem atende abre no Atendimento; quem só cuida de clientes ou dinheiro abre na Visão geral.
+
+| Rota (`/api/painel`) | O que faz |
+|---|---|
+| `POST /auth/login`, `/auth/refresh`, `/auth/logout`, `GET /auth/me`, `POST /auth/trocar-senha` | Sessão da equipe |
+| `GET /atendimento/estado`, `/atendentes`, `POST /atendimento/presenca`, `/atendimento/proximo`, `GET/PUT /atendimento/config` | Tela Atendimento, presença, "Atender próximo", horário do chat |
+| `GET /chamados`, `GET/PATCH /chamados/:id`, `POST /chamados/:id/mensagens`, `GET /chamados/:id/anexos/:anexoId` | Chamados e conversas |
+| `GET /visao-geral?dias=7\|30\|90`, `GET /visao-geral/pendencias` | Visão geral (por área, conforme a permissão) e o que alimenta o sino do painel |
+| `GET /clientes`, `GET /clientes/:id` | Lista (busca, situação, plano, ordem, paginação, contagem por situação) e detalhe da empresa |
+| `POST /clientes/:id/plano`, `/estender-teste`, `/status`, `PATCH /clientes/:id/notas` | Alterar plano e ciclo, estender o teste, ativar, suspender ou cancelar, notas internas (`clientes_editar`) |
+| `PUT /clientes/:id/assinatura` | Combinar o valor, o dia do vencimento e a cortesia (`financeiro`) |
+| `GET /financeiro/resumo`, `GET /financeiro/cobrancas`, `GET /financeiro/cobrancas.csv`, `GET /financeiro/cobrancas/previa` | Receita recorrente e indicadores, lista com filtros, exportação CSV e prévia do mês (`financeiro`) |
+| `POST /financeiro/cobrancas`, `/cobrancas/gerar`, `/cobrancas/:id/pagamento`, `/estornar`, `/cancelar`, `/reabrir` | Criar, gerar o mês, registrar o pagamento, estornar, cancelar e reabrir cobranças (`financeiro`) |
+| `POST /clientes/:id/entrar` | "Entrar como o cliente" em leitura, ligado a um chamado (`clientes`) |
+| `GET/POST /equipe`, `PUT /equipe/:id`, `POST /equipe/:id/redefinir-senha`, `GET /auditoria` | Equipe e auditoria |
+
+
+### Situação da conta e bloqueio
+
+- **Situação** (`Tenant.status`): `trial`, `ativo`, `inadimplente`, `suspenso` ou `cancelado`. Contas antigas e a conta interna são `ativo`. Cadastro novo nasce `trial` com `trialAte` (14 dias, fuso de São Paulo).
+- **`statusEfetivo(tenant, hoje)`** (`server/config/conta.js`, função pura, o front importa) decide a situação de verdade: um `trial` com `trialAte` anterior a hoje vira `trial_expirado`, sem tarefa agendada (o último dia ainda vale). **Bloqueiam:** teste acabado, suspenso e cancelado. Inadimplente só passa a bloquear com a cobrança automática. A conta interna (`admin@teste.com`) nunca é bloqueada nem pode ser suspensa pelo painel.
+- **Conta bloqueada:** o login e o refresh funcionam e a resposta traz `tenant.bloqueada` e `tenant.situacao`; o app mostra só a tela de assinatura e o suporte (`src/pages/Assinatura/ContaBloqueada.jsx`). Na API, `contaAtiva` (`server/middleware/conta.js`) responde **402 `CONTA_BLOQUEADA`** em tudo, menos `/api/assinatura`, `/api/suporte` e `/api/auth`. A situação é guardada por 60 s por empresa em cada instância; mudar pelo painel esquece a da instância que atendeu, e as outras renovam em até 1 minuto. O front escuta o 402 e troca de tela sem recarregar.
+- **O cliente nunca vê o motivo** da suspensão nem as notas internas (`tenantParaCliente` só devolve campos permitidos). `GET /api/assinatura` devolve a situação da própria conta, liberado mesmo bloqueada. A tela Minha assinatura completa (planos, pagamento, faturas) entra com a fase de cobrança.
+
+### Entrar como o cliente (somente leitura)
+
+A equipe abre o sistema do cliente para entender um problema, **sempre ligado a um chamado da empresa**. `POST /api/painel/clientes/:id/entrar` confere o chamado, deixa uma **mensagem de sistema na conversa do chamado** (o cliente sabe que a conta foi consultada), registra na auditoria e devolve um token do sistema do cliente com `leitura: true`, **30 minutos e sem refresh**, no nome do administrador ativo da empresa.
+
+- O token vai pelo **fragmento da URL** (`#leitura=...`), abre em aba nova e fica só nessa aba (`sessionStorage`); nunca toca na sessão guardada do navegador (`src/utils/leitura.js`). Uma faixa avisa o chamado, o horário em que acaba e a saída.
+- `modoLeitura` (`server/middleware/conta.js`) recusa tudo que não for GET/HEAD/OPTIONS com 403 `MODO_LEITURA`. O chat do cliente é presença ao vivo e fica indisponível; ler um chamado não o marca como lido para o cliente. Com a conta bloqueada, a equipe em leitura ainda vê os dados (é para investigar).
+
+### Visão geral e sino
+
+- **Visão geral** (`src/painel/paginas/VisaoGeral.jsx`, 7, 30 ou 90 dias, atualiza a cada minuto): cada pessoa vê só as áreas a que tem acesso, e o **servidor** é quem filtra (área sem permissão volta `null`, sem nenhum dado).
+  - **Atendimento** (`suporte`): fila do chat, em atendimento, chamados abertos, sem resposta e o mais antigo, prazo estourado e perto de estourar; no período, chamados novos e resolvidos, tempo médio e mediana até a primeira resposta, % respondido dentro do prazo do plano, chats atendidos e espera média, abandonados, avaliação média, gráfico por dia (14 dias) e por setor.
+  - **Clientes** (`clientes`): empresas por situação, cadastros novos (7 e 30 dias), **testes acabando em até 3 dias** e **testes que acabaram há pouco sem assinar** (com o telefone, para contatar), ativas **sem acesso há 14 dias ou mais**, e a **conversão do teste** (das empresas cujo teste de 14 dias já terminou, cadastradas entre 90 e 14 dias atrás e que passaram por teste, quantas viraram assinatura; contas anteriores ao teste não entram).
+  - **Financeiro** (`financeiro`): receita mensal e anual, recebido e a receber, em atraso e o gráfico dos últimos 6 meses (os mesmos números da tela Financeiro).
+- As regras de cálculo são funções puras em `server/painel/indicadores.js` (com teste); `server/painel/visaoGeral.js` só busca os dados. **Só leitura**: consultar não conta como presença no atendimento nem mexe na fila. A conta interna da casa não entra em nenhum número.
+- **O sino do painel** (`PainelSino.jsx`) consulta `/visao-geral/pendencias` a cada minuto: pessoas na fila do chat, chamados sem resposta (e quantos com prazo estourado), testes acabando, testes que acabaram, cobranças em atraso. Só números e só das áreas permitidas; clicar leva à tela.
+- A **auditoria** mostra a empresa de cada ação (com atalho para a empresa; "empresa apagada" quando já não existe).
+
+**Primeiro administrador** (não há cadastro público; a senha é digitada na hora, nunca fica em arquivo):
+
+```bash
+npm run painel:admin -- --email voce@empresa.com --nome "Seu Nome"
+```
+
+**Para o painel funcionar em produção** (depende de você):
+1. Vercel > Settings > Domains: adicionar `painel.construktpro.com.br` e criar o CNAME no DNS.
+2. Variável `PAINEL_HOST=painel.construktpro.com.br` em **Production e Preview**.
+3. `vercel.json` já manda `X-Robots-Tag: noindex, nofollow` para esse host.
+
+Testes: `node --env-file=.env scripts/painel/e2e.mjs` (isolamento entre os dois mundos, permissões, senha e auditoria), `e2e-clientes.mjs` (lista, ações, bloqueio, modo leitura), `e2e-visao-geral.mjs` (indicadores e permissões por área, comparados com a linha de base do banco), `ui-visao-geral.mjs` (áreas por permissão, sino, auditoria e todas as telas do painel no celular), `ui-smoke.mjs` (login, equipe, auditoria e celular) e `ui-clientes.mjs` (equipe e cliente ao mesmo tempo: suspender, tela de bloqueio, entrar em leitura, estender o teste, celular). A API de desenvolvimento limita 200 requisições por minuto por IP: nos scripts de interface, espere a janela renovar entre uma execução e outra. O painel interno não entra na Central de treinamentos.
+
+---
+
+## Assinatura e cobrança
+
+O dinheiro do ConstruktPro tem duas pontas: a **assinatura** do cliente (plano, ciclo, quanto paga, dia do vencimento) e as **cobranças** (faturas). Plano e ciclo moram em `Tenant`; `Assinatura` guarda o valor combinado, o dia do vencimento e a cortesia; `Cobranca` é cada fatura; `EventoPagamento` registra os avisos de gateway.
+
+- **Pagamento à mão primeiro.** O gateway ainda não foi escolhido, então tudo funciona com a equipe registrando o pagamento no painel. O gateway entra depois **atrás de uma interface** (`server/pagamentos/provedores.js`): `manual` (padrão, sem webhook) e `falso` (só para teste: existe fora de produção e com `PAGAMENTO_WEBHOOK_SEGREDO`). Escolher o gateway é escrever um arquivo de provedor e definir `PAGAMENTO_GATEWAY`.
+- **Webhook idempotente:** `POST /api/pagamentos/webhook/:gateway` (público; a origem é conferida pelo provedor). O evento é gravado com a chave `gateway + eventoId` **na mesma transação** que aplica o pagamento: o mesmo aviso reenviado responde 200 `duplicado` e não faz nada, e se aplicar falhar o gateway reenvia e é processado de verdade. Aviso legítimo que a regra recusa vira 200 `ignorado`, nunca 500 (o gateway insistiria para sempre).
+- **Dinheiro em centavos** (`server/config/cobranca.js`, `server/financeiro/dinheiro.js`); no banco, `Decimal(14,2)`. O preço de lista de um período: mensal = o mês; **anual = o ano inteiro** (12 vezes o preço mensal do anual). A receita recorrente (MRR) divide o anual por 12.
+- **Cobrança por mês, sem duplicar:** `referencia` (`AAAA-MM`) é única por empresa e uma cobrança anual cobre 12 meses; criar de novo, gerar o mês duas vezes ou criar um mês já coberto é recusado (409). "Atrasada" nunca é gravada: vem de `status = aberta` e vencimento anterior a hoje.
+- **Gerar o mês** (`Financeiro > Gerar cobranças do mês`, com prévia): cria uma cobrança para cada empresa ativa ou inadimplente com assinatura configurada, fora de cortesia, sem cobrança cobrindo o mês. Não há tarefa agendada: é um botão.
+- **Receita só do que está configurado.** O MRR conta assinatura configurada, de empresa ativa ou inadimplente, fora de cortesia. Empresa ativa **sem** assinatura aparece à parte ("sem assinatura configurada") e não entra na receita: nenhum número inventado.
+- **O pagamento muda a empresa:** quem estava em teste passa a ativa; inadimplente volta a ativa se não restar outra cobrança vencida; suspensa ou cancelada não muda sozinha. A empresa bloqueada é liberada na hora (o cache do bloqueio é esquecido).
+- **Ativar uma empresa** (Clientes > Ativar assinatura): combina o valor, o dia do vencimento (ou cortesia) e já gera a primeira cobrança. Combinar preço e gerar cobrança exige a permissão `financeiro`; a ativação simples só pede `clientes_editar`. Marcar **inadimplente** é manual e não bloqueia o acesso.
+- **CSV** no formato do Excel brasileiro (`;`, vírgula decimal, BOM) e com apóstrofo antes de texto que começa com `=`, `+`, `-` ou `@` (o nome da empresa vem do cliente).
+
+**Lado do cliente** (item **Assinatura** do menu, só administrador): o plano, o valor, as faturas (com o link de pagamento quando o gateway gera), a escolha de plano e o contato (telefone e aceite de mensagens, que contas antigas não tinham). Enquanto não há pagamento automático, **assinar e mudar de plano abre um chamado já preenchido** (setor Assinatura e cobrança) e a equipe combina e ativa. O topo do sistema avisa o administrador quando o teste está acabando (5 dias ou menos) e quando há pagamento em atraso. A mesma tela aparece dentro da tela de conta bloqueada.
+
+| Rota (`/api/assinatura`, administrador) | O que faz |
+|---|---|
+| `GET /` | Situação da conta (liberada mesmo bloqueada; qualquer usuário) |
+| `GET /resumo` | Plano, valor combinado, faturas (sem canceladas e sem dado de gateway) |
+| `PATCH /contato` | Telefone e aceite de mensagens (o texto aceito é o do servidor, versionado) |
+
+**Variáveis:** `PAGAMENTO_GATEWAY` (padrão `manual`) e `PAGAMENTO_WEBHOOK_SEGREDO` (só para o gateway de teste). **Testes:** `npm test` (regras de cobrança, indicadores, provedores), `node --env-file=.env scripts/painel/e2e-cobranca.mjs` (permissões, cobranças, pagamento, efeito na empresa, indicadores, CSV, o lado do cliente e o webhook com rajada de avisos iguais) e `scripts/painel/ui-assinatura.mjs`.
+
+---
+
 ## Modelos de Dados
 
 ### Principais
@@ -240,7 +364,7 @@ Base URL: `/api`
 
 | Método | Rota | Descrição |
 |--------|------|-----------|
-| `POST` | `/auth/registro` | Cria tenant + admin |
+| `POST` | `/auth/registro` | Cria tenant + admin e devolve a sessão (mesmo formato do login) |
 | `POST` | `/auth/login` | Retorna access token (15 min) + refresh token (30 dias) |
 | `POST` | `/auth/refresh` | Emite novo par de tokens (rotação automática) |
 | `POST` | `/auth/logout` | Revoga o refresh token |
@@ -282,6 +406,9 @@ Base URL: `/api`
 | Usuários | `/usuarios` | GET, POST, PUT, `PATCH /:id/ativo` |
 | Plano | `/plano/uso` | GET — uso atual vs. limites |
 | Auditoria | `/auditoria` | GET (paginado, somente `tenant_admin`) |
+| Suporte | `/suporte` | Chamados e chat ao vivo (ver [Suporte](#suporte)) |
+| Assinatura | `/assinatura` | Situação da conta, faturas e contato (ver [Assinatura e cobrança](#assinatura-e-cobrança)) |
+| Pagamentos | `/pagamentos/webhook/:gateway` | POST público: avisos de gateway (idempotente) |
 
 ---
 
@@ -341,6 +468,11 @@ Quando o uso atinge ≥ 80% do limite, o `PlanoBanner` exibe um aviso no topo da
 | `DATABASE_URL_UNPOOLED` | Sim* | URL de conexão direta do Neon (fallback) |
 | `JWT_SECRET` | Sim | Segredo para assinar os JWTs |
 | `FRONTEND_URL` | Não | URL do frontend em produção (para CORS) |
+| `PAINEL_HOST` | Em produção | Host do painel da equipe (`painel.construktpro.com.br`); com ele, `/api/painel/*` só responde nesse host. Definir em Production e Preview |
+| `PAGAMENTO_GATEWAY` | Não | Provedor de pagamento (`manual` por padrão); ver [Assinatura e cobrança](#assinatura-e-cobrança) |
+| `PAGAMENTO_WEBHOOK_SEGREDO` | Não | Segredo do gateway de teste (`falso`); nunca vale em produção |
+| `JWT_SECRET_EQUIPE` | Não | Chave própria dos tokens da equipe; sem ela é derivada de `JWT_SECRET` |
+| `DEMO_SENHA` | Não | Senha da conta interna de testes (lida por `seed.js`, gravação e testes) |
 
 > *O sistema usa `DATABASE_URL` quando disponível e cai em `DATABASE_URL_UNPOOLED` como fallback automático.
 
@@ -396,7 +528,7 @@ Acesse: `http://localhost:3000`
 2. **Repositório:** faça push do código para o GitHub
 3. **Vercel:**
    - Importe o repositório no [Vercel](https://vercel.com)
-   - Adicione as variáveis de ambiente: `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `JWT_SECRET`
+   - Adicione as variáveis de ambiente: `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `JWT_SECRET` e, para o painel da equipe, `PAINEL_HOST`
    - O deploy roda automaticamente a cada push no `main`
 4. **Schema:** execute `npx prisma db push` apontando para o banco de produção para criar as tabelas
 5. **Seed:** execute `npm run seed` com a `DATABASE_URL` de produção para criar o usuário de demonstração
@@ -405,10 +537,11 @@ O `postinstall` do `package.json` garante que `prisma generate` roda automaticam
 
 ---
 
-## Credenciais de Demonstração
+## Conta interna de demonstração
 
-| Campo | Valor |
-|-------|-------|
+Existe uma conta interna (`admin@teste.com`, plano Pro) usada só para gravar os vídeos da Central de treinamentos e rodar os testes. **Ela não é pública**: a landing e o login não oferecem acesso demo. A senha vem de `DEMO_SENHA` no `.env` (rode `npm run seed` depois de trocá-la); os scripts de gravação e de teste leem a mesma variável.
+
+-------|-------|
 | E-mail | `admin@teste.com` |
 | Senha | `admin123` |
 | Plano | Pro |

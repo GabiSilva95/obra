@@ -580,7 +580,7 @@ export const ROTEIROS = {
     await t.passo(2);
     await t.botao("Novo usuário");
     if (await t.page.getByRole("alertdialog").isVisible()) {
-      await t.legenda("O plano atual atingiu o limite de usuários: faça upgrade em Alterar plano.");
+      await t.legenda("O plano atual atingiu o limite de usuários: veja as opções em Plano e assinatura.");
       await t.pausa(2500);
       await t.page.keyboard.press("Escape");
       return;
@@ -594,6 +594,47 @@ export const ROTEIROS = {
     await t.mostrar(t.modal().getByRole("button", { name: "Salvar usuário" }));
     await t.cancelar();
     await t.passo(5);
-    await t.mostrar(t.page.getByRole("button", { name: "Alterar plano" }));
+    await t.mostrar(t.page.getByRole("button", { name: "Plano e assinatura" }));
+  },
+
+  assinatura: async t => {
+    await t.passo(1);
+    await t.menu("assinatura");
+    await t.passo(2);
+    await t.mostrar(t.page.getByText("Seu plano", { exact: true }).first());
+    await t.passo(3);
+    await t.mostrar(t.page.getByRole("button", { name: /^(Mudar para|Assinar)/ }).first());
+    await t.passo(4);
+    await t.mostrar(t.page.getByText("Faturas", { exact: true }).first());
+    await t.passo(5);
+    await t.digitar("Telefone com DDD", "11 98888 7777");
+  },
+
+  suporte: async t => {
+    await t.passo(1);
+    await t.menu("suporte");
+    await t.passo(2);
+    await t.botao("Novo chamado");
+    await t.escolher("Setor", "Estoque e Compras");
+    await t.digitar("Assunto", "Não consigo lançar a entrada de uma compra");
+    await t.digitar("Descrição", "Ao salvar a ordem de compra aparece uma mensagem de erro.");
+    await t.clicar(t.modal().getByText("Isto está me impedindo de trabalhar"));
+    await t.passo(3);
+    await t.mostrar(t.modal().getByRole("button", { name: "Enviar chamado" }));
+    await t.cancelar();
+    await t.passo(4);
+    const entrar = t.page.getByRole("button", { name: "Entrar na fila" });
+    if (await entrar.isEnabled()) {
+      await t.clicar(entrar);
+      await t.escolher("Setor do problema", "Financeiro");
+      await t.mostrar(t.modal().getByRole("button", { name: "Entrar na fila" }));
+      await t.cancelar();
+    } else {
+      await t.mostrar(entrar);
+    }
+    await t.passo(5);
+    await t.mostrar(t.page.getByRole("heading", { name: "Falar ao vivo" }));
+    await t.passo(6);
+    await t.mostrar(t.page.getByRole("heading", { name: "Seus chamados" }));
   },
 };

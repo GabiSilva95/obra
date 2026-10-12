@@ -8,6 +8,7 @@ import { PageActions } from "../components/PageActions";
 export default function Obras({ data, setData, api, canWrite }) {
   const { obras, etapasObra, tiposEtapa, tiposObra = [], funcionarios = [] } = data;
   const colaboradores = funcionarios.filter(f => f.isColaborador);
+  const semCliente = obras.filter(o => !o.clienteId);
   const [modal, setModal]           = useState(null);
   const [etModal, setEtModal]       = useState(false);
   const [form, setForm]             = useState({});
@@ -22,6 +23,13 @@ export default function Obras({ data, setData, api, canWrite }) {
   const [filtroStatus, setFiltroStatus] = useState("Todas");
   const [salvandoEt, setSalvandoEt]     = useState(false);
   const [salvandoSub, setSalvandoSub]   = useState(false);
+  const [clienteModal, setClienteModal]   = useState(false);
+  const [clienteForm, setClienteForm]     = useState({});
+  const [clienteErros, setClienteErros]   = useState({});
+  const [salvandoCliente, setSalvandoCliente] = useState(false);
+
+  // Clientes que se pode escolher: os ativos, mais o da obra em edição (mesmo que tenha sido desativado depois)
+  const clientes = funcionarios.filter(f => f.isCliente && (f.ativo !== false || f.id === Number(form.clienteId)));
 
   // Preview das etapas do tipo selecionado (só na criação)
   const tipoSelecionado = modal === "new" && form.tipoObraId
@@ -32,6 +40,7 @@ export default function Obras({ data, setData, api, canWrite }) {
     if (salvando) return;
     const { ok, erros: e } = validate(form, {
       nome:        { required: true, label: "Nome" },
+      clienteId:   { required: true, label: "Cliente" },
       local:       { required: true, label: "Local" },
       inicio:      { required: true, label: "Início" },
       previsaoFim: { required: true, label: "Previsão de Fim" },
@@ -60,6 +69,22 @@ export default function Obras({ data, setData, api, canWrite }) {
       setErros({}); setModal(null);
     } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
     finally { setSalvando(false); }
+  };
+
+  // Cadastro rápido de cliente dentro da obra: cria a pessoa com o perfil Cliente e já a escolhe
+  const saveCliente = async () => {
+    if (salvandoCliente) return;
+    const { ok, erros: e } = validate(clienteForm, { nome: { required: true, label: "Nome" } });
+    if (!ok) { setClienteErros(e); return; }
+    setSalvandoCliente(true);
+    try {
+      const novo = await api.post("/cadastros/funcionarios", { ...clienteForm, isCliente: true });
+      setData(d => ({ ...d, funcionarios: [...d.funcionarios, novo] }));
+      setForm(f => ({ ...f, clienteId: novo.id }));
+      setErros(er => ({ ...er, clienteId: undefined }));
+      setClienteErros({}); setClienteModal(false);
+    } catch (err) { if (!err.limitePlano) avisarErro(err.message); }
+    finally { setSalvandoCliente(false); }
   };
 
   const saveEt = async () => {
@@ -160,6 +185,8 @@ export default function Obras({ data, setData, api, canWrite }) {
   const lista = filtroStatus === "Todas" ? obras : obras.filter(o => o.status === filtroStatus);
   const fecharObra = () => { setModal(null); setErros({}); };
   const fecharEt = () => { setEtModal(false); setEtErros({}); };
+  const fecharCliente = () => { setClienteModal(false); setClienteErros({}); };
+  const setCF = k => e => setClienteForm(f => ({ ...f, [k]: e.target.value }));
   const setF = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
   const setEF = k => e => setEtForm(f => ({ ...f, [k]: e.target.value }));
   const setSub = k => ev => setEditSub(s => ({ ...s, [k]: ev.target.value }));
@@ -169,6 +196,11 @@ export default function Obras({ data, setData, api, canWrite }) {
       <PageActions>
         {canWrite && <Button iconLeft="plus" onClick={() => { setForm({ status: "Planejada" }); setModal("new"); }}>Nova obra</Button>}
       </PageActions>
+      {canWrite && semCliente.length > 0 && (
+        <Banner tone="warning" title={`${semCliente.length} ${semCliente.length > 1 ? "obras estão" : "obra está"} sem cliente`}>
+          Toda obra precisa de um cliente. Clique no lápis da obra, escolha o cliente e salve.
+        </Banner>
+      )}
       <SegmentedTabs variant="light" value={filtroStatus} onChange={setFiltroStatus}
         tabs={["Todas", "Em andamento", "Planejada", "Pausada", "Concluída"].map(v => ({ value: v, label: v === "Todas" ? "Todas" : v, count: v === "Todas" ? obras.length : obras.filter(o => o.status === v).length }))} />
 
@@ -182,6 +214,9 @@ export default function Obras({ data, setData, api, canWrite }) {
             <Card key={o.id} title={o.nome} action={<Badge size="sm" tone={sc[o.status] || "neutral"}>{o.status}</Badge>}>
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-1-5)", color: "var(--text-secondary)", marginTop: "calc(-1 * var(--space-2))" }}>
                 {o.tipoObra && <Tag tone="accent" style={{ alignSelf: "flex-start" }}>{o.tipoObra.nome}</Tag>}
+                {o.cliente
+                  ? <span style={{ display: "flex", alignItems: "center", gap: "var(--space-1-5)" }}><Icon name="users" size={16} />Cliente: {o.cliente.nome}</span>
+                  : <Badge size="sm" tone="warning" style={{ alignSelf: "flex-start" }}>Sem cliente</Badge>}
                 <span style={{ display: "flex", alignItems: "center", gap: "var(--space-1-5)" }}><Icon name="map-pin" size={16} />{o.local}</span>
                 {o.responsavel && <span style={{ display: "flex", alignItems: "center", gap: "var(--space-1-5)" }}><Icon name="user" size={16} />{o.responsavel}</span>}
                 <span style={{ display: "flex", alignItems: "center", gap: "var(--space-1-5)", flexWrap: "wrap" }}>
@@ -199,7 +234,7 @@ export default function Obras({ data, setData, api, canWrite }) {
                 {canWrite && (
                   <>
                     <span style={{ flex: 1 }} />
-                    <IconButton icon="pencil" variant="outline" size={32} label="Editar" onClick={() => { setForm({ ...o, tipoObraId: o.tipoObraId || "" }); setModal("edit"); }} />
+                    <IconButton icon="pencil" variant="outline" size={32} label="Editar" onClick={() => { setForm({ ...o, tipoObraId: o.tipoObraId || "", clienteId: o.clienteId || "" }); setModal("edit"); }} />
                     <IconButton icon="trash-2" variant="danger" size={32} label="Excluir" onClick={() => delObra(o.id)} />
                   </>
                 )}
@@ -214,6 +249,14 @@ export default function Obras({ data, setData, api, canWrite }) {
           footer={<><Button variant="secondary" onClick={fecharObra}>Cancelar</Button><Button iconLeft="check" loading={salvando} onClick={saveObra}>Salvar</Button></>}>
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
             <Input label="Nome" required error={erros.nome} value={form.nome || ""} onChange={setF("nome")} />
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+              <Select label="Cliente" required info="Quem contratou esta obra" error={erros.clienteId} value={form.clienteId || ""}
+                onChange={e => { setForm(f => ({ ...f, clienteId: e.target.value ? parseInt(e.target.value) : "" })); setErros(er => ({ ...er, clienteId: undefined })); }}>
+                <option value="">{clientes.length ? "Selecione…" : "Nenhum cliente cadastrado"}</option>
+                {clientes.map(c => <option key={c.id} value={c.id}>{c.nome}{c.cpfCnpj ? ` · ${c.cpfCnpj}` : ""}</option>)}
+              </Select>
+              <Button size="sm" variant="ghost" iconLeft="plus" style={{ alignSelf: "flex-start" }} onClick={() => { setClienteForm({}); setClienteErros({}); setClienteModal(true); }}>Cadastrar novo cliente</Button>
+            </div>
             <Input label="Local" required icon="map-pin" error={erros.local} value={form.local || ""} onChange={setF("local")} />
             <Select label="Responsável" value={form.responsavel || ""} onChange={setF("responsavel")}>
               <option value="">Sem responsável</option>
@@ -242,6 +285,20 @@ export default function Obras({ data, setData, api, canWrite }) {
               </Banner>
             )}
             <Textarea label="Descrição" rows={3} maxLength={1000} value={form.descricao || ""} onChange={setF("descricao")} />
+          </div>
+        </Modal>
+      )}
+
+      {clienteModal && (
+        <Modal title="Novo cliente" onClose={fecharCliente}
+          footer={<><Button variant="secondary" onClick={fecharCliente}>Cancelar</Button><Button iconLeft="check" loading={salvandoCliente} onClick={saveCliente}>Salvar</Button></>}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+            <Input label="Nome completo / razão social" required error={clienteErros.nome} value={clienteForm.nome || ""} onChange={setCF("nome")} />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
+              <Input label="CPF / CNPJ" value={clienteForm.cpfCnpj || ""} onChange={setCF("cpfCnpj")} />
+              <Input label="Telefone" prefix="+55" value={clienteForm.telefone || ""} onChange={setCF("telefone")} />
+            </div>
+            <Input label="E-mail" type="email" icon="mail" value={clienteForm.email || ""} onChange={setCF("email")} />
           </div>
         </Modal>
       )}

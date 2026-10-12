@@ -122,9 +122,15 @@ model Obra {
   createdAt   DateTime @default(now())
   // Melhoria 2: tipo de obra (nullable para compatibilidade com obras existentes)
   tipoObraId  Int?
+  /// Cliente da obra: uma pessoa do cadastro com o perfil Cliente. Obrigatório ao criar ou salvar;
+  /// fica nulo só nas obras anteriores a essa regra, até alguém escolher o cliente.
+  clienteId   Int?
 
   tenant                Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   tipoObra              TipoObra?         @relation(fields: [tipoObraId], references: [id], onDelete: SetNull)
+  /// NoAction (checado no fim do comando): apagar só a pessoa é recusado, mas apagar a empresa inteira (cascata de obras e pessoas) funciona.
+  /// Restrict, que checa na hora, quebraria a exclusão da empresa conforme a ordem da cascata. A rota avisa antes, com o nome das obras.
+  cliente               Funcionario?      @relation("ObraCliente", fields: [clienteId], references: [id], onDelete: NoAction)
   etapas                EtapaObra[]
   estoques              Estoque[]
   alocacoes             Alocacao[]
@@ -143,6 +149,7 @@ model Obra {
 
   @@index([tenantId])
   @@index([tipoObraId])
+  @@index([clienteId])
 }
 
 // ─── Anexos da Obra ──────────────────────────────────────────────────────────
@@ -321,12 +328,13 @@ model Funcionario {
   salarioDia    Float   @default(0)
   ativo         Boolean @default(true)
 
-  tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  funcionarioObra FuncionarioObra[]
-  apontamentos    ApontamentoMO[]
-  ordensCompra    OrdemCompra[]
-  titulos         Titulo[]
-  maquinasLocadas Maquina[]
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  funcionarioObra  FuncionarioObra[]
+  apontamentos     ApontamentoMO[]
+  ordensCompra     OrdemCompra[]
+  titulos          Titulo[]
+  maquinasLocadas  Maquina[]
+  obrasComoCliente Obra[]            @relation("ObraCliente")
 }
 
 model Subetapa {

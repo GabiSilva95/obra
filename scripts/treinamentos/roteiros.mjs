@@ -129,6 +129,8 @@ export const ROTEIROS = {
     await t.botao("Nova obra");
     await t.passo(2);
     await t.digitar("Nome", "Residência Silva");
+    await t.escolher("Cliente", 1);
+    await t.mostrar(t.page.getByRole("button", { name: "Cadastrar novo cliente" }));
     await t.digitar("Local", "Rua das Flores, 120, Goiânia");
     await t.escolher("Responsável", 1);
     await t.data("Início", "2026-10-05");

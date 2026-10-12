@@ -39,6 +39,14 @@ ConstruktPro — multi-tenant SaaS for construction management. React 18 + Vite 
 - **Permissão:** a seção Financeiro só aparece e só chama `/api/financeiro` com a permissão `financeiro`; Estoque (com Compras) exige `estoque`. `resumoFin` do `App.jsx` é `null` carregando e `false` se falhou.
 - **Valor em estoque** usa o custo do lote, igual à tela de Estoque (cai no custo do cadastro se o lote não tem).
 
+## Obras — rules
+
+- **Toda obra tem cliente:** `Obra.clienteId` aponta para uma `Funcionario` (o cadastro de pessoas) com `isCliente`. A rota (`server/routes/obras.js`, `validarCliente`) exige no POST, mantém o atual no PUT sem o campo e só deixa uma obra antiga sem cliente salvar quando recebe um. Pessoa de outra empresa e id inexistente respondem igual (404). A lista devolve só `{ id, nome }` do cliente, nunca CPF/CNPJ.
+- **A chave estrangeira é `NoAction`, não `Restrict`:** `Restrict` checa na hora e quebraria a exclusão de uma empresa inteira (cascata de obras e pessoas) conforme a ordem. Apagar só a pessoa continua recusado; a rota de Cadastros avisa antes com 409 e o nome das obras, e o mesmo vale para tirar o perfil Cliente de quem é cliente de obra.
+- **Nova obra na tela:** o campo Cliente tem o atalho "Cadastrar novo cliente" (cria a pessoa com o perfil Cliente e já a escolhe). Obra antiga mostra "Sem cliente" e um aviso no topo. Obra criada por código (seed, teste) precisa de `clienteId`.
+- **Tela manda `tipoObraId: ""` para "sem tipo":** o servidor trata como `null` (antes isso virava erro 500 ao editar obra sem tipo).
+- **Testes:** `node --env-file=.env scripts/obras/e2e-cliente.mjs` e `scripts/obras/ui-cliente.mjs` (criam e apagam a própria empresa). Mexeu na tela de Obras? Atualize o módulo `obras` em `conteudo.js`, o roteiro e regrave `obras` e `obras-etapas`.
+
 ## Suporte (cliente) — rules
 
 - **Uma tabela, dois canais:** `Ticket` guarda o chamado (`canal: "ticket"`) e o chat ao vivo (`canal: "chat"`). O `id` autoincremento é o número do chamado e a ordem de solicitação. Telas em `src/pages/Suporte/`; a janela do chat é `src/components/ChatSuporte.jsx`, montada no shell do `App.jsx` para acompanhar o cliente pelas telas.

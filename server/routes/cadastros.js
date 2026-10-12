@@ -228,12 +228,22 @@ router.post("/funcionarios", async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+/** Obras em que esta pessoa é o cliente (para não deixar uma obra sem cliente). */
+async function obrasDoCliente(pessoaId, tenantId) {
+  return prisma.obra.findMany({ where: { clienteId: pessoaId, tenantId }, select: { nome: true }, orderBy: { nome: "asc" }, take: 5 });
+}
+const listaDeObras = obras => obras.map(o => o.nome).join(", ");
+
 router.put("/funcionarios/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const existing = await findDoTenant("funcionario", id, req.user.tenantId);
     if (!existing) return ownershipError(res);
     const { nome, cpfCnpj, telefone, email, endereco, isColaborador, isFornecedor, isCliente, cargo, salarioDia, ativo } = req.body;
+    if (!isCliente) {
+      const obras = await obrasDoCliente(id, req.user.tenantId);
+      if (obras.length) return res.status(409).json({ error: `Esta pessoa é o cliente de: ${listaDeObras(obras)}. Troque o cliente dessas obras antes de tirar o perfil Cliente.` });
+    }
     const item = await prisma.funcionario.update({
       where: { id },
       data: {
@@ -251,6 +261,8 @@ router.delete("/funcionarios/:id", async (req, res) => {
     const id = parseInt(req.params.id);
     const existing = await findDoTenant("funcionario", id, req.user.tenantId);
     if (!existing) return ownershipError(res);
+    const obras = await obrasDoCliente(id, req.user.tenantId);
+    if (obras.length) return res.status(409).json({ error: `Esta pessoa é o cliente de: ${listaDeObras(obras)}. Troque o cliente dessas obras antes de excluir.` });
     await prisma.funcionario.delete({ where: { id } });
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }

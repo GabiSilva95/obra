@@ -14,6 +14,25 @@ async function findObraDoTenant(obraId, tenantId) {
   return prisma.obra.findFirst({ where: { id: obraId, tenantId } });
 }
 
+/** O que a lista de obras mostra do cliente: só o necessário (id e nome). */
+const CLIENTE_SEL = { select: { id: true, nome: true } };
+
+/**
+ * Toda obra tem um cliente: uma pessoa do cadastro da empresa com o perfil Cliente.
+ * Pessoa de outra empresa e id que não existe respondem igual (404), sem revelar nada.
+ * @returns {Promise<{id: number}|{erro: string, status: number}>}
+ */
+async function validarCliente(clienteId, tenantId) {
+  const id = Number(clienteId);
+  if (clienteId === undefined || clienteId === null || clienteId === "" || !Number.isInteger(id) || id <= 0) {
+    return { erro: "Informe o cliente da obra.", status: 400 };
+  }
+  const pessoa = await prisma.funcionario.findFirst({ where: { id, tenantId }, select: { id: true, isCliente: true } });
+  if (!pessoa) return { erro: "Cliente não encontrado.", status: 404 };
+  if (!pessoa.isCliente) return { erro: "Essa pessoa não tem o perfil Cliente. Marque o perfil no cadastro dela.", status: 400 };
+  return { id: pessoa.id };
+}
+
 async function findEtapaDoTenant(etapaId, obraId, tenantId) {
   return prisma.etapaObra.findFirst({ where: { id: etapaId, obraId, tenantId } });
 }
@@ -85,6 +104,7 @@ router.get("/", async (req, res) => {
       etapas:   { include: { tipoEtapa: true, subetapas: { orderBy: { id: "asc" } } } },
       acessos:  true,
       tipoObra: true,
+      cliente:  CLIENTE_SEL,
     },
     orderBy: { createdAt: "desc" },
   });
@@ -92,7 +112,10 @@ router.get("/", async (req, res) => {
 });
 
 router.post("/", checkPlanLimit("obras"), async (req, res) => {
-  const { nome, local, responsavel, inicio, previsaoFim, orcamento, status, descricao, tipoObraId } = req.body;
+  const { nome, local, responsavel, inicio, previsaoFim, orcamento, status, descricao, tipoObraId, clienteId } = req.body;
+
+  const cliente = await validarCliente(clienteId, req.user.tenantId);
+  if (cliente.erro) return res.status(cliente.status).json({ error: cliente.erro });
 
   // Valida tipoObraId se fornecido
   let tipoObra = null;
@@ -100,8 +123,9 @@ router.post("/", checkPlanLimit("obras"), async (req, res) => {
     tipoObra = await prisma.tipoObra.findFirst({
       where: { id: parseInt(tipoObraId), tenantId: req.user.tenantId },
       include: {
+        // As etapas do modelo são `TipoObraEtapa`: não têm subetapas (só a etapa real da obra tem)
         etapas: {
-          include: { tipoEtapa: true, subetapas: { orderBy: { id: "asc" } } },
+          include: { tipoEtapa: true },
           orderBy: { ordem: "asc" },
         },
       },
@@ -121,6 +145,7 @@ router.post("/", checkPlanLimit("obras"), async (req, res) => {
       status:     status || "Planejada",
       descricao:  descricao || null,
       tipoObraId: tipoObra ? tipoObra.id : null,
+      clienteId:  cliente.id,
     },
   });
 
@@ -148,6 +173,7 @@ router.post("/", checkPlanLimit("obras"), async (req, res) => {
       etapas:   { include: { tipoEtapa: true }, orderBy: { dataInicioP: "asc" } },
       acessos:  true,
       tipoObra: true,
+      cliente:  CLIENTE_SEL,
     },
   });
   res.status(201).json(obraCompleta);
@@ -158,7 +184,19 @@ router.put("/:id", async (req, res) => {
   const obra = await findObraDoTenant(id, req.user.tenantId);
   if (!obra) return res.status(404).json({ error: "Obra não encontrada." });
 
-  const { nome, local, responsavel, inicio, previsaoFim, orcamento, status, descricao, tipoObraId } = req.body;
+  const { nome, local, responsavel, inicio, previsaoFim, orcamento, status, descricao, clienteId } = req.body;
+  // A tela manda "" para "sem tipo": é o mesmo que null (desvincular), nunca um id inválido
+  const tipoObraId = req.body.tipoObraId === "" ? null : req.body.tipoObraId;
+
+  // Cliente: obrigatório. Sem o campo, vale o que a obra já tem; obra antiga sem cliente não salva até ganhar um.
+  let novoClienteId;
+  if (clienteId !== undefined) {
+    const cliente = await validarCliente(clienteId, req.user.tenantId);
+    if (cliente.erro) return res.status(cliente.status).json({ error: cliente.erro });
+    novoClienteId = cliente.id;
+  } else if (!obra.clienteId) {
+    return res.status(400).json({ error: "Esta obra ainda não tem cliente. Informe o cliente da obra para salvar." });
+  }
 
   // Valida tipoObraId se fornecido (null = remover vínculo)
   if (tipoObraId !== undefined && tipoObraId !== null) {
@@ -179,6 +217,7 @@ router.put("/:id", async (req, res) => {
       orcamento:  parseFloat(orcamento) || 0,
       status,
       descricao:  descricao || null,
+      ...(novoClienteId !== undefined && { clienteId: novoClienteId }),
       // undefined = não altera; null = desvincula; número = novo vínculo
       ...(tipoObraId !== undefined && {
         tipoObraId: tipoObraId === null ? null : parseInt(tipoObraId),
@@ -188,6 +227,7 @@ router.put("/:id", async (req, res) => {
       etapas:   { include: { tipoEtapa: true, subetapas: { orderBy: { id: "asc" } } } },
       acessos:  true,
       tipoObra: true,
+      cliente:  CLIENTE_SEL,
     },
   });
   res.json(updated);

@@ -361,7 +361,7 @@ Cobrança recorrente por **cartão** (Stripe Billing), sem SDK (`server/pagament
 |--------|-----------|
 | `Tenant` | Empresa/conta. Possui `plano` (starter/pro/enterprise) |
 | `User` | Usuário do tenant. `role`: `tenant_admin` ou `user`. `permissoes[]` por módulo |
-| `Obra` | Obra com orçamento, status, datas e etapas |
+| `Obra` | Obra com **cliente** (`clienteId`, uma pessoa do cadastro com o perfil Cliente), orçamento, status, datas e etapas |
 | `EtapaObra` | Etapa vinculada a um `TipoEtapa`, com progresso e orçamento próprio |
 | `Maquina` | Equipamento com custo/hora |
 | `Funcionario` | Colaborador com salário/dia e vínculo com obras |
@@ -396,13 +396,15 @@ Base URL: `/api`
 | Método | Rota | Descrição |
 |--------|------|-----------|
 | `GET` | `/obras` | Lista obras do tenant |
-| `POST` | `/obras` | Cria obra (verifica cota do plano) |
-| `PUT` | `/obras/:id` | Atualiza obra |
+| `POST` | `/obras` | Cria obra (verifica cota do plano). Exige `clienteId`: pessoa da empresa com o perfil Cliente (400 sem ele ou sem o perfil, 404 se não existe ou é de outra empresa) |
+| `PUT` | `/obras/:id` | Atualiza obra. Sem `clienteId` mantém o cliente atual; obra antiga sem cliente só salva quando recebe um. `tipoObraId: ""` vale como "sem tipo" |
 | `DELETE` | `/obras/:id` | Remove obra |
 | `GET` | `/obras/:id/etapas` | Lista etapas da obra |
 | `POST` | `/obras/:id/etapas` | Adiciona etapa |
 | `PUT` | `/obras/:id/etapas/:etapaId` | Atualiza etapa |
 | `DELETE` | `/obras/:id/etapas/:etapaId` | Remove etapa |
+
+**Cliente da obra:** toda obra tem um cliente. Na tela, o campo **Cliente** lista as pessoas com o perfil Cliente e tem o atalho **Cadastrar novo cliente** (nome, CPF/CNPJ, telefone e e-mail) para não obrigar a sair do formulário. As obras criadas antes dessa regra aparecem com o aviso "Sem cliente" e só salvam depois de ganhar um. Quem é cliente de uma obra **não pode ser excluído nem perder o perfil Cliente** (409, com o nome das obras). Teste: `node --env-file=.env scripts/obras/e2e-cliente.mjs` (API) e `scripts/obras/ui-cliente.mjs` (interface).
 
 ### Cadastros
 

@@ -113,7 +113,7 @@ export const MODULOS = [
     ],
     campos: [
       { nome: "Nome completo / razão social", oQueE: "Nome da pessoa ou da empresa.", comoPreencher: "Nome completo para pessoa física, razão social para empresa.", obrigatorio: obrig },
-      { nome: "Perfil", oQueE: "Papel da pessoa no sistema.", comoPreencher: "Colaborador aparece no Diário e como responsável de obra. Fornecedor aparece nas compras. Cliente é para referência." },
+      { nome: "Perfil", oQueE: "Papel da pessoa no sistema.", comoPreencher: "Colaborador aparece no Diário e como responsável de obra. Fornecedor aparece nas compras. Cliente aparece na escolha do cliente de cada obra, e quem é cliente de uma obra não pode ser excluído nem perder o perfil." },
       { nome: "CPF / CNPJ", oQueE: "Documento da pessoa ou empresa.", comoPreencher: "Somente números ou no formato usual. Opcional." },
       { nome: "Telefone", oQueE: "Contato principal.", comoPreencher: "DDD e número. Opcional." },
       { nome: "E-mail", oQueE: "E-mail de contato.", comoPreencher: "Opcional." },
@@ -158,13 +158,18 @@ export const MODULOS = [
     fonte: ["src/pages/Obras.jsx"],
     passos: [
       "Abra Obras e clique em Nova obra.",
-      "Informe nome, local, responsável, datas e orçamento.",
+      "Informe o nome e escolha o cliente da obra (se ele ainda não existe, clique em Cadastrar novo cliente). Depois preencha local, responsável, datas e orçamento.",
       "Escolha um tipo de obra para criar as etapas automaticamente, ou deixe sem tipo para criar as etapas à mão.",
       "Clique em Salvar. A obra aparece na lista com o progresso.",
       "Use os filtros de status no topo da lista e o lápis do cartão para editar.",
     ],
     campos: [
       { nome: "Nome", oQueE: "Como a obra é chamada no sistema.", comoPreencher: "Ex.: Residência Silva, Galpão Industrial.", obrigatorio: obrig },
+      { nome: "Cliente", oQueE: "Quem contratou a obra.", comoPreencher: "Escolha um cliente cadastrado em Pessoas ou clique em Cadastrar novo cliente para criá-lo ali mesmo (nome, CPF/CNPJ, telefone e e-mail). Toda obra precisa de um cliente: as obras antigas aparecem com o aviso Sem cliente e só salvam depois de ganhar um.", obrigatorio: obrig },
+      { nome: "Nome completo / razão social", oQueE: "Em Cadastrar novo cliente: o nome do cliente.", comoPreencher: "Nome completo para pessoa física, razão social para empresa.", obrigatorio: obrig },
+      { nome: "CPF / CNPJ", oQueE: "Em Cadastrar novo cliente: o documento do cliente.", comoPreencher: "Opcional." },
+      { nome: "Telefone", oQueE: "Em Cadastrar novo cliente: o contato principal.", comoPreencher: "DDD e número. Opcional." },
+      { nome: "E-mail", oQueE: "Em Cadastrar novo cliente: o e-mail de contato.", comoPreencher: "Opcional." },
       { nome: "Local", oQueE: "Endereço ou cidade da obra.", comoPreencher: "Rua, bairro e cidade.", obrigatorio: obrig },
       { nome: "Responsável", oQueE: "Quem responde pela obra.", comoPreencher: "Escolha um colaborador cadastrado em Pessoas. Opcional." },
       { nome: "Início", oQueE: "Data de início da obra.", comoPreencher: "Data prevista ou real de início.", obrigatorio: obrig },

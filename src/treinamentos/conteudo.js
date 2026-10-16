@@ -201,7 +201,7 @@ export const MODULOS = [
       { nome: "Início previsto", oQueE: "Quando a etapa deve começar.", comoPreencher: "Data do planejamento.", obrigatorio: obrig },
       { nome: "Fim previsto", oQueE: "Quando a etapa deve terminar.", comoPreencher: "Passada essa data sem conclusão, a etapa conta como atrasada.", obrigatorio: obrig },
       { nome: "Início real", oQueE: "Quando a etapa começou de fato.", comoPreencher: "Preencha ao iniciar o serviço." },
-      { nome: "Fim real", oQueE: "Quando a etapa terminou de fato.", comoPreencher: "Preencha ao concluir." },
+      { nome: "Fim real", oQueE: "Quando a etapa terminou de fato.", comoPreencher: "Preencha ao concluir: a etapa (ou subetapa) passa sozinha para Concluída." },
       { nome: "Status", oQueE: "Situação da etapa.", comoPreencher: "Pendente, Em andamento, Concluída, Atrasada ou Pausada." },
       { nome: "Orçamento da etapa", oQueE: "Quanto foi orçado para esta etapa.", comoPreencher: "Valor em reais. Opcional, mas permite ver se a etapa estourou." },
       { nome: "Progresso", oQueE: "Percentual concluído da etapa.", comoPreencher: "Arraste a barra. Com subetapas, o progresso é calculado por elas." },
@@ -380,6 +380,8 @@ export const MODULOS = [
       "Em Equipe presente, marque quem trabalhou e escolha dia cheio ou meio período.",
       "Descreva as atividades do dia e anote ocorrências em Observações.",
       "Clique em Salvar registro. Cada presença vira custo de mão de obra na obra.",
+      "No cartão do dia, clique em Anexos para guardar fotos e documentos daquele registro.",
+      "Clique em Relatório, escolha a obra e o período e gere o PDF ou o CSV do diário.",
     ],
     campos: [
       { nome: "Filtrar obra", oQueE: "Mostra só os registros de uma obra.", comoPreencher: "Escolha a obra ou Todas." },
@@ -390,6 +392,8 @@ export const MODULOS = [
       { nome: "Período", oQueE: "Quanto tempo cada pessoa marcada trabalhou.", comoPreencher: "Dia cheio ou Meio período. Define o custo do dia." },
       { nome: "Descrição das atividades", oQueE: "O que foi feito no dia.", comoPreencher: "Serviços executados, até 2000 caracteres.", obrigatorio: obrig },
       { nome: "Observações", oQueE: "Ocorrências do dia.", comoPreencher: "Problemas, visitas, pendências. Opcional." },
+      { nome: "De", oQueE: "Em Relatório: primeiro dia do período.", comoPreencher: "Opcional. Sem datas, entra o diário inteiro." },
+      { nome: "Até", oQueE: "Em Relatório: último dia do período.", comoPreencher: "Opcional." },
     ],
   },
   {
@@ -714,7 +718,7 @@ export const MODULOS = [
     passos: [
       "Abra Relatórios.",
       "Use o filtro para ver todas as obras ou uma só.",
-      "Na aba Resumo, confira o orçamento utilizado e o andamento das etapas de cada obra.",
+      "Na aba Resumo, confira o orçamento utilizado e o % real de andamento de cada etapa e subetapa (a subetapa conta 100% quando concluída).",
       "Na aba Cronograma (Gantt), veja as etapas no tempo: previsto e realizado.",
       "Clique em CSV para abrir em planilha ou em PDF para imprimir e enviar.",
     ],

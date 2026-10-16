@@ -292,6 +292,15 @@ export const ROTEIROS = {
     await t.passo(5);
     await t.mostrar(t.modal().getByRole("button", { name: "Salvar registro" }));
     await t.cancelar();
+    await t.passo(6);
+    await t.mostrar(t.page.getByRole("button", { name: /^Anexos/ }).first());
+    await t.passo(7);
+    await t.botao("Relatório");
+    await t.escolher("Obra", 1);
+    await t.data("De", "2026-10-01");
+    await t.data("Até", "2026-10-31");
+    await t.mostrar(t.modal().getByRole("button", { name: "Gerar PDF" }));
+    await t.cancelar();
   },
 
   "financeiro-resumo": async t => {

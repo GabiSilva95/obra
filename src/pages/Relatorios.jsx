@@ -182,13 +182,25 @@ export default function Relatorios({ data }) {
                         const tp = tiposEtapa.find(t => t.id === e.tipoEtapaId);
                         const at = isAtrasada(e);
                         return (
-                          <div key={e.id} style={{ display: "flex", alignItems: "center", gap: "var(--space-2-5)" }}>
+                          <div key={e.id} style={{ display: "flex", flexDirection: "column", gap: "var(--space-1-5)" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2-5)" }}>
                             <div style={{ width: "var(--space-5)", height: "var(--space-5)", borderRadius: "var(--radius-sm-inner)", background: "var(--accent-soft)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon name={tp?.icon || "square-check"} size={11} color={"var(--accent)"} /></div>
                             <span style={{ fontSize: "var(--fs-caption)", color: at ? "var(--status-danger)" : "var(--text-muted)", width: "var(--col-min-sm)", flexShrink: 0, fontWeight: at ? 600 : 400 }}>{tp?.nome}</span>
                             <div style={{ flex: 1 }}><ProgressBar value={e.progresso} color={at ? "var(--status-danger)" : e.progresso === 100 ? "var(--status-success)" : "var(--accent)"} /></div>
                             <span style={{ fontSize: "var(--fs-caption)", color: "var(--text-muted)", width: "var(--space-8)", textAlign: "right" }}>{e.progresso}%</span>
                             {at && <Badge size="sm" tone="error">Atraso</Badge>}
                             {e.orcamento > 0 && <span style={{ fontSize: "var(--fs-micro)", color: "var(--text-secondary)" }}>{fmt(e.orcamento)}</span>}
+                          </div>
+                          {(e.subetapas || []).map(sub => {
+                            const pct = sub.concluida ? 100 : 0; // subetapa não tem andamento parcial: está feita ou não
+                            return (
+                              <div key={sub.id} style={{ display: "flex", alignItems: "center", gap: "var(--space-2-5)", marginLeft: "var(--space-8)" }}>
+                                <span style={{ fontSize: "var(--fs-p6)", color: "var(--text-secondary)", width: "var(--col-min-sm)", flexShrink: 0 }}>{sub.nome}</span>
+                                <div style={{ flex: 1 }}><ProgressBar value={pct} color={pct === 100 ? "var(--status-success)" : "var(--accent)"} /></div>
+                                <span style={{ fontSize: "var(--fs-caption)", color: "var(--text-muted)", width: "var(--space-8)", textAlign: "right" }}>{pct}%</span>
+                              </div>
+                            );
+                          })}
                           </div>
                         );
                       })}

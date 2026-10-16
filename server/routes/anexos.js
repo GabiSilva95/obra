@@ -39,15 +39,29 @@ async function obraDoTenant(obraId, tenantId) {
   return prisma.obra.findFirst({ where: { id: parseInt(obraId), tenantId } });
 }
 
+/**
+ * Onde os arquivos ficam: na obra (`/obras/:id/anexos`) ou num registro do diário (`/diario/:id/anexos`,
+ * que põe o registro em `req.diarioEntry`). Os anexos do diário não aparecem na lista da obra e vice-versa.
+ */
+async function escopo(req) {
+  if (req.diarioEntry) {
+    const obra = await obraDoTenant(req.diarioEntry.obraId, req.user.tenantId);
+    return obra && { obra, filtro: { diarioId: req.diarioEntry.id }, extra: { diarioId: req.diarioEntry.id } };
+  }
+  const obra = await obraDoTenant(req.params.id, req.user.tenantId);
+  return obra && { obra, filtro: { diarioId: null }, extra: {} };
+}
+
 // ─── Listar ──────────────────────────────────────────────────────────────────
 
 router.get("/", async (req, res) => {
   try {
-    const obra = await obraDoTenant(req.params.id, req.user.tenantId);
-    if (!obra) return res.status(404).json({ error: "Obra não encontrada." });
+    const ctx = await escopo(req);
+    if (!ctx) return res.status(404).json({ error: "Obra não encontrada." });
+    const { obra } = ctx;
 
     const itens = await prisma.anexo.findMany({
-      where: { obraId: obra.id, tenantId: req.user.tenantId },
+      where: { obraId: obra.id, tenantId: req.user.tenantId, ...ctx.filtro },
       select: CAMPOS_META,
       orderBy: { createdAt: "desc" },
     });
@@ -59,8 +73,9 @@ router.get("/", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const obra = await obraDoTenant(req.params.id, req.user.tenantId);
-    if (!obra) return res.status(404).json({ error: "Obra não encontrada." });
+    const ctx = await escopo(req);
+    if (!ctx) return res.status(404).json({ error: "Obra não encontrada." });
+    const { obra } = ctx;
 
     const { nome, mimeType, dados, descricao } = req.body;
     if (!nome?.trim()) return res.status(400).json({ error: "Nome do arquivo é obrigatório." });
@@ -98,6 +113,7 @@ router.post("/", async (req, res) => {
         dados:     buffer,
         descricao: descricao?.trim() || null,
         userId:    req.user.userId ?? null,
+        ...ctx.extra,
       },
       select: CAMPOS_META,
     });
@@ -114,11 +130,12 @@ router.post("/", async (req, res) => {
  */
 router.get("/:anexoId", async (req, res) => {
   try {
-    const obra = await obraDoTenant(req.params.id, req.user.tenantId);
-    if (!obra) return res.status(404).json({ error: "Obra não encontrada." });
+    const ctx = await escopo(req);
+    if (!ctx) return res.status(404).json({ error: "Obra não encontrada." });
+    const { obra } = ctx;
 
     const anexo = await prisma.anexo.findFirst({
-      where: { id: parseInt(req.params.anexoId), obraId: obra.id, tenantId: req.user.tenantId },
+      where: { id: parseInt(req.params.anexoId), obraId: obra.id, tenantId: req.user.tenantId, ...ctx.filtro },
     });
     if (!anexo) return res.status(404).json({ error: "Anexo não encontrado." });
 
@@ -136,11 +153,12 @@ router.get("/:anexoId", async (req, res) => {
 
 router.delete("/:anexoId", async (req, res) => {
   try {
-    const obra = await obraDoTenant(req.params.id, req.user.tenantId);
-    if (!obra) return res.status(404).json({ error: "Obra não encontrada." });
+    const ctx = await escopo(req);
+    if (!ctx) return res.status(404).json({ error: "Obra não encontrada." });
+    const { obra } = ctx;
 
     const anexo = await prisma.anexo.findFirst({
-      where: { id: parseInt(req.params.anexoId), obraId: obra.id, tenantId: req.user.tenantId },
+      where: { id: parseInt(req.params.anexoId), obraId: obra.id, tenantId: req.user.tenantId, ...ctx.filtro },
       select: { id: true },
     });
     if (!anexo) return res.status(404).json({ error: "Anexo não encontrado." });

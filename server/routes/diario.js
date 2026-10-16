@@ -1,11 +1,23 @@
 import { Router } from "express";
 import prisma from "../db.js";
+import anexosRoutes from "./anexos.js";
 
 const router = Router();
 
 const incluir = {
   apontamentos: { include: { funcionario: { select: { nome: true, cargo: true } } } },
+  _count: { select: { anexos: true } },
 };
+
+// Anexos do registro do diário: /diario/:id/anexos (mesmas regras dos anexos da obra)
+router.use("/:id/anexos", async (req, res, next) => {
+  try {
+    const reg = await prisma.diarioObra.findFirst({ where: { id: parseInt(req.params.id), tenantId: req.user.tenantId }, select: { id: true, obraId: true } });
+    if (!reg) return res.status(404).json({ error: "Registro do diário não encontrado." });
+    req.diarioEntry = reg;
+    next();
+  } catch (e) { res.status(500).json({ error: e.message }); }
+}, anexosRoutes);
 
 router.get("/", async (req, res) => {
   try {

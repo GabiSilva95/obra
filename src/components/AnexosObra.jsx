@@ -50,7 +50,12 @@ function lerBase64(file) {
   });
 }
 
-export default function AnexosObra({ obra, api, canWrite, onClose }) {
+/**
+ * Anexos de uma obra (padrão) ou de outro dono, como um registro do diário: `base` é a rota
+ * (ex.: `/diario/12/anexos`), `titulo` o título do modal e `onContagem(n)` avisa quando o total muda.
+ */
+export default function AnexosObra({ obra, api, canWrite, onClose, base, titulo, onContagem }) {
+  const rota = base || `/obras/${obra.id}/anexos`;
   const [anexos, setAnexos]   = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [enviando, setEnviando]     = useState(null); // nome do arquivo em envio
@@ -58,8 +63,8 @@ export default function AnexosObra({ obra, api, canWrite, onClose }) {
 
   useEffect(() => {
     let ativo = true;
-    api.get(`/obras/${obra.id}/anexos`)
-      .then(d => { if (ativo) setAnexos(d); })
+    api.get(rota)
+      .then(d => { if (ativo) { setAnexos(d); onContagem?.(d.length); } })
       .catch(e => { if (ativo) setErro(e.message); })
       .finally(() => { if (ativo) setCarregando(false); });
     return () => { ativo = false; };
@@ -79,12 +84,12 @@ export default function AnexosObra({ obra, api, canWrite, onClose }) {
       setEnviando(file.name);
       try {
         const dados = await lerBase64(file);
-        const novo = await api.post(`/obras/${obra.id}/anexos`, {
+        const novo = await api.post(rota, {
           nome: file.name,
           mimeType: file.type || "application/octet-stream",
           dados,
         });
-        setAnexos(a => [novo, ...a]);
+        setAnexos(a => { onContagem?.(a.length + 1); return [novo, ...a]; });
       } catch (e) {
         setErro(`"${file.name}": ${e.message}`);
       } finally {
@@ -98,7 +103,7 @@ export default function AnexosObra({ obra, api, canWrite, onClose }) {
     try {
       // O download passa pela API autenticada, então o conteúdo vem em base64
       // e o blob é montado aqui.
-      const { dados, mimeType, nome } = await api.get(`/obras/${obra.id}/anexos/${anexo.id}`);
+      const { dados, mimeType, nome } = await api.get(`${rota}/${anexo.id}`);
       const bin = atob(dados);
       const bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
@@ -114,15 +119,15 @@ export default function AnexosObra({ obra, api, canWrite, onClose }) {
   const remover = async (anexo) => {
     if (!(await confirmar({ mensagem: `Remover "${anexo.nome}"?`, confirmarRotulo: "Remover", perigo: true }))) return;
     try {
-      await api.del(`/obras/${obra.id}/anexos/${anexo.id}`);
-      setAnexos(a => a.filter(x => x.id !== anexo.id));
+      await api.del(`${rota}/${anexo.id}`);
+      setAnexos(a => { onContagem?.(a.length - 1); return a.filter(x => x.id !== anexo.id); });
     } catch (e) { setErro(e.message); }
   };
 
   const totalBytes = anexos.reduce((s, a) => s + a.tamanho, 0);
 
   return (
-    <Modal title={`Anexos · ${obra.nome}`} onClose={onClose} wide footer={<Button variant="secondary" onClick={onClose}>Fechar</Button>}>
+    <Modal title={titulo || `Anexos · ${obra.nome}`} onClose={onClose} wide footer={<Button variant="secondary" onClick={onClose}>Fechar</Button>}>
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
         {canWrite && (
           <UploadBox height={150} multiple accept={ACEITOS.join(",")} busy={!!enviando} onFiles={enviarArquivos}
@@ -138,7 +143,7 @@ export default function AnexosObra({ obra, api, canWrite, onClose }) {
         ) : anexos.length === 0 ? (
           <div style={{ padding: "var(--space-8)", textAlign: "center", color: "var(--text-secondary)", display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--space-2)" }}>
             <Icon name="file-text" size={28} />
-            Nenhum arquivo anexado a esta obra.
+            {base ? "Nenhum arquivo anexado a este registro." : "Nenhum arquivo anexado a esta obra."}
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>

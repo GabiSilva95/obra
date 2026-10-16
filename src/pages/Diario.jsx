@@ -3,6 +3,9 @@ import { validate, fmt, today } from "../utils/helpers";
 import { avisarErro, confirmar } from "../utils/aviso";
 import { Banner, Button, Card, Checkbox, Icon, IconButton, Input, Modal, Select, Tag, Textarea } from "../../design-system";
 import { PageActions } from "../components/PageActions";
+import AnexosObra from "../components/AnexosObra";
+import { exportCsv, exportPdf } from "../utils/export";
+import { CABECALHO_CSV, dataBR, filtrarRegistros, htmlRelatorio, linhasCsv } from "./diarioRelatorio";
 
 const CLIMAS = ["Ensolarado", "Nublado", "Chuvoso", "Parcialmente nublado", "Tempestade"];
 const CLIMA_ICON = { Ensolarado: "sun", Nublado: "cloud", Chuvoso: "cloud-rain", "Parcialmente nublado": "cloud", Tempestade: "zap" };
@@ -15,6 +18,20 @@ export default function Diario({ data, setData, api, canWrite }) {
   const [erros, setErros] = useState({});
   const [salvando, setSalvando] = useState(false);
   const [presencas, setPresencas] = useState([]);   // [{ funcionarioId, dias }]
+  const [anexReg, setAnexReg] = useState(null);     // registro cujos anexos estão abertos
+  const [relModal, setRelModal] = useState(false);
+  const [relForm, setRelForm] = useState({});
+
+  const contarAnexos = (id, n) => setData(d => ({ ...d, diario: d.diario.map(x => x.id === id ? { ...x, _count: { ...x._count, anexos: n } } : x) }));
+
+  // Relatório do diário: obra e período escolhidos, em PDF (impressão) ou CSV (planilha)
+  const gerarRelatorio = formato => {
+    const regs = filtrarRegistros(diario, relForm);
+    if (!regs.length) { avisarErro("Nenhum registro do diário nesse filtro. Mude a obra ou o período."); return; }
+    if (formato === "pdf") exportPdf("Relatório do diário de obra", htmlRelatorio(regs, obras, relForm));
+    else exportCsv(`diario-${(relForm.de || "inicio")}-${(relForm.ate || "hoje")}.csv`, linhasCsv(regs, obras), CABECALHO_CSV);
+    setRelModal(false);
+  };
 
   const togglePresenca = id => setPresencas(p =>
     p.some(x => x.funcionarioId === id)
@@ -98,6 +115,7 @@ export default function Diario({ data, setData, api, canWrite }) {
           <option value="">Todas as obras</option>
           {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
         </Select>
+        <Button iconLeft="file-text" variant="secondary" onClick={() => { setRelForm({ obraId: obraFiltro || "" }); setRelModal(true); }}>Relatório</Button>
         {canWrite && <Button iconLeft="plus" onClick={abrirNovo}>Novo registro</Button>}
       </PageActions>
       <p style={{ color: "var(--text-secondary)" }}>Registro diário de atividades, equipe e condições.</p>
@@ -133,6 +151,9 @@ export default function Diario({ data, setData, api, canWrite }) {
                   <p style={{ margin: 0, lineHeight: "var(--lh-body)" }}>{reg.descricao}</p>
                   {reg.obs && <p style={{ margin: 0, fontSize: "var(--fs-p5-5)", color: "var(--text-secondary)" }}><b>Nota:</b> {reg.obs}</p>}
                 </div>
+                <div style={{ display: "flex", gap: "var(--space-1)", flexShrink: 0, alignItems: "center" }}>
+                  <Button size="sm" variant="secondary" iconLeft="file-text" onClick={() => setAnexReg(reg)}>Anexos{reg._count?.anexos ? ` (${reg._count.anexos})` : ""}</Button>
+                </div>
                 {canWrite && (
                   <div style={{ display: "flex", gap: "var(--space-1)", flexShrink: 0 }}>
                     <IconButton icon="pencil" label="Editar" onClick={() => abrirEdicao(reg)} />
@@ -143,6 +164,28 @@ export default function Diario({ data, setData, api, canWrite }) {
             );
           })}
         </div>
+      )}
+
+      {anexReg && (
+        <AnexosObra obra={obras.find(o => o.id === anexReg.obraId) || {}} api={api} canWrite={canWrite} onClose={() => setAnexReg(null)}
+          base={`/diario/${anexReg.id}/anexos`} titulo={`Anexos · ${dataBR(anexReg.data)}`} onContagem={n => contarAnexos(anexReg.id, n)} />
+      )}
+
+      {relModal && (
+        <Modal title="Relatório do diário" onClose={() => setRelModal(false)}
+          footer={<><Button variant="secondary" onClick={() => setRelModal(false)}>Cancelar</Button><Button variant="secondary" iconLeft="download" onClick={() => gerarRelatorio("csv")}>Baixar CSV</Button><Button iconLeft="file-text" onClick={() => gerarRelatorio("pdf")}>Gerar PDF</Button></>}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+            <Select label="Obra" value={relForm.obraId || ""} onChange={e => setRelForm(f => ({ ...f, obraId: e.target.value }))}>
+              <option value="">Todas as obras</option>
+              {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
+            </Select>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
+              <Input label="De" type="date" value={relForm.de || ""} onChange={e => setRelForm(f => ({ ...f, de: e.target.value }))} />
+              <Input label="Até" type="date" value={relForm.ate || ""} onChange={e => setRelForm(f => ({ ...f, ate: e.target.value }))} />
+            </div>
+            <span style={{ fontSize: "var(--fs-p6)", color: "var(--text-secondary)" }}>Sem datas, entra o diário inteiro. O relatório traz data, clima, equipe presente, atividades, observações e quantos anexos cada dia tem.</span>
+          </div>
+        </Modal>
       )}
 
       {modal && (

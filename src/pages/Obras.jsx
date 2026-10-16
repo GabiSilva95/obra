@@ -151,7 +151,7 @@ export default function Obras({ data, setData, api, canWrite }) {
       const res = await api.put(`/obras/${etObraId}/etapas/${etapaId}/subetapas/${id}`, { nome, dataInicioP, dataFimP, dataInicioR, dataFimR });
       setData(d => ({ ...d, etapasObra: d.etapasObra.map(e => {
         if (e.id !== etapaId) return e;
-        const subs = (e.subetapas || []).map(s => s.id === id ? { ...s, nome, dataInicioP, dataFimP, dataInicioR, dataFimR } : s);
+        const subs = (e.subetapas || []).map(s => s.id === id ? { ...s, nome, dataInicioP, dataFimP, dataInicioR, dataFimR, concluida: res.concluida } : s);
         return { ...e, progresso: res.progressoEtapa ?? e.progresso, subetapas: subs };
       }) }));
       avisarSucesso("Subetapa salva.");
@@ -188,7 +188,8 @@ export default function Obras({ data, setData, api, canWrite }) {
   const fecharCliente = () => { setClienteModal(false); setClienteErros({}); };
   const setCF = k => e => setClienteForm(f => ({ ...f, [k]: e.target.value }));
   const setF = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
-  const setEF = k => e => setEtForm(f => ({ ...f, [k]: e.target.value }));
+  // Fim real preenchido conclui a etapa (o servidor faz o mesmo; aqui o formulário já mostra)
+  const setEF = k => e => { const v = e.target.value; setEtForm(f => ({ ...f, [k]: v, ...(k === "dataFimR" && v ? { status: "Concluída", progresso: 100 } : {}) })); };
   const setSub = k => ev => setEditSub(s => ({ ...s, [k]: ev.target.value }));
 
   return (

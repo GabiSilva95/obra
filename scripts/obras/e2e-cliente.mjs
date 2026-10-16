@@ -108,6 +108,24 @@ try {
   const depois = await ca.del(`/api/cadastros/funcionarios/${cli2.id}`);
   ok(depois.status === 409, "ainda é cliente da outra obra: continua protegido");
 
+  // ── Fim real conclui a etapa e a subetapa ───────────────────────────────
+  const obraE = (await ca.post("/api/obras", { ...obraBase, nome: "Obra etapas", clienteId: cli1.id })).corpo;
+  const te = await prisma.tipoEtapa.create({ data: { tenantId: A.tenant.id, nome: "Etapa X" } });
+  const etBase = { tipoEtapaId: te.id, dataInicioP: "2026-10-05", dataFimP: "2026-10-20" };
+  const e1 = (await ca.post(`/api/obras/${obraE.id}/etapas`, { ...etBase, status: "Em andamento", progresso: 30 })).corpo;
+  ok(e1.status === "Em andamento" && e1.progresso === 30, "etapa sem fim real mantém status e progresso");
+  const e2 = (await ca.put(`/api/obras/${obraE.id}/etapas/${e1.id}`, { ...etBase, status: "Em andamento", progresso: 30, dataFimR: "2026-10-18" })).corpo;
+  ok(e2.status === "Concluída" && e2.progresso === 100, "preencher o fim real da etapa a conclui (status e 100%)");
+  const e3 = (await ca.post(`/api/obras/${obraE.id}/etapas`, { ...etBase, status: "Pendente", dataFimR: "2026-10-18" })).corpo;
+  ok(e3.status === "Concluída" && e3.progresso === 100, "criar etapa já com fim real: nasce concluída");
+  const e4 = (await ca.post(`/api/obras/${obraE.id}/etapas`, etBase)).corpo;
+  const sub = (await ca.post(`/api/obras/${obraE.id}/etapas/${e4.id}/subetapas`, { nome: "Sub" })).corpo;
+  const sub2 = (await ca.post(`/api/obras/${obraE.id}/etapas/${e4.id}/subetapas`, { nome: "Sub 2" })).corpo;
+  const s1 = (await ca.put(`/api/obras/${obraE.id}/etapas/${e4.id}/subetapas/${sub.id}`, { dataFimR: "2026-10-10" })).corpo;
+  ok(s1.concluida === true && s1.progressoEtapa === 50, "preencher o fim real da subetapa a conclui e atualiza o progresso da etapa");
+  const s2 = (await ca.put(`/api/obras/${obraE.id}/etapas/${e4.id}/subetapas/${sub2.id}`, { nome: "Sub 2" })).corpo;
+  ok(s2.concluida === false, "subetapa sem fim real continua aberta");
+
   // ── Excluir a empresa inteira (cascata de obras e pessoas) ───────────────
   let apagouTudo = true;
   try { await prisma.tenant.deleteMany({ where: { id: { in: empresasCriadas } } }); } catch (e) { apagouTudo = false; console.error(e.message); }

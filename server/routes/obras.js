@@ -95,6 +95,11 @@ function montarCronograma(etapasTemplate, inicio, previsaoFim) {
   });
 }
 
+/** Preencher o fim real conclui a etapa: status "Concluída" e progresso 100. Sem fim real, vale o que veio. */
+function aoConcluir(dataFimR, { status, progresso }) {
+  return dataFimR ? { status: "Concluída", progresso: 100 } : { status, progresso };
+}
+
 // ─── Obras ────────────────────────────────────────────────────────────────────
 
 router.get("/", async (req, res) => {
@@ -272,8 +277,8 @@ router.post("/:id/etapas", async (req, res) => {
       dataFimP,
       dataInicioR: dataInicioR || null,
       dataFimR:    dataFimR    || null,
-      status:      status      || "Pendente",
-      progresso:   parseInt(progresso) || 0,
+      // Fim real preenchido = etapa concluída (regra única: ver `aoConcluir`)
+      ...aoConcluir(dataFimR, { status: status || "Pendente", progresso: parseInt(progresso) || 0 }),
       orcamento:   parseFloat(req.body.orcamento) || 0,
     },
     include: { tipoEtapa: true, subetapas: { orderBy: { id: "asc" } } },
@@ -295,8 +300,7 @@ router.put("/:id/etapas/:etapaId", async (req, res) => {
       dataFimP,
       dataInicioR: dataInicioR || null,
       dataFimR:    dataFimR    || null,
-      status,
-      progresso:   parseInt(progresso) || 0,
+      ...aoConcluir(dataFimR, { status, progresso: parseInt(progresso) || 0 }),
       orcamento:   orcamento != null ? parseFloat(orcamento) : undefined,
     },
     include: { tipoEtapa: true, subetapas: { orderBy: { id: "asc" } } },
@@ -347,7 +351,8 @@ router.put("/:id/etapas/:etapaId/subetapas/:subId", async (req, res) => {
     where: { id: subId },
     data: {
       ...(nome !== undefined && { nome }),
-      ...(concluida !== undefined && { concluida: !!concluida }),
+      // Fim real preenchido = subetapa concluída
+      ...((dataFimR || concluida !== undefined) && { concluida: dataFimR ? true : !!concluida }),
       ...(dataInicioP !== undefined && { dataInicioP }),
       ...(dataFimP !== undefined && { dataFimP }),
       ...(dataInicioR !== undefined && { dataInicioR }),

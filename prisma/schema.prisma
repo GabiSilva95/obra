@@ -170,13 +170,17 @@ model Anexo {
   dados     Bytes
   descricao String?
   userId    Int?
+  /// Preenchido quando o arquivo foi anexado a um registro do diário (e não à obra em si)
+  diarioId  Int?
   createdAt DateTime @default(now())
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  obra   Obra   @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  tenant Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  obra   Obra        @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  diario DiarioObra? @relation(fields: [diarioId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@index([obraId])
+  @@index([diarioId])
 }
 
 // ─── Tipos de Etapa ───────────────────────────────────────────────────────────
@@ -559,6 +563,7 @@ model DiarioObra {
   tenant       Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   obra         Obra            @relation(fields: [obraId], references: [id], onDelete: Cascade)
   apontamentos ApontamentoMO[]
+  anexos       Anexo[]
 
   @@index([tenantId])
   @@index([obraId])

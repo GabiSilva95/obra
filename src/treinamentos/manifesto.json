@@ -32,8 +32,8 @@
     "gravadoEm": "2026-10-06"
   },
   "diario": {
-    "hash": "ad0b0975057c0df6",
-    "gravadoEm": "2026-10-06"
+    "hash": "fb3a585e33f6dc1a",
+    "gravadoEm": "2026-10-12"
   },
   "estoque": {
     "hash": "fafa10d928905e52",
@@ -100,11 +100,11 @@
     "gravadoEm": "2026-10-06"
   },
   "obras": {
-    "hash": "0bf8b573e5bf4d0b",
+    "hash": "0487c0bba45f043c",
     "gravadoEm": "2026-10-12"
   },
   "obras-etapas": {
-    "hash": "842fd4fee6bafd7c",
+    "hash": "b0ce75c30ea0e5f2",
     "gravadoEm": "2026-10-12"
   },
   "primeiros-passos": {
@@ -112,8 +112,8 @@
     "gravadoEm": "2026-10-10"
   },
   "relatorios": {
-    "hash": "4bb5a58134cddc5d",
-    "gravadoEm": "2026-10-06"
+    "hash": "42ef57fafdc0b2af",
+    "gravadoEm": "2026-10-12"
   },
   "suporte": {
     "hash": "193ee0e7cfddfbcd",

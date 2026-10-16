@@ -404,6 +404,8 @@ Base URL: `/api`
 | `PUT` | `/obras/:id/etapas/:etapaId` | Atualiza etapa |
 | `DELETE` | `/obras/:id/etapas/:etapaId` | Remove etapa |
 
+**Diário de obra:** cada registro tem **Anexos** (`/diario/:id/anexos`, mesmas regras e limite de 3 MB dos anexos da obra, separados deles: `Anexo.diarioId`; apagar o registro apaga os arquivos) e o botão **Relatório** (obra e período, em PDF pela impressão do navegador ou CSV; regras em `src/pages/diarioRelatorio.js`, com teste). Testes: `scripts/obras/e2e-diario-anexos.mjs` e `scripts/obras/ui-diario.mjs`.
+
 **Cliente da obra:** toda obra tem um cliente. Na tela, o campo **Cliente** lista as pessoas com o perfil Cliente e tem o atalho **Cadastrar novo cliente** (nome, CPF/CNPJ, telefone e e-mail) para não obrigar a sair do formulário. As obras criadas antes dessa regra aparecem com o aviso "Sem cliente" e só salvam depois de ganhar um. Quem é cliente de uma obra **não pode ser excluído nem perder o perfil Cliente** (409, com o nome das obras). Teste: `node --env-file=.env scripts/obras/e2e-cliente.mjs` (API) e `scripts/obras/ui-cliente.mjs` (interface).
 
 ### Cadastros

@@ -45,6 +45,7 @@ ConstruktPro — multi-tenant SaaS for construction management. React 18 + Vite 
 - **A chave estrangeira é `NoAction`, não `Restrict`:** `Restrict` checa na hora e quebraria a exclusão de uma empresa inteira (cascata de obras e pessoas) conforme a ordem. Apagar só a pessoa continua recusado; a rota de Cadastros avisa antes com 409 e o nome das obras, e o mesmo vale para tirar o perfil Cliente de quem é cliente de obra.
 - **Nova obra na tela:** o campo Cliente tem o atalho "Cadastrar novo cliente" (cria a pessoa com o perfil Cliente e já a escolhe). Obra antiga mostra "Sem cliente" e um aviso no topo. Obra criada por código (seed, teste) precisa de `clienteId`.
 - **Tela manda `tipoObraId: ""` para "sem tipo":** o servidor trata como `null` (antes isso virava erro 500 ao editar obra sem tipo).
+- **Anexos do diário:** o mesmo `server/routes/anexos.js` serve a obra e o registro do diário (`escopo()`: `req.diarioEntry` ou `diarioId: null`); anexo de um nunca aparece no outro. O relatório do diário monta HTML para impressão: **todo texto do usuário passa por `escapeHtml`**.
 - **Testes:** `node --env-file=.env scripts/obras/e2e-cliente.mjs` e `scripts/obras/ui-cliente.mjs` (criam e apagam a própria empresa). Mexeu na tela de Obras? Atualize o módulo `obras` em `conteudo.js`, o roteiro e regrave `obras` e `obras-etapas`.
 
 ## Suporte (cliente) — rules
